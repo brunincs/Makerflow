@@ -1,7 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import { useDropzone } from 'react-dropzone'
+import Image from 'next/image'
 import { Concorrente, ConcorrenteFormData, STATUS_CONCORRENTE_OPTIONS } from '@/lib/concorrentes'
 
 interface ConcorrenteFormProps {
@@ -12,6 +14,7 @@ interface ConcorrenteFormProps {
 export default function ConcorrenteForm({ concorrente, isEditing = false }: ConcorrenteFormProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
+  const [uploading, setUploading] = useState(false)
   const [error, setError] = useState('')
 
   const [formData, setFormData] = useState<ConcorrenteFormData>({
@@ -23,6 +26,48 @@ export default function ConcorrenteForm({ concorrente, isEditing = false }: Conc
     precoShopee: concorrente?.precoShopee || null,
     precoMercadoLivre: concorrente?.precoMercadoLivre || null,
     status: concorrente?.status || 'IDEIA',
+  })
+
+  const onDrop = useCallback(async (acceptedFiles: File[]) => {
+    const file = acceptedFiles[0]
+    if (!file) return
+
+    setUploading(true)
+    setError('')
+
+    try {
+      const formDataUpload = new FormData()
+      formDataUpload.append('file', file)
+
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formDataUpload,
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Erro no upload')
+      }
+
+      setFormData(prev => ({ ...prev, imagemProduto: data.path }))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro no upload')
+    } finally {
+      setUploading(false)
+    }
+  }, [])
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: {
+      'image/jpeg': ['.jpg', '.jpeg'],
+      'image/png': ['.png'],
+      'image/webp': ['.webp'],
+      'image/gif': ['.gif'],
+    },
+    maxFiles: 1,
+    maxSize: 5 * 1024 * 1024,
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -66,6 +111,10 @@ export default function ConcorrenteForm({ concorrente, isEditing = false }: Conc
     }))
   }
 
+  const removeImage = () => {
+    setFormData(prev => ({ ...prev, imagemProduto: '' }))
+  }
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {error && (
@@ -74,21 +123,72 @@ export default function ConcorrenteForm({ concorrente, isEditing = false }: Conc
         </div>
       )}
 
-      {/* Imagem URL */}
+      {/* Upload de Imagem */}
       <div>
-        <label htmlFor="imagemProduto" className="block text-sm font-medium text-gray-700 mb-1">
-          URL da Imagem do Produto
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Imagem do Produto
         </label>
-        <input
-          type="url"
-          id="imagemProduto"
-          name="imagemProduto"
-          value={formData.imagemProduto || ''}
-          onChange={handleChange}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          placeholder="https://exemplo.com/imagem.jpg"
-        />
-        <p className="mt-1 text-xs text-gray-500">Cole o link da imagem do produto</p>
+
+        {formData.imagemProduto ? (
+          <div className="relative">
+            <div className="relative w-full h-48 rounded-lg overflow-hidden bg-gray-100">
+              <Image
+                src={formData.imagemProduto}
+                alt="Preview"
+                fill
+                className="object-contain"
+                unoptimized
+              />
+            </div>
+            <button
+              type="button"
+              onClick={removeImage}
+              className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-1 rounded-full"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        ) : (
+          <div
+            {...getRootProps()}
+            className={`
+              border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors
+              ${isDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'}
+              ${uploading ? 'opacity-50 cursor-not-allowed' : ''}
+            `}
+          >
+            <input {...getInputProps()} disabled={uploading} />
+            <svg
+              className="mx-auto h-12 w-12 text-gray-400"
+              stroke="currentColor"
+              fill="none"
+              viewBox="0 0 48 48"
+            >
+              <path
+                d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
+                strokeWidth={2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            {uploading ? (
+              <p className="mt-2 text-sm text-gray-600">Enviando...</p>
+            ) : isDragActive ? (
+              <p className="mt-2 text-sm text-blue-600">Solte a imagem aqui</p>
+            ) : (
+              <>
+                <p className="mt-2 text-sm text-gray-600">
+                  Arraste uma imagem ou clique para selecionar
+                </p>
+                <p className="mt-1 text-xs text-gray-500">
+                  PNG, JPG, WEBP ou GIF (max. 5MB)
+                </p>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Nome */}
@@ -111,7 +211,7 @@ export default function ConcorrenteForm({ concorrente, isEditing = false }: Conc
       {/* Link Makeworld */}
       <div>
         <label htmlFor="linkMakeworld" className="block text-sm font-medium text-gray-700 mb-1">
-          Link do Modelo (Makeworld, Thingiverse, etc)
+          Link do Modelo (Makerworld, Thingiverse, etc)
         </label>
         <input
           type="url"
@@ -229,7 +329,7 @@ export default function ConcorrenteForm({ concorrente, isEditing = false }: Conc
       <div className="flex gap-4 pt-4">
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || uploading}
           className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium py-3 px-4 rounded-lg transition-colors"
         >
           {loading ? 'Salvando...' : isEditing ? 'Atualizar Produto' : 'Salvar Produto'}
