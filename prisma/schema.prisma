@@ -1,0 +1,43 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Produto {
+  id                 String   @id @default(uuid())
+  nome               String
+  imagem             String?
+  linkMakeword       String
+  linkShopee         String?
+  linkMercadoLivre   String?
+  precoConcorrente   Float
+  status             String   @default("TESTAR")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@map("produtos")
+}
+
+model Concorrente {
+  id                 String   @id @default(uuid())
+  nomeProduto        String
+  imagemProduto      String?
+  linkMakeworld      String?
+  linkShopee         String?
+  linkMercadoLivre   String?
+  precoShopee        Float?
+  precoMercadoLivre  Float?
+  precoMedio         Float?
+  vendasEstimadas    Int?
+  avaliacoes         Int?
+  status             String   @default("IDEIA")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@map("concorrentes")
+}
