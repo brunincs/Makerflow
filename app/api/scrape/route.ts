@@ -40,15 +40,15 @@ async function scrapeUrl(url: string): Promise<ScrapedData> {
 
     // Tentar extrair preço - padrões comuns
     const precoPatterns = [
-      /R\$\s*([\d.,]+)/g,
-      /"price":\s*"?([\d.,]+)"?/g,
-      /class="[^"]*price[^"]*"[^>]*>R?\$?\s*([\d.,]+)/gi,
-      /data-price="([\d.,]+)"/g,
+      /R\$\s*([\d.,]+)/,
+      /"price":\s*"?([\d.,]+)"?/,
+      /class="[^"]*price[^"]*"[^>]*>R?\$?\s*([\d.,]+)/i,
+      /data-price="([\d.,]+)"/,
     ]
 
     for (const pattern of precoPatterns) {
-      const matches = html.matchAll(pattern)
-      for (const match of matches) {
+      const match = html.match(pattern)
+      if (match && match[1]) {
         const precoStr = match[1].replace(/\./g, '').replace(',', '.')
         const precoNum = parseFloat(precoStr)
         if (precoNum > 0 && precoNum < 100000) {
@@ -56,7 +56,6 @@ async function scrapeUrl(url: string): Promise<ScrapedData> {
           break
         }
       }
-      if (preco) break
     }
 
     // Tentar extrair imagem
