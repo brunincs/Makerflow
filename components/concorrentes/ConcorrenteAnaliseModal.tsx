@@ -108,43 +108,6 @@ export default function ConcorrenteAnaliseModal({ concorrente, onClose }: Concor
             )}
           </div>
 
-          {/* Estimativa de Demanda */}
-          {(concorrente.vendasEstimadas !== null || concorrente.avaliacoes !== null) && (
-            <div className="bg-blue-50 rounded-xl p-4 mb-6">
-              <h4 className="font-semibold text-gray-900 mb-4">Estimativa de Demanda</h4>
-              <div className="grid grid-cols-2 gap-4">
-                {concorrente.vendasEstimadas !== null && (
-                  <div className="bg-white rounded-lg p-3 text-center">
-                    <p className="text-2xl font-bold text-blue-600">{concorrente.vendasEstimadas.toLocaleString('pt-BR')}</p>
-                    <p className="text-xs text-gray-500">Vendas Estimadas</p>
-                  </div>
-                )}
-                {concorrente.avaliacoes !== null && (
-                  <div className="bg-white rounded-lg p-3 text-center">
-                    <p className="text-2xl font-bold text-blue-600">{concorrente.avaliacoes.toLocaleString('pt-BR')}</p>
-                    <p className="text-xs text-gray-500">Avaliações</p>
-                  </div>
-                )}
-              </div>
-
-              {concorrente.vendasEstimadas !== null && concorrente.vendasEstimadas > 100 && (
-                <div className="mt-4 p-3 bg-green-100 rounded-lg">
-                  <p className="text-sm text-green-800">
-                    <span className="font-medium">Alta demanda detectada!</span> Este produto tem potencial de vendas significativo.
-                  </p>
-                </div>
-              )}
-
-              {concorrente.vendasEstimadas !== null && concorrente.vendasEstimadas <= 100 && concorrente.vendasEstimadas > 0 && (
-                <div className="mt-4 p-3 bg-yellow-100 rounded-lg">
-                  <p className="text-sm text-yellow-800">
-                    <span className="font-medium">Demanda moderada.</span> Considere testar com baixo volume inicial.
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
-
           {/* Insights */}
           <div className="bg-purple-50 rounded-xl p-4">
             <h4 className="font-semibold text-gray-900 mb-3">Insights</h4>

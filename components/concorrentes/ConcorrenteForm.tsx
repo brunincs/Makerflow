@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import ImageUpload from '../ImageUpload'
 import { Concorrente, ConcorrenteFormData, STATUS_CONCORRENTE_OPTIONS } from '@/lib/concorrentes'
 
 interface ConcorrenteFormProps {
@@ -13,9 +12,7 @@ interface ConcorrenteFormProps {
 export default function ConcorrenteForm({ concorrente, isEditing = false }: ConcorrenteFormProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
-  const [scraping, setScraping] = useState(false)
   const [error, setError] = useState('')
-  const [scrapeMessage, setScrapeMessage] = useState('')
 
   const [formData, setFormData] = useState<ConcorrenteFormData>({
     nomeProduto: concorrente?.nomeProduto || '',
@@ -25,8 +22,6 @@ export default function ConcorrenteForm({ concorrente, isEditing = false }: Conc
     linkMercadoLivre: concorrente?.linkMercadoLivre || '',
     precoShopee: concorrente?.precoShopee || null,
     precoMercadoLivre: concorrente?.precoMercadoLivre || null,
-    vendasEstimadas: concorrente?.vendasEstimadas || null,
-    avaliacoes: concorrente?.avaliacoes || null,
     status: concorrente?.status || 'IDEIA',
   })
 
@@ -71,40 +66,6 @@ export default function ConcorrenteForm({ concorrente, isEditing = false }: Conc
     }))
   }
 
-  const handleScrape = async (url: string, marketplace: 'shopee' | 'mercadolivre') => {
-    if (!url) return
-
-    setScraping(true)
-    setScrapeMessage('')
-
-    try {
-      const response = await fetch('/api/scrape', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url }),
-      })
-
-      const data = await response.json()
-
-      if (data.success) {
-        setFormData(prev => ({
-          ...prev,
-          nomeProduto: prev.nomeProduto || data.titulo || '',
-          imagemProduto: prev.imagemProduto || data.imagem || '',
-          [marketplace === 'shopee' ? 'precoShopee' : 'precoMercadoLivre']: data.preco || null,
-        }))
-        setScrapeMessage('Dados importados com sucesso!')
-      } else {
-        setScrapeMessage(data.message || 'Não foi possível importar dados. Preencha manualmente.')
-      }
-    } catch {
-      setScrapeMessage('Erro ao importar. Preencha manualmente.')
-    } finally {
-      setScraping(false)
-      setTimeout(() => setScrapeMessage(''), 3000)
-    }
-  }
-
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {error && (
@@ -113,30 +74,21 @@ export default function ConcorrenteForm({ concorrente, isEditing = false }: Conc
         </div>
       )}
 
-      {scrapeMessage && (
-        <div className={`px-4 py-3 rounded-lg ${scrapeMessage.includes('sucesso') ? 'bg-green-50 border border-green-200 text-green-700' : 'bg-yellow-50 border border-yellow-200 text-yellow-700'}`}>
-          {scrapeMessage}
-        </div>
-      )}
-
-      {/* Imagem */}
+      {/* Imagem URL */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Imagem do Produto
+        <label htmlFor="imagemProduto" className="block text-sm font-medium text-gray-700 mb-1">
+          URL da Imagem do Produto
         </label>
-        <ImageUpload
-          value={formData.imagemProduto}
-          onChange={(path) => setFormData(prev => ({ ...prev, imagemProduto: path }))}
-          onError={(err) => setError(err)}
-        />
-        <p className="mt-1 text-xs text-gray-500">Ou cole uma URL de imagem diretamente</p>
         <input
           type="url"
+          id="imagemProduto"
+          name="imagemProduto"
           value={formData.imagemProduto || ''}
-          onChange={(e) => setFormData(prev => ({ ...prev, imagemProduto: e.target.value }))}
-          className="mt-2 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          onChange={handleChange}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           placeholder="https://exemplo.com/imagem.jpg"
         />
+        <p className="mt-1 text-xs text-gray-500">Cole o link da imagem do produto</p>
       </div>
 
       {/* Nome */}
@@ -168,7 +120,7 @@ export default function ConcorrenteForm({ concorrente, isEditing = false }: Conc
           value={formData.linkMakeworld || ''}
           onChange={handleChange}
           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          placeholder="https://makeworld.com/..."
+          placeholder="https://makerworld.com/..."
         />
       </div>
 
@@ -183,25 +135,15 @@ export default function ConcorrenteForm({ concorrente, isEditing = false }: Conc
             <label htmlFor="linkShopee" className="block text-sm font-medium text-gray-700 mb-1">
               Link do Produto
             </label>
-            <div className="flex gap-2">
-              <input
-                type="url"
-                id="linkShopee"
-                name="linkShopee"
-                value={formData.linkShopee || ''}
-                onChange={handleChange}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="https://shopee.com.br/..."
-              />
-              <button
-                type="button"
-                onClick={() => handleScrape(formData.linkShopee || '', 'shopee')}
-                disabled={scraping || !formData.linkShopee}
-                className="px-3 py-2 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300 text-white rounded-lg text-sm font-medium transition-colors whitespace-nowrap"
-              >
-                {scraping ? 'Importando...' : 'Importar'}
-              </button>
-            </div>
+            <input
+              type="url"
+              id="linkShopee"
+              name="linkShopee"
+              value={formData.linkShopee || ''}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="https://shopee.com.br/..."
+            />
           </div>
           <div>
             <label htmlFor="precoShopee" className="block text-sm font-medium text-gray-700 mb-1">
@@ -233,25 +175,15 @@ export default function ConcorrenteForm({ concorrente, isEditing = false }: Conc
             <label htmlFor="linkMercadoLivre" className="block text-sm font-medium text-gray-700 mb-1">
               Link do Produto
             </label>
-            <div className="flex gap-2">
-              <input
-                type="url"
-                id="linkMercadoLivre"
-                name="linkMercadoLivre"
-                value={formData.linkMercadoLivre || ''}
-                onChange={handleChange}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="https://mercadolivre.com.br/..."
-              />
-              <button
-                type="button"
-                onClick={() => handleScrape(formData.linkMercadoLivre || '', 'mercadolivre')}
-                disabled={scraping || !formData.linkMercadoLivre}
-                className="px-3 py-2 bg-yellow-500 hover:bg-yellow-600 disabled:bg-gray-300 text-white rounded-lg text-sm font-medium transition-colors whitespace-nowrap"
-              >
-                {scraping ? 'Importando...' : 'Importar'}
-              </button>
-            </div>
+            <input
+              type="url"
+              id="linkMercadoLivre"
+              name="linkMercadoLivre"
+              value={formData.linkMercadoLivre || ''}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="https://mercadolivre.com.br/..."
+            />
           </div>
           <div>
             <label htmlFor="precoMercadoLivre" className="block text-sm font-medium text-gray-700 mb-1">
@@ -269,40 +201,6 @@ export default function ConcorrenteForm({ concorrente, isEditing = false }: Conc
               placeholder="0.00"
             />
           </div>
-        </div>
-      </div>
-
-      {/* Dados de Mercado */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label htmlFor="vendasEstimadas" className="block text-sm font-medium text-gray-700 mb-1">
-            Vendas Estimadas
-          </label>
-          <input
-            type="number"
-            id="vendasEstimadas"
-            name="vendasEstimadas"
-            value={formData.vendasEstimadas ?? ''}
-            onChange={handleChange}
-            min="0"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="Ex: 500"
-          />
-        </div>
-        <div>
-          <label htmlFor="avaliacoes" className="block text-sm font-medium text-gray-700 mb-1">
-            Avaliações
-          </label>
-          <input
-            type="number"
-            id="avaliacoes"
-            name="avaliacoes"
-            value={formData.avaliacoes ?? ''}
-            onChange={handleChange}
-            min="0"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="Ex: 150"
-          />
         </div>
       </div>
 

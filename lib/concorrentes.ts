@@ -10,8 +10,6 @@ export interface Concorrente {
   precoShopee: number | null
   precoMercadoLivre: number | null
   precoMedio: number | null
-  vendasEstimadas: number | null
-  avaliacoes: number | null
   status: StatusConcorrente
   createdAt: Date
   updatedAt: Date
@@ -25,8 +23,6 @@ export interface ConcorrenteFormData {
   linkMercadoLivre?: string
   precoShopee?: number | null
   precoMercadoLivre?: number | null
-  vendasEstimadas?: number | null
-  avaliacoes?: number | null
   status: StatusConcorrente
 }
 

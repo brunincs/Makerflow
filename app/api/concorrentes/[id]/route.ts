@@ -43,8 +43,6 @@ export async function PUT(
       linkMercadoLivre,
       precoShopee,
       precoMercadoLivre,
-      vendasEstimadas,
-      avaliacoes,
       status,
     } = body
 
@@ -81,8 +79,6 @@ export async function PUT(
         precoShopee: precoShopeeNum,
         precoMercadoLivre: precoMercadoLivreNum,
         precoMedio,
-        vendasEstimadas: vendasEstimadas ? parseInt(vendasEstimadas) : null,
-        avaliacoes: avaliacoes ? parseInt(avaliacoes) : null,
         status,
       },
     })

@@ -49,8 +49,6 @@ export async function POST(request: NextRequest) {
       linkMercadoLivre,
       precoShopee,
       precoMercadoLivre,
-      vendasEstimadas,
-      avaliacoes,
       status,
     } = body
 
@@ -75,8 +73,6 @@ export async function POST(request: NextRequest) {
         precoShopee: precoShopeeNum,
         precoMercadoLivre: precoMercadoLivreNum,
         precoMedio,
-        vendasEstimadas: vendasEstimadas ? parseInt(vendasEstimadas) : null,
-        avaliacoes: avaliacoes ? parseInt(avaliacoes) : null,
         status: status || 'IDEIA',
       },
     })

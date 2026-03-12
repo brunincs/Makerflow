@@ -109,16 +109,6 @@ export default function ConcorrenteCard({ concorrente, onDelete }: ConcorrenteCa
             )}
           </div>
 
-          {/* Info extra */}
-          <div className="flex gap-3 text-xs text-gray-500 mb-4">
-            {concorrente.vendasEstimadas !== null && (
-              <span>{concorrente.vendasEstimadas} vendas</span>
-            )}
-            {concorrente.avaliacoes !== null && (
-              <span>{concorrente.avaliacoes} avaliações</span>
-            )}
-          </div>
-
           {/* Data */}
           <p className="text-xs text-gray-400 mb-4">
             Criado em {formatarData(concorrente.createdAt)}
