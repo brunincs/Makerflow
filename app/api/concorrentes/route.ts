@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { supabase } from '@/lib/supabase'
 import { calcularPrecoMedio } from '@/lib/concorrentes'
+import { v4 as uuidv4 } from 'uuid'
 
 export async function GET(request: NextRequest) {
   try {
@@ -8,26 +9,30 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search') || ''
     const status = searchParams.get('status') || ''
 
-    const where: any = {}
+    let query = supabase
+      .from('concorrentes')
+      .select('*')
+      .order('createdAt', { ascending: false })
 
     if (search) {
-      where.nomeProduto = {
-        contains: search,
-      }
+      query = query.ilike('nomeProduto', `%${search}%`)
     }
 
     if (status && status !== 'TODOS') {
-      where.status = status
+      query = query.eq('status', status)
     }
 
-    const concorrentes = await prisma.concorrente.findMany({
-      where,
-      orderBy: {
-        createdAt: 'desc',
-      },
-    })
+    const { data, error } = await query
 
-    return NextResponse.json(concorrentes)
+    if (error) {
+      console.error('Erro ao buscar concorrentes:', error)
+      return NextResponse.json(
+        { error: 'Erro ao buscar concorrentes' },
+        { status: 500 }
+      )
+    }
+
+    return NextResponse.json(data || [])
   } catch (error) {
     console.error('Erro ao buscar concorrentes:', error)
     return NextResponse.json(
@@ -63,8 +68,10 @@ export async function POST(request: NextRequest) {
     const precoMercadoLivreNum = precoMercadoLivre ? parseFloat(precoMercadoLivre) : null
     const precoMedio = calcularPrecoMedio(precoShopeeNum, precoMercadoLivreNum)
 
-    const concorrente = await prisma.concorrente.create({
-      data: {
+    const { data, error } = await supabase
+      .from('concorrentes')
+      .insert({
+        id: uuidv4(),
         nomeProduto,
         imagemProduto: imagemProduto || null,
         linkMakeworld: linkMakeworld || null,
@@ -74,10 +81,21 @@ export async function POST(request: NextRequest) {
         precoMercadoLivre: precoMercadoLivreNum,
         precoMedio,
         status: status || 'IDEIA',
-      },
-    })
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      })
+      .select()
+      .single()
 
-    return NextResponse.json(concorrente, { status: 201 })
+    if (error) {
+      console.error('Erro ao criar concorrente:', error)
+      return NextResponse.json(
+        { error: 'Erro ao criar concorrente' },
+        { status: 500 }
+      )
+    }
+
+    return NextResponse.json(data, { status: 201 })
   } catch (error) {
     console.error('Erro ao criar concorrente:', error)
     return NextResponse.json(

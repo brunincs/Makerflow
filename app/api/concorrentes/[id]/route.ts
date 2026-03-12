@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { supabase } from '@/lib/supabase'
 import { calcularPrecoMedio } from '@/lib/concorrentes'
 
 export async function GET(
@@ -7,18 +7,20 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const concorrente = await prisma.concorrente.findUnique({
-      where: { id: params.id },
-    })
+    const { data, error } = await supabase
+      .from('concorrentes')
+      .select('*')
+      .eq('id', params.id)
+      .single()
 
-    if (!concorrente) {
+    if (error || !data) {
       return NextResponse.json(
         { error: 'Concorrente não encontrado' },
         { status: 404 }
       )
     }
 
-    return NextResponse.json(concorrente)
+    return NextResponse.json(data)
   } catch (error) {
     console.error('Erro ao buscar concorrente:', error)
     return NextResponse.json(
@@ -53,11 +55,13 @@ export async function PUT(
       )
     }
 
-    const existingConcorrente = await prisma.concorrente.findUnique({
-      where: { id: params.id },
-    })
+    const { data: existing } = await supabase
+      .from('concorrentes')
+      .select('id')
+      .eq('id', params.id)
+      .single()
 
-    if (!existingConcorrente) {
+    if (!existing) {
       return NextResponse.json(
         { error: 'Concorrente não encontrado' },
         { status: 404 }
@@ -68,9 +72,9 @@ export async function PUT(
     const precoMercadoLivreNum = precoMercadoLivre ? parseFloat(precoMercadoLivre) : null
     const precoMedio = calcularPrecoMedio(precoShopeeNum, precoMercadoLivreNum)
 
-    const concorrente = await prisma.concorrente.update({
-      where: { id: params.id },
-      data: {
+    const { data, error } = await supabase
+      .from('concorrentes')
+      .update({
         nomeProduto,
         imagemProduto: imagemProduto || null,
         linkMakeworld: linkMakeworld || null,
@@ -80,10 +84,21 @@ export async function PUT(
         precoMercadoLivre: precoMercadoLivreNum,
         precoMedio,
         status,
-      },
-    })
+        updatedAt: new Date().toISOString(),
+      })
+      .eq('id', params.id)
+      .select()
+      .single()
 
-    return NextResponse.json(concorrente)
+    if (error) {
+      console.error('Erro ao atualizar concorrente:', error)
+      return NextResponse.json(
+        { error: 'Erro ao atualizar concorrente' },
+        { status: 500 }
+      )
+    }
+
+    return NextResponse.json(data)
   } catch (error) {
     console.error('Erro ao atualizar concorrente:', error)
     return NextResponse.json(
@@ -98,20 +113,31 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const concorrente = await prisma.concorrente.findUnique({
-      where: { id: params.id },
-    })
+    const { data: existing } = await supabase
+      .from('concorrentes')
+      .select('id')
+      .eq('id', params.id)
+      .single()
 
-    if (!concorrente) {
+    if (!existing) {
       return NextResponse.json(
         { error: 'Concorrente não encontrado' },
         { status: 404 }
       )
     }
 
-    await prisma.concorrente.delete({
-      where: { id: params.id },
-    })
+    const { error } = await supabase
+      .from('concorrentes')
+      .delete()
+      .eq('id', params.id)
+
+    if (error) {
+      console.error('Erro ao deletar concorrente:', error)
+      return NextResponse.json(
+        { error: 'Erro ao deletar concorrente' },
+        { status: 500 }
+      )
+    }
 
     return NextResponse.json({ message: 'Concorrente deletado com sucesso' })
   } catch (error) {

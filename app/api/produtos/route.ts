@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { supabase } from '@/lib/supabase'
+import { v4 as uuidv4 } from 'uuid'
 
 export async function GET(request: NextRequest) {
   try {
@@ -7,27 +8,30 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search') || ''
     const status = searchParams.get('status') || ''
 
-    const where: any = {}
+    let query = supabase
+      .from('produtos')
+      .select('*')
+      .order('createdAt', { ascending: false })
 
     if (search) {
-      where.nome = {
-        contains: search,
-        mode: 'insensitive',
-      }
+      query = query.ilike('nome', `%${search}%`)
     }
 
     if (status && status !== 'TODOS') {
-      where.status = status
+      query = query.eq('status', status)
     }
 
-    const produtos = await prisma.produto.findMany({
-      where,
-      orderBy: {
-        createdAt: 'desc',
-      },
-    })
+    const { data, error } = await query
 
-    return NextResponse.json(produtos)
+    if (error) {
+      console.error('Erro ao buscar produtos:', error)
+      return NextResponse.json(
+        { error: 'Erro ao buscar produtos' },
+        { status: 500 }
+      )
+    }
+
+    return NextResponse.json(data || [])
   } catch (error) {
     console.error('Erro ao buscar produtos:', error)
     return NextResponse.json(
@@ -50,8 +54,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const produto = await prisma.produto.create({
-      data: {
+    const { data, error } = await supabase
+      .from('produtos')
+      .insert({
+        id: uuidv4(),
         nome,
         imagem: imagem || null,
         linkMakeword,
@@ -59,10 +65,21 @@ export async function POST(request: NextRequest) {
         linkMercadoLivre: linkMercadoLivre || null,
         precoConcorrente: parseFloat(precoConcorrente),
         status: status || 'TESTAR',
-      },
-    })
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      })
+      .select()
+      .single()
 
-    return NextResponse.json(produto, { status: 201 })
+    if (error) {
+      console.error('Erro ao criar produto:', error)
+      return NextResponse.json(
+        { error: 'Erro ao criar produto' },
+        { status: 500 }
+      )
+    }
+
+    return NextResponse.json(data, { status: 201 })
   } catch (error) {
     console.error('Erro ao criar produto:', error)
     return NextResponse.json(

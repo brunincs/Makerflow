@@ -1,23 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { supabase } from '@/lib/supabase'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const produto = await prisma.produto.findUnique({
-      where: { id: params.id },
-    })
+    const { data, error } = await supabase
+      .from('produtos')
+      .select('*')
+      .eq('id', params.id)
+      .single()
 
-    if (!produto) {
+    if (error || !data) {
       return NextResponse.json(
         { error: 'Produto não encontrado' },
         { status: 404 }
       )
     }
 
-    return NextResponse.json(produto)
+    return NextResponse.json(data)
   } catch (error) {
     console.error('Erro ao buscar produto:', error)
     return NextResponse.json(
@@ -43,20 +45,22 @@ export async function PUT(
       )
     }
 
-    const existingProduto = await prisma.produto.findUnique({
-      where: { id: params.id },
-    })
+    const { data: existing } = await supabase
+      .from('produtos')
+      .select('id')
+      .eq('id', params.id)
+      .single()
 
-    if (!existingProduto) {
+    if (!existing) {
       return NextResponse.json(
         { error: 'Produto não encontrado' },
         { status: 404 }
       )
     }
 
-    const produto = await prisma.produto.update({
-      where: { id: params.id },
-      data: {
+    const { data, error } = await supabase
+      .from('produtos')
+      .update({
         nome,
         imagem: imagem || null,
         linkMakeword,
@@ -64,10 +68,21 @@ export async function PUT(
         linkMercadoLivre: linkMercadoLivre || null,
         precoConcorrente: parseFloat(precoConcorrente),
         status,
-      },
-    })
+        updatedAt: new Date().toISOString(),
+      })
+      .eq('id', params.id)
+      .select()
+      .single()
 
-    return NextResponse.json(produto)
+    if (error) {
+      console.error('Erro ao atualizar produto:', error)
+      return NextResponse.json(
+        { error: 'Erro ao atualizar produto' },
+        { status: 500 }
+      )
+    }
+
+    return NextResponse.json(data)
   } catch (error) {
     console.error('Erro ao atualizar produto:', error)
     return NextResponse.json(
@@ -82,20 +97,31 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const produto = await prisma.produto.findUnique({
-      where: { id: params.id },
-    })
+    const { data: existing } = await supabase
+      .from('produtos')
+      .select('id')
+      .eq('id', params.id)
+      .single()
 
-    if (!produto) {
+    if (!existing) {
       return NextResponse.json(
         { error: 'Produto não encontrado' },
         { status: 404 }
       )
     }
 
-    await prisma.produto.delete({
-      where: { id: params.id },
-    })
+    const { error } = await supabase
+      .from('produtos')
+      .delete()
+      .eq('id', params.id)
+
+    if (error) {
+      console.error('Erro ao deletar produto:', error)
+      return NextResponse.json(
+        { error: 'Erro ao deletar produto' },
+        { status: 500 }
+      )
+    }
 
     return NextResponse.json({ message: 'Produto deletado com sucesso' })
   } catch (error) {

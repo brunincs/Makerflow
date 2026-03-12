@@ -1,30 +1,33 @@
 import { NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
+import { supabase } from '@/lib/supabase'
 
 export async function GET() {
-  // Tenta com a URL de ambiente
-  const dbUrl = process.env.DATABASE_URL || 'não configurada'
-
-  // Mostra a URL (sem a senha completa)
-  const safeUrl = dbUrl.replace(/:[^:@]+@/, ':***@')
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'não configurada'
 
   try {
-    const prisma = new PrismaClient()
-    const count = await prisma.concorrente.count()
-    await prisma.$disconnect()
+    const { count, error } = await supabase
+      .from('concorrentes')
+      .select('*', { count: 'exact', head: true })
+
+    if (error) {
+      return NextResponse.json({
+        success: false,
+        error: error.message,
+        url: supabaseUrl,
+      }, { status: 500 })
+    }
 
     return NextResponse.json({
       success: true,
       message: 'Conexão OK!',
-      count,
-      url: safeUrl
+      count: count || 0,
+      url: supabaseUrl
     })
   } catch (error: any) {
     return NextResponse.json({
       success: false,
       error: error.message,
-      url: safeUrl,
-      dica: 'Tente usar porta 6543 em vez de 5432'
+      url: supabaseUrl,
     }, { status: 500 })
   }
 }

@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation'
-import { prisma } from '@/lib/prisma'
+import { createClient } from '@supabase/supabase-js'
 import ConcorrenteForm from '@/components/concorrentes/ConcorrenteForm'
 import { Concorrente } from '@/lib/concorrentes'
 
@@ -9,10 +9,19 @@ interface EditarConcorrentePageProps {
 
 async function getConcorrente(id: string): Promise<Concorrente | null> {
   try {
-    const concorrente = await prisma.concorrente.findUnique({
-      where: { id },
-    })
-    return concorrente as Concorrente | null
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+    
+    const { data, error } = await supabase
+      .from('concorrentes')
+      .select('*')
+      .eq('id', id)
+      .single()
+    
+    if (error || !data) return null
+    return data as Concorrente
   } catch {
     return null
   }
