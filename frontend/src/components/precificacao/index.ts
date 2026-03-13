@@ -1,0 +1,10 @@
+export { MarketplaceSelector } from './MarketplaceSelector';
+export { ShopeeConfigComponent, FAIXAS_COMISSAO } from './ShopeeConfig';
+export { MercadoLivreConfigComponent, CATEGORIAS } from './MercadoLivreConfig';
+export { VendaDiretaConfigComponent } from './VendaDiretaConfig';
+export { ProdutoSelector } from './ProdutoSelector';
+export { ImpressoraEnergiaConfig } from './ImpressoraEnergiaConfig';
+export { FilamentoConfig } from './FilamentoConfig';
+export { DemaisCustosConfig } from './DemaisCustosConfig';
+export { PrecoMargemConfig } from './PrecoMargemConfig';
+export { ResultadoCard } from './ResultadoCard';
