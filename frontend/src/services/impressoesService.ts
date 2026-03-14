@@ -1,6 +1,6 @@
 import { supabase, isSupabaseConfigured } from './supabaseClient';
 import { Impressao } from '../types';
-import { descontarEstoqueFilamento } from './filamentosService';
+import { descontarEstoqueFilamento, devolverEstoqueFilamento } from './filamentosService';
 
 const STORAGE_KEY = 'makerflow_impressoes';
 
@@ -107,11 +107,31 @@ export const getImpressoes = async (): Promise<Impressao[]> => {
 export const deleteImpressao = async (id: string): Promise<boolean> => {
   if (!isSupabaseConfigured() || !supabase) {
     const impressoes = getLocalImpressoes();
+    const impressao = impressoes.find(i => i.id === id);
+
+    // Devolver filamento ao estoque
+    if (impressao) {
+      await devolverEstoqueFilamento(impressao.filamento_id, impressao.peso_total_g);
+    }
+
     const filtered = impressoes.filter(i => i.id !== id);
     setLocalImpressoes(filtered);
     return true;
   }
 
+  // Primeiro buscar a impressão para saber quanto devolver
+  const { data: impressao, error: fetchError } = await supabase
+    .from('impressoes')
+    .select('filamento_id, peso_total_g')
+    .eq('id', id)
+    .single();
+
+  if (fetchError) {
+    console.error('Erro ao buscar impressao:', fetchError);
+    return false;
+  }
+
+  // Deletar a impressão
   const { error } = await supabase
     .from('impressoes')
     .delete()
@@ -120,6 +140,11 @@ export const deleteImpressao = async (id: string): Promise<boolean> => {
   if (error) {
     console.error('Erro ao deletar impressao:', error);
     return false;
+  }
+
+  // Devolver filamento ao estoque
+  if (impressao) {
+    await devolverEstoqueFilamento(impressao.filamento_id, impressao.peso_total_g);
   }
 
   return true;

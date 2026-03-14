@@ -150,6 +150,50 @@ export const updateFilamento = async (
   return data;
 };
 
+// Devolver estoque de um filamento (usado ao excluir impressão)
+export const devolverEstoqueFilamento = async (
+  id: string,
+  gramasDevolvidos: number
+): Promise<Filamento | null> => {
+  if (!isSupabaseConfigured() || !supabase) {
+    const filamentos = getLocalFilamentos();
+    const index = filamentos.findIndex(f => f.id === id);
+    if (index === -1) return null;
+
+    filamentos[index].estoque_gramas = filamentos[index].estoque_gramas + gramasDevolvidos;
+    setLocalFilamentos(filamentos);
+    return filamentos[index];
+  }
+
+  // Primeiro buscar o estoque atual
+  const { data: filamentoAtual, error: fetchError } = await supabase
+    .from('filamentos')
+    .select('estoque_gramas')
+    .eq('id', id)
+    .single();
+
+  if (fetchError || !filamentoAtual) {
+    console.error('Erro ao buscar filamento:', fetchError);
+    return null;
+  }
+
+  const novoEstoque = filamentoAtual.estoque_gramas + gramasDevolvidos;
+
+  const { data, error } = await supabase
+    .from('filamentos')
+    .update({ estoque_gramas: novoEstoque })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Erro ao devolver estoque:', error);
+    return null;
+  }
+
+  return data;
+};
+
 // Descontar estoque de um filamento (usado após impressão)
 export const descontarEstoqueFilamento = async (
   id: string,
