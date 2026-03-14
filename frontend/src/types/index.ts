@@ -79,13 +79,26 @@ export interface Filamento {
   created_at?: string;
 }
 
-// Entrada de estoque de filamento
+// Entrada de estoque de filamento (legado)
 export interface FilamentoEntrada {
   id?: string;
   filamento_id: string;
   quantidade_rolos: number;
   preco_por_rolo: number;
   peso_total_g: number; // = quantidade_rolos * 1000
+  created_at?: string;
+}
+
+// Movimentação de estoque de filamento
+export type TipoMovimentacao = 'entrada' | 'saida' | 'ajuste';
+
+export interface FilamentoMovimentacao {
+  id?: string;
+  filamento_id: string;
+  tipo: TipoMovimentacao;
+  quantidade_g: number;
+  preco_por_rolo?: number;
+  motivo?: string;
   created_at?: string;
 }
 

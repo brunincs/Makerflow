@@ -1,9 +1,10 @@
 import { supabase, isSupabaseConfigured } from './supabaseClient';
-import { Filamento, FilamentoEntrada } from '../types';
+import { Filamento, FilamentoEntrada, FilamentoMovimentacao, TipoMovimentacao } from '../types';
 
 const STORAGE_KEY = 'makerflow_filamentos';
 const IMPRESSOES_STORAGE_KEY = 'makerflow_impressoes';
 const ENTRADAS_STORAGE_KEY = 'makerflow_filamento_entradas';
+const MOVIMENTACOES_STORAGE_KEY = 'makerflow_filamento_movimentacoes';
 
 // Função auxiliar para calcular consumo total de um filamento (exportada para uso futuro)
 export const calcularConsumoFilamento = async (filamentoId: string): Promise<number> => {
@@ -359,6 +360,229 @@ export const getEntradasFilamento = async (filamentoId: string): Promise<Filamen
   }
 
   return data || [];
+};
+
+// ============ SISTEMA DE MOVIMENTAÇÕES ============
+
+// Registrar movimentação no histórico
+const registrarMovimentacao = async (
+  filamentoId: string,
+  tipo: TipoMovimentacao,
+  quantidadeG: number,
+  precoPorRolo?: number,
+  motivo?: string
+): Promise<void> => {
+  const movimentacao = {
+    filamento_id: filamentoId,
+    tipo,
+    quantidade_g: quantidadeG,
+    preco_por_rolo: precoPorRolo || null,
+    motivo: motivo || null,
+  };
+
+  if (!isSupabaseConfigured() || !supabase) {
+    const movData = localStorage.getItem(MOVIMENTACOES_STORAGE_KEY);
+    const movimentacoes = movData ? JSON.parse(movData) : [];
+    movimentacoes.unshift({
+      ...movimentacao,
+      id: crypto.randomUUID(),
+      created_at: new Date().toISOString(),
+    });
+    localStorage.setItem(MOVIMENTACOES_STORAGE_KEY, JSON.stringify(movimentacoes));
+    return;
+  }
+
+  const { error } = await supabase
+    .from('filamento_movimentacoes')
+    .insert([movimentacao]);
+
+  if (error) {
+    console.error('Erro ao registrar movimentação:', error);
+  }
+};
+
+// Buscar histórico de movimentações de um filamento
+export const getMovimentacoesFilamento = async (filamentoId: string): Promise<FilamentoMovimentacao[]> => {
+  if (!isSupabaseConfigured() || !supabase) {
+    const movData = localStorage.getItem(MOVIMENTACOES_STORAGE_KEY);
+    const movimentacoes = movData ? JSON.parse(movData) : [];
+    return movimentacoes.filter((m: FilamentoMovimentacao) => m.filamento_id === filamentoId);
+  }
+
+  const { data, error } = await supabase
+    .from('filamento_movimentacoes')
+    .select('*')
+    .eq('filamento_id', filamentoId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Erro ao buscar movimentações:', error);
+    return [];
+  }
+
+  return data || [];
+};
+
+// Remover estoque de um filamento (saída manual)
+export const removerEstoqueFilamento = async (
+  filamentoId: string,
+  quantidadeRolos: number,
+  motivo?: string
+): Promise<Filamento | null> => {
+  const pesoRemovido = quantidadeRolos * 1000; // gramas
+
+  // Buscar filamento atual
+  let filamentoAtual: Filamento | null = null;
+
+  if (!isSupabaseConfigured() || !supabase) {
+    const filamentos = getLocalFilamentos();
+    filamentoAtual = filamentos.find(f => f.id === filamentoId) || null;
+  } else {
+    const { data, error } = await supabase
+      .from('filamentos')
+      .select('*')
+      .eq('id', filamentoId)
+      .single();
+
+    if (error) {
+      console.error('Erro ao buscar filamento:', error);
+      return null;
+    }
+    filamentoAtual = data;
+  }
+
+  if (!filamentoAtual) return null;
+
+  // Verificar se tem estoque suficiente
+  if ((filamentoAtual.estoque_gramas || 0) < pesoRemovido) {
+    alert('Estoque insuficiente para remover essa quantidade.');
+    return null;
+  }
+
+  const novoEstoqueGramas = Math.max(0, filamentoAtual.estoque_gramas - pesoRemovido);
+
+  // Registrar movimentação
+  await registrarMovimentacao(filamentoId, 'saida', pesoRemovido, undefined, motivo);
+
+  if (!isSupabaseConfigured() || !supabase) {
+    const filamentos = getLocalFilamentos();
+    const index = filamentos.findIndex(f => f.id === filamentoId);
+    if (index !== -1) {
+      filamentos[index].estoque_gramas = novoEstoqueGramas;
+      setLocalFilamentos(filamentos);
+      return filamentos[index];
+    }
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from('filamentos')
+    .update({ estoque_gramas: novoEstoqueGramas })
+    .eq('id', filamentoId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Erro ao atualizar filamento:', error);
+    return null;
+  }
+
+  return data;
+};
+
+// Ajustar estoque de um filamento (substituição completa)
+export const ajustarEstoqueFilamento = async (
+  filamentoId: string,
+  novoEstoqueKg: number,
+  novoPrecoMedio?: number,
+  motivo?: string
+): Promise<Filamento | null> => {
+  const novoEstoqueGramas = novoEstoqueKg * 1000;
+
+  // Buscar filamento atual
+  let filamentoAtual: Filamento | null = null;
+
+  if (!isSupabaseConfigured() || !supabase) {
+    const filamentos = getLocalFilamentos();
+    filamentoAtual = filamentos.find(f => f.id === filamentoId) || null;
+  } else {
+    const { data, error } = await supabase
+      .from('filamentos')
+      .select('*')
+      .eq('id', filamentoId)
+      .single();
+
+    if (error) {
+      console.error('Erro ao buscar filamento:', error);
+      return null;
+    }
+    filamentoAtual = data;
+  }
+
+  if (!filamentoAtual) return null;
+
+  const dadosAtualizar: Record<string, number> = {
+    estoque_gramas: novoEstoqueGramas,
+    quantidade_rolos: Math.ceil(novoEstoqueKg), // Aproximar rolos
+  };
+
+  if (novoPrecoMedio !== undefined && novoPrecoMedio > 0) {
+    dadosAtualizar.preco_por_kg = novoPrecoMedio;
+    dadosAtualizar.preco_pago = novoPrecoMedio;
+  }
+
+  // Registrar movimentação
+  await registrarMovimentacao(
+    filamentoId,
+    'ajuste',
+    novoEstoqueGramas,
+    novoPrecoMedio,
+    motivo || `Ajuste de ${(filamentoAtual.estoque_gramas / 1000).toFixed(2)}kg para ${novoEstoqueKg.toFixed(2)}kg`
+  );
+
+  if (!isSupabaseConfigured() || !supabase) {
+    const filamentos = getLocalFilamentos();
+    const index = filamentos.findIndex(f => f.id === filamentoId);
+    if (index !== -1) {
+      filamentos[index] = { ...filamentos[index], ...dadosAtualizar };
+      setLocalFilamentos(filamentos);
+      return filamentos[index];
+    }
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from('filamentos')
+    .update(dadosAtualizar)
+    .eq('id', filamentoId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Erro ao atualizar filamento:', error);
+    return null;
+  }
+
+  return data;
+};
+
+// Versão atualizada de adicionar estoque que também registra movimentação
+export const adicionarEstoqueFilamentoV2 = async (
+  filamentoId: string,
+  quantidadeRolos: number,
+  precoPorRolo: number
+): Promise<Filamento | null> => {
+  const pesoAdicionado = quantidadeRolos * 1000; // gramas
+
+  // Usar a função existente
+  const resultado = await adicionarEstoqueFilamento(filamentoId, quantidadeRolos, precoPorRolo);
+
+  if (resultado) {
+    // Registrar movimentação
+    await registrarMovimentacao(filamentoId, 'entrada', pesoAdicionado, precoPorRolo);
+  }
+
+  return resultado;
 };
 
 export const deleteFilamento = async (id: string): Promise<boolean> => {
