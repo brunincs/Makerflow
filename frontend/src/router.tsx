@@ -4,6 +4,8 @@ import { Dashboard } from './pages/Dashboard';
 import { RadarProdutos } from './pages/RadarProdutos';
 import { Precificacao } from './pages/Precificacao';
 import { Simulacoes } from './pages/Simulacoes';
+import { Filamentos } from './pages/Filamentos';
+import { Embalagens } from './pages/Embalagens';
 
 export const router = createBrowserRouter([
   {
@@ -35,6 +37,22 @@ export const router = createBrowserRouter([
     element: (
       <MainLayout>
         <Simulacoes />
+      </MainLayout>
+    ),
+  },
+  {
+    path: '/filamentos',
+    element: (
+      <MainLayout>
+        <Filamentos />
+      </MainLayout>
+    ),
+  },
+  {
+    path: '/embalagens',
+    element: (
+      <MainLayout>
+        <Embalagens />
       </MainLayout>
     ),
   },

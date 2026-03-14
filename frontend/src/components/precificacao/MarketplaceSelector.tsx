@@ -1,4 +1,4 @@
-import { MarketplaceState, MarketplaceType, ProdutoSelecionado, CustosProducaoConfig, ModoPrecificacao } from '../../types';
+import { MarketplaceState, MarketplaceType, ProdutoSelecionado, CustosProducaoConfig } from '../../types';
 import { ShopeeConfigComponent } from './ShopeeConfig';
 import { MercadoLivreConfigComponent } from './MercadoLivreConfig';
 import { VendaDiretaConfigComponent } from './VendaDiretaConfig';
@@ -13,6 +13,11 @@ import { Store } from 'lucide-react';
 interface MarketplaceSelectorProps {
   value: MarketplaceState;
   onChange: (state: MarketplaceState) => void;
+  canSave?: boolean;
+  onSaveSuccess?: () => void;
+  nomeProdutoCarregado?: string; // Nome do produto quando carrega simulação salva
+  simulacaoId?: string; // ID da simulação sendo editada
+  produtoIdOriginal?: string; // ID do produto quando carrega simulação do radar
 }
 
 const MARKETPLACES = [
@@ -39,7 +44,7 @@ const MARKETPLACES = [
   },
 ];
 
-export function MarketplaceSelector({ value, onChange }: MarketplaceSelectorProps) {
+export function MarketplaceSelector({ value, onChange, canSave = true, onSaveSuccess, nomeProdutoCarregado, simulacaoId, produtoIdOriginal }: MarketplaceSelectorProps) {
   const handleMarketplaceChange = (tipo: MarketplaceType) => {
     onChange({ ...value, tipo });
   };
@@ -73,17 +78,24 @@ export function MarketplaceSelector({ value, onChange }: MarketplaceSelectorProp
 
   const custos = value.custos_producao || {};
 
-  // Handlers para preco e margem
-  const handleModoChange = (modo: ModoPrecificacao) => {
-    onChange({ ...value, modo_precificacao: modo });
+  // Handler combinado para filamento (atualiza id e preço juntos)
+  const handleFilamentoChange = (id: string | undefined, preco: number | undefined) => {
+    const updates: Partial<CustosProducaoConfig> = { filamento_id: id };
+    if (preco !== undefined) {
+      updates.preco_filamento_kg = preco;
+    }
+    onChange({
+      ...value,
+      custos_producao: {
+        ...value.custos_producao,
+        ...updates,
+      },
+    });
   };
 
+  // Handler para preco de venda
   const handlePrecoVendaChange = (preco: number) => {
     onChange({ ...value, preco_venda: preco });
-  };
-
-  const handleMargemDesejadaChange = (margem: number) => {
-    onChange({ ...value, margem_desejada: margem });
   };
 
   const getColorClasses = (color: string, isSelected: boolean) => {
@@ -204,7 +216,7 @@ export function MarketplaceSelector({ value, onChange }: MarketplaceSelectorProp
           pesoFilamentoG={custos.peso_filamento_g}
           onPesoFilamentoGChange={(v) => handleCustosProducaoChange('peso_filamento_g', v)}
           filamentoId={custos.filamento_id}
-          onFilamentoIdChange={(v) => handleCustosProducaoChange('filamento_id', v)}
+          onFilamentoChange={handleFilamentoChange}
           produtoSelecionado={value.produto_selecionado || null}
         />
 
@@ -212,24 +224,20 @@ export function MarketplaceSelector({ value, onChange }: MarketplaceSelectorProp
         <DemaisCustosConfig
           impostoAliquota={custos.imposto_aliquota}
           onImpostoAliquotaChange={(v) => handleCustosProducaoChange('imposto_aliquota', v)}
-          custoEmbalagem={custos.custo_embalagem}
-          onCustoEmbalagemChange={(v) => handleCustosProducaoChange('custo_embalagem', v)}
+          embalagensIds={custos.embalagens_ids}
+          onEmbalagensChange={(ids) => handleCustosProducaoChange('embalagens_ids', ids)}
           outrosCustos={custos.outros_custos}
           onOutrosCustosChange={(v) => handleCustosProducaoChange('outros_custos', v)}
         />
 
-        {/* Preco & Margem */}
+        {/* Preco de Venda */}
         <PrecoMargemConfig
-          modo={value.modo_precificacao}
-          onModoChange={handleModoChange}
           precoVenda={value.preco_venda}
           onPrecoVendaChange={handlePrecoVendaChange}
-          margemDesejada={value.margem_desejada}
-          onMargemDesejadaChange={handleMargemDesejadaChange}
         />
 
         {/* Resultado */}
-        <ResultadoCard state={value} />
+        <ResultadoCard state={value} canSave={canSave} onSaveSuccess={onSaveSuccess} nomeProdutoCarregado={nomeProdutoCarregado} simulacaoId={simulacaoId} produtoIdOriginal={produtoIdOriginal} />
       </div>
     </div>
   );

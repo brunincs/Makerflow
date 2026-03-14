@@ -14,6 +14,7 @@ interface VariacaoItem {
   peso_filamento: string;
   tempo_horas: number;
   tempo_minutos: number;
+  herdaDoProduto?: boolean;
 }
 
 interface ProdutoFormProps {
@@ -80,6 +81,27 @@ export function ProdutoForm({ onSuccess, onCancel, produto }: ProdutoFormProps) 
       }
     }
   }, [produto]);
+
+  // Sincronizar primeira variação com dados do produto base quando eles mudam
+  useEffect(() => {
+    if (variacoes.length > 0 && variacoes[0].herdaDoProduto) {
+      const newVariacoes = [...variacoes];
+      newVariacoes[0] = {
+        ...newVariacoes[0],
+        peso_filamento: formData.peso_filamento,
+        tempo_horas: tempoHoras,
+        tempo_minutos: tempoMinutos,
+      };
+      // Só atualiza se realmente mudou para evitar loop infinito
+      if (
+        newVariacoes[0].peso_filamento !== variacoes[0].peso_filamento ||
+        newVariacoes[0].tempo_horas !== variacoes[0].tempo_horas ||
+        newVariacoes[0].tempo_minutos !== variacoes[0].tempo_minutos
+      ) {
+        setVariacoes(newVariacoes);
+      }
+    }
+  }, [formData.peso_filamento, tempoHoras, tempoMinutos]);
 
   const handleImageChange = (file: File | null, preview: string | null) => {
     setImageFile(file);
@@ -296,7 +318,15 @@ export function ProdutoForm({ onSuccess, onCancel, produto }: ProdutoFormProps) 
 
       {/* Variacoes */}
       <div className="bg-purple-50/50 border border-purple-200 rounded-lg p-4">
-        <VariacoesEditor value={variacoes} onChange={setVariacoes} />
+        <VariacoesEditor
+          value={variacoes}
+          onChange={setVariacoes}
+          produtoBase={{
+            peso_filamento: formData.peso_filamento,
+            tempo_horas: tempoHoras,
+            tempo_minutos: tempoMinutos,
+          }}
+        />
       </div>
 
       {/* Status */}

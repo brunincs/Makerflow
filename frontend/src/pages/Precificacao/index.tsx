@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Card, CardBody } from '../../components/ui';
 import { MarketplaceSelector } from '../../components/precificacao';
-import { MarketplaceState, PrecificacaoSalva } from '../../types';
+import { MarketplaceState, PrecificacaoSalva, ProdutoSelecionado } from '../../types';
+import { getProdutoById } from '../../services/produtosService';
 import { Calculator, RotateCcw, Info, ArrowLeft } from 'lucide-react';
 
 const initialMarketplaceState: MarketplaceState = {
@@ -48,10 +49,14 @@ export function Precificacao() {
   const [marketplace, setMarketplace] = useState<MarketplaceState>(initialMarketplaceState);
   const [simulacaoCarregada, setSimulacaoCarregada] = useState<PrecificacaoSalva | null>(null);
   const [veioDeSimulacoes, setVeioDeSimulacoes] = useState(false);
+  const [canSave, setCanSave] = useState(true); // Nova precificação pode salvar imediatamente
+  const isInitialLoad = useRef(true);
 
   // Carregar dados da simulação quando vem da página de Simulações
   useEffect(() => {
-    if (locationState?.simulacao) {
+    const carregarSimulacao = async () => {
+      if (!locationState?.simulacao) return;
+
       const sim = locationState.simulacao;
       setSimulacaoCarregada(sim);
       setVeioDeSimulacoes(true);
@@ -60,10 +65,25 @@ export function Precificacao() {
       const horasInteiras = Math.floor(sim.tempo_impressao);
       const minutosRestantes = Math.round((sim.tempo_impressao - horasInteiras) * 60);
 
+      // Carregar produto do radar se existir
+      let produtoSelecionado: ProdutoSelecionado | undefined;
+      if (sim.produto_id) {
+        const produto = await getProdutoById(sim.produto_id);
+        if (produto) {
+          // Se tem variação, tentar encontrar pelo nome
+          let variacao;
+          if (sim.variacao_nome && produto.variacoes) {
+            variacao = produto.variacoes.find(v => v.nome_variacao === sim.variacao_nome);
+          }
+          produtoSelecionado = { produto, variacao };
+        }
+      }
+
       setMarketplace(prev => ({
         ...prev,
         tipo: sim.marketplace,
         preco_venda: sim.preco_venda,
+        produto_selecionado: produtoSelecionado,
         mercadolivre: {
           ...prev.mercadolivre,
           tipo_anuncio: (sim.tipo_anuncio as 'classico' | 'premium') || 'classico',
@@ -86,14 +106,49 @@ export function Precificacao() {
         modo_precificacao: 'preco_manual',
       }));
 
+      // Simulação carregada: não pode salvar até fazer alterações
+      setCanSave(false);
+
       // Limpar o state da navegação para evitar recarregar ao atualizar
       window.history.replaceState({}, document.title);
+    };
+
+    carregarSimulacao();
+  }, [locationState]);
+
+  // Detectar mudanças no formulário
+  const handleMarketplaceChange = (newState: MarketplaceState) => {
+    setMarketplace(newState);
+    if (!isInitialLoad.current) {
+      setCanSave(true); // Qualquer alteração habilita o salvamento
+    }
+  };
+
+  // Após carregar simulação, permitir detecção de mudanças
+  useEffect(() => {
+    if (locationState?.simulacao) {
+      // Aguardar o carregamento inicial antes de detectar mudanças
+      const timer = setTimeout(() => {
+        isInitialLoad.current = false;
+      }, 100);
+      return () => clearTimeout(timer);
+    } else {
+      isInitialLoad.current = false;
     }
   }, [locationState]);
 
   const handleResetForm = () => {
     setMarketplace(initialMarketplaceState);
     setSimulacaoCarregada(null);
+    setCanSave(true); // Novo formulário pode salvar
+    isInitialLoad.current = true;
+    setTimeout(() => {
+      isInitialLoad.current = false;
+    }, 100);
+  };
+
+  const handleSaveSuccess = () => {
+    setCanSave(false); // Após salvar, desabilita até nova alteração
   };
 
   return (
@@ -160,7 +215,12 @@ export function Precificacao() {
         <CardBody className="p-6">
           <MarketplaceSelector
             value={marketplace}
-            onChange={setMarketplace}
+            onChange={handleMarketplaceChange}
+            canSave={canSave}
+            onSaveSuccess={handleSaveSuccess}
+            nomeProdutoCarregado={simulacaoCarregada?.nome_produto || undefined}
+            simulacaoId={simulacaoCarregada?.id}
+            produtoIdOriginal={simulacaoCarregada?.produto_id || undefined}
           />
         </CardBody>
       </Card>

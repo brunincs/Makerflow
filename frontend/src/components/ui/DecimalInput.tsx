@@ -6,6 +6,7 @@ interface DecimalInputProps {
   placeholder?: string;
   className?: string;
   min?: number;
+  disabled?: boolean;
 }
 
 export function DecimalInput({
@@ -14,6 +15,7 @@ export function DecimalInput({
   placeholder,
   className = '',
   min = 0,
+  disabled = false,
 }: DecimalInputProps) {
   // Estado local para armazenar o texto digitado
   const [inputValue, setInputValue] = useState<string>('');
@@ -78,6 +80,7 @@ export function DecimalInput({
       onFocus={() => { isUserTyping.current = true; }}
       placeholder={placeholder}
       className={className}
+      disabled={disabled}
     />
   );
 }

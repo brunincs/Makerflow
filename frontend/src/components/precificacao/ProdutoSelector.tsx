@@ -45,22 +45,26 @@ export function ProdutoSelector({ value, onChange }: ProdutoSelectorProps) {
   );
 
   const handleSelectProduto = (produto: ProdutoConcorrente) => {
+    onChange({ produto, variacao: undefined });
+    // Só abre seletor de variações se existirem variações criadas
     if (produto.variacoes && produto.variacoes.length > 0) {
-      onChange({ produto, variacao: undefined });
       setShowVariacoes(true);
-    } else {
-      onChange({ produto, variacao: undefined });
-      setShowVariacoes(false);
     }
     setIsOpen(false);
     setSearch('');
   };
 
-  const handleSelectVariacao = (variacao: VariacaoProduto) => {
+  const handleSelectVariacao = (variacao: VariacaoProduto | null) => {
     if (value?.produto) {
-      onChange({ produto: value.produto, variacao });
+      // variacao = null significa "Padrão" (usa dados do produto)
+      onChange({ produto: value.produto, variacao: variacao || undefined });
     }
     setShowVariacoes(false);
+  };
+
+  // Retorna quantidade de variações criadas pelo usuário
+  const getVariacoesCount = (produto: ProdutoConcorrente) => {
+    return produto.variacoes?.length || 0;
   };
 
   const handleClear = () => {
@@ -151,7 +155,7 @@ export function ProdutoSelector({ value, onChange }: ProdutoSelectorProps) {
               </div>
             </div>
 
-            {/* Seletor de variacao */}
+            {/* Seletor de variacao - só aparece se tiver variações criadas */}
             {value.produto.variacoes && value.produto.variacoes.length > 0 && (
               <div className="mt-3 pt-3 border-t border-gray-100">
                 <button
@@ -160,13 +164,23 @@ export function ProdutoSelector({ value, onChange }: ProdutoSelectorProps) {
                   className="flex items-center gap-2 text-sm text-purple-600 hover:text-purple-700"
                 >
                   <Layers className="w-4 h-4" />
-                  {value.variacao ? 'Trocar variacao' : 'Selecionar variacao'}
+                  <span>
+                    {value.variacao
+                      ? `Variacao: ${value.variacao.nome_variacao}`
+                      : 'Selecionar variacao'}
+                  </span>
+                  <span className="text-xs text-gray-400">
+                    ({getVariacoesCount(value.produto)} {getVariacoesCount(value.produto) === 1 ? 'variacao' : 'variacoes'})
+                  </span>
                   <ChevronDown className={`w-4 h-4 transition-transform ${showVariacoes ? 'rotate-180' : ''}`} />
                 </button>
 
                 {showVariacoes && (
                   <div className="mt-2 space-y-1">
-                    {value.produto.variacoes.map((variacao) => (
+                    {/* Variações criadas - ordenadas por peso */}
+                    {[...value.produto.variacoes]
+                      .sort((a, b) => (a.peso_filamento || 0) - (b.peso_filamento || 0))
+                      .map((variacao) => (
                       <button
                         key={variacao.id}
                         type="button"
@@ -178,7 +192,13 @@ export function ProdutoSelector({ value, onChange }: ProdutoSelectorProps) {
                         }`}
                       >
                         <span className="font-medium">{variacao.nome_variacao}</span>
-                        <div className="flex gap-2">
+                        <div className="flex gap-3 text-xs">
+                          {variacao.peso_filamento && (
+                            <span className="text-green-600">{variacao.peso_filamento}g</span>
+                          )}
+                          {variacao.tempo_impressao && (
+                            <span className="text-blue-600">{formatarTempoImpressao(variacao.tempo_impressao)}</span>
+                          )}
                           {variacao.preco_shopee && (
                             <span className="text-orange-600">{formatPrice(variacao.preco_shopee)}</span>
                           )}
@@ -255,9 +275,9 @@ export function ProdutoSelector({ value, onChange }: ProdutoSelectorProps) {
                                 {getCategoriaById(produto.categoria_id)?.nome || produto.categoria_id}
                               </span>
                             )}
-                            {produto.variacoes && produto.variacoes.length > 0 && (
+                            {getVariacoesCount(produto) > 0 && (
                               <span className="text-xs text-purple-600">
-                                {produto.variacoes.length} variacoes
+                                {getVariacoesCount(produto)} {getVariacoesCount(produto) === 1 ? 'variacao' : 'variacoes'}
                               </span>
                             )}
                             {produto.peso_filamento && (

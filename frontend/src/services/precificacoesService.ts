@@ -163,6 +163,67 @@ export const getPrecificacoesPorProduto = async (produtoId: string): Promise<Pre
   return data || [];
 };
 
+export const updatePrecificacao = async (
+  id: string,
+  precificacao: Omit<PrecificacaoSalva, 'id' | 'created_at'>
+): Promise<PrecificacaoSalva | null> => {
+  const dadosParaAtualizar = {
+    produto_id: precificacao.produto_id || null,
+    marketplace: precificacao.marketplace,
+    preco_venda: precificacao.preco_venda,
+    custo_filamento: precificacao.custo_filamento || 0,
+    custo_energia: precificacao.custo_energia || 0,
+    custo_embalagem: precificacao.custo_embalagem || 0,
+    taxa_marketplace: precificacao.taxa_marketplace || 0,
+    frete_vendedor: precificacao.frete_vendedor || 0,
+    lucro_liquido: precificacao.lucro_liquido,
+    margem: precificacao.margem,
+    lucro_por_hora: precificacao.lucro_por_hora || 0,
+    tempo_impressao: precificacao.tempo_impressao || 0,
+    peso_filamento_g: precificacao.peso_filamento_g || 0,
+    preco_filamento_kg: precificacao.preco_filamento_kg || 0,
+    consumo_kwh: precificacao.consumo_kwh || 0,
+    valor_kwh: precificacao.valor_kwh || 0,
+    peso_kg: precificacao.peso_kg || 0,
+    imposto_aliquota: precificacao.imposto_aliquota || 0,
+    outros_custos: precificacao.outros_custos || 0,
+    frete_gratis: precificacao.frete_gratis || false,
+    tipo_anuncio: precificacao.tipo_anuncio || null,
+    categoria_id: precificacao.categoria_id || null,
+    nome_produto: precificacao.nome_produto || null,
+    variacao_nome: precificacao.variacao_nome || null,
+  };
+
+  if (!isSupabaseConfigured() || !supabase) {
+    const precificacoes = getLocalPrecificacoes();
+    const index = precificacoes.findIndex(p => p.id === id);
+    if (index === -1) return null;
+
+    const atualizada: PrecificacaoSalva = {
+      ...dadosParaAtualizar,
+      id,
+      created_at: precificacoes[index].created_at,
+    };
+    precificacoes[index] = atualizada;
+    setLocalPrecificacoes(precificacoes);
+    return atualizada;
+  }
+
+  const { data, error } = await supabase
+    .from('precificacoes')
+    .update(dadosParaAtualizar)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Erro ao atualizar precificação:', error);
+    return null;
+  }
+
+  return data;
+};
+
 export const deletePrecificacao = async (id: string): Promise<boolean> => {
   if (!isSupabaseConfigured() || !supabase) {
     const precificacoes = getLocalPrecificacoes();

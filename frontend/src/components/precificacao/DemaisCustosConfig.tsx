@@ -1,12 +1,14 @@
-import { DecimalInput } from '../ui/DecimalInput';
-import { Receipt, Percent, Package, PlusCircle, Info } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
+import { DecimalInput } from '../ui/DecimalInput';
+import { Receipt, Percent, Package, PlusCircle, Info, Loader2, Check } from 'lucide-react';
+import { Embalagem } from '../../types';
+import { getEmbalagens } from '../../services/embalagensService';
 
 interface DemaisCustosConfigProps {
   impostoAliquota?: number;
   onImpostoAliquotaChange: (value: number) => void;
-  custoEmbalagem?: number;
-  onCustoEmbalagemChange: (value: number) => void;
+  embalagensIds?: string[];
+  onEmbalagensChange: (ids: string[], custoTotal: number) => void;
   outrosCustos?: number;
   onOutrosCustosChange: (value: number) => void;
 }
@@ -84,11 +86,53 @@ function PercentInput({
 export function DemaisCustosConfig({
   impostoAliquota,
   onImpostoAliquotaChange,
-  custoEmbalagem,
-  onCustoEmbalagemChange,
+  embalagensIds = [],
+  onEmbalagensChange,
   outrosCustos,
   onOutrosCustosChange,
 }: DemaisCustosConfigProps) {
+  const [embalagens, setEmbalagens] = useState<Embalagem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadEmbalagens = async () => {
+      setLoading(true);
+      const data = await getEmbalagens();
+      setEmbalagens(data);
+      setLoading(false);
+    };
+    loadEmbalagens();
+  }, []);
+
+  const handleEmbalagemToggle = (id: string) => {
+    const isSelected = embalagensIds.includes(id);
+    let newIds: string[];
+
+    if (isSelected) {
+      newIds = embalagensIds.filter(eid => eid !== id);
+    } else {
+      newIds = [...embalagensIds, id];
+    }
+
+    // Calcular custo total das embalagens selecionadas
+    const custoTotal = newIds.reduce((total, eid) => {
+      const emb = embalagens.find(e => e.id === eid);
+      return total + (emb?.preco_unitario || 0);
+    }, 0);
+
+    onEmbalagensChange(newIds, custoTotal);
+  };
+
+  // Calcular custo total atual
+  const custoTotalEmbalagens = embalagensIds.reduce((total, id) => {
+    const emb = embalagens.find(e => e.id === id);
+    return total + (emb?.preco_unitario || 0);
+  }, 0);
+
+  const formatCurrency = (value: number) => {
+    return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
   return (
     <div>
       <h4 className="text-sm font-medium text-gray-900 mb-3 flex items-center gap-2">
@@ -116,24 +160,77 @@ export function DemaisCustosConfig({
           </div>
         </div>
 
-        {/* Embalagem / acabamento */}
+        {/* Embalagens usadas */}
         <div className="border-t border-orange-200 pt-4">
           <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
             <Package className="w-4 h-4" />
-            Embalagem / acabamento
+            Embalagens usadas
           </label>
-          <div className="relative max-w-[160px]">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 pointer-events-none">
-              R$
-            </span>
-            <DecimalInput
-              value={custoEmbalagem}
-              onChange={onCustoEmbalagemChange}
-              placeholder="2.50"
-              className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg bg-white
-                focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-            />
-          </div>
+
+          {loading ? (
+            <div className="flex items-center gap-2 text-gray-500 text-sm py-2">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Carregando embalagens...
+            </div>
+          ) : embalagens.length === 0 ? (
+            <div className="text-sm text-gray-500 py-2">
+              <p>Nenhuma embalagem cadastrada.</p>
+              <a href="/embalagens" className="text-orange-600 hover:underline">
+                Cadastrar embalagens
+              </a>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {embalagens.map((embalagem) => {
+                const isSelected = embalagensIds.includes(embalagem.id);
+                return (
+                  <button
+                    key={embalagem.id}
+                    type="button"
+                    onClick={() => handleEmbalagemToggle(embalagem.id)}
+                    className={`w-full flex items-center gap-3 p-3 rounded-lg border-2 transition-all text-left ${
+                      isSelected
+                        ? 'border-orange-500 bg-orange-100'
+                        : 'border-gray-200 bg-white hover:border-gray-300'
+                    }`}
+                  >
+                    <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${
+                      isSelected
+                        ? 'bg-orange-500 border-orange-500'
+                        : 'border-gray-300 bg-white'
+                    }`}>
+                      {isSelected && <Check className="w-3 h-3 text-white" />}
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">
+                        {embalagem.nome_embalagem}
+                      </p>
+                      <p className="text-xs text-gray-500">{embalagem.tipo}</p>
+                    </div>
+
+                    <p className="text-sm font-semibold text-orange-700 flex-shrink-0">
+                      R$ {formatCurrency(embalagem.preco_unitario)}
+                    </p>
+                  </button>
+                );
+              })}
+
+              {/* Total das embalagens */}
+              {embalagensIds.length > 0 && (
+                <div className="mt-3 p-3 bg-orange-100 border border-orange-300 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-orange-700">
+                      Total embalagens ({embalagensIds.length})
+                    </span>
+                    <span className="text-lg font-bold text-orange-800">
+                      R$ {formatCurrency(custoTotalEmbalagens)}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Outros custos */}

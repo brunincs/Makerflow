@@ -68,11 +68,23 @@ export type ImpressoraModelo = 'a1_mini' | 'a1' | 'p1p' | 'p1s' | 'x1_carbon' | 
 // Filamento (para futura integracao com biblioteca de filamentos)
 export interface Filamento {
   id: string;
-  nome: string;
-  marca?: string;
-  tipo: string; // PLA, PETG, ABS, etc.
-  cor?: string;
-  preco_kg: number;
+  marca: string;
+  nome_filamento: string;
+  cor: string;
+  material: string; // PLA, PETG, ABS, TPU
+  preco_pago: number;
+  preco_por_kg: number; // = preco_pago (todos são 1kg)
+  created_at?: string;
+}
+
+// Embalagem
+export type TipoEmbalagem = 'Envelope' | 'Proteção' | 'Caixa';
+
+export interface Embalagem {
+  id: string;
+  tipo: TipoEmbalagem;
+  nome_embalagem: string;
+  preco_unitario: number;
   created_at?: string;
 }
 
@@ -121,9 +133,10 @@ export interface CustosProducaoConfig {
   filamento_id?: string;
   preco_filamento_kg?: number;
   peso_filamento_g?: number;
+  // Embalagens (múltiplas)
+  embalagens_ids?: string[];
   // Demais Custos
   imposto_aliquota?: number;
-  custo_embalagem?: number;
   outros_custos?: number;
 }
 

@@ -1,7 +1,8 @@
-import { useState } from 'react';
-import { MarketplaceState, PrecificacaoSalva } from '../../types';
+import { useState, useEffect } from 'react';
+import { MarketplaceState, PrecificacaoSalva, Embalagem } from '../../types';
 import { CATEGORIAS } from './MercadoLivreConfig';
-import { createPrecificacao } from '../../services/precificacoesService';
+import { createPrecificacao, updatePrecificacao } from '../../services/precificacoesService';
+import { getEmbalagens } from '../../services/embalagensService';
 import {
   TrendingUp,
   Clock,
@@ -120,6 +121,11 @@ function calcularFreteMercadoLivre(
 
 interface ResultadoCardProps {
   state: MarketplaceState;
+  canSave?: boolean;
+  onSaveSuccess?: () => void;
+  nomeProdutoCarregado?: string; // Nome do produto quando carrega simulação salva
+  simulacaoId?: string; // ID da simulação sendo editada (undefined = nova)
+  produtoIdOriginal?: string; // ID do produto do radar quando carrega simulação
 }
 
 interface CustoItem {
@@ -129,14 +135,34 @@ interface CustoItem {
   icon: React.ElementType;
 }
 
-export function ResultadoCard({ state }: ResultadoCardProps) {
+export function ResultadoCard({ state, canSave = true, onSaveSuccess, nomeProdutoCarregado, simulacaoId, produtoIdOriginal }: ResultadoCardProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [nomeManual, setNomeManual] = useState('');
+  const [embalagens, setEmbalagens] = useState<Embalagem[]>([]);
 
   const custos = state.custos_producao || {};
   const temProdutoSelecionado = !!state.produto_selecionado;
   const precoVenda = state.preco_venda || 0;
+
+  // Carregar embalagens para calcular o custo
+  useEffect(() => {
+    const loadEmbalagens = async () => {
+      const data = await getEmbalagens();
+      setEmbalagens(data);
+    };
+    loadEmbalagens();
+  }, []);
+
+  // Pré-preencher nome quando carrega simulação
+  useEffect(() => {
+    if (nomeProdutoCarregado && !nomeManual) {
+      setNomeManual(nomeProdutoCarregado);
+    }
+  }, [nomeProdutoCarregado]);
+
+  // Se tem produto selecionado ou nome manual, o nome é válido
+  const temNomeValido = temProdutoSelecionado || !!nomeManual.trim();
 
   // Se não tem preço de venda, não mostra o card
   if (precoVenda <= 0) {
@@ -172,8 +198,11 @@ export function ResultadoCard({ state }: ResultadoCardProps) {
     custoEnergia = custoEnergia / custos.quantidade_pecas;
   }
 
-  // Custo de embalagem
-  const custoEmbalagem = custos.custo_embalagem || 0;
+  // Custo de embalagem (soma das embalagens selecionadas)
+  const custoEmbalagem = (custos.embalagens_ids || []).reduce((total, id) => {
+    const emb = embalagens.find(e => e.id === id);
+    return total + (emb?.preco_unitario || 0);
+  }, 0);
 
   // Outros custos de produção
   const outrosCustos = custos.outros_custos || 0;
@@ -184,19 +213,46 @@ export function ResultadoCard({ state }: ResultadoCardProps) {
   // ========== CUSTOS DE VENDA ==========
 
   // Taxa do marketplace (baseado na categoria e tipo de anúncio)
-  let taxaMarketplacePercent = 0;
+  let taxaMarketplace = 0;
+  let taxaFixaShopee = 0;
+
   if (state.tipo === 'mercadolivre') {
     const categoria = CATEGORIAS.find(c => c.id === state.mercadolivre.categoria_id);
     if (categoria) {
-      taxaMarketplacePercent = state.mercadolivre.tipo_anuncio === 'classico'
+      const taxaMarketplacePercent = state.mercadolivre.tipo_anuncio === 'classico'
         ? categoria.taxa_classico
         : categoria.taxa_premium;
+      taxaMarketplace = (taxaMarketplacePercent / 100) * precoVenda;
     }
   } else if (state.tipo === 'shopee') {
-    // Shopee: taxa base de 14% (simplificado)
-    taxaMarketplacePercent = 14;
+    // Shopee: tabela de comissão baseada no preço
+    let comissaoPercent = 0;
+
+    if (precoVenda < 80) {
+      comissaoPercent = 20;
+      taxaFixaShopee = 4;
+    } else if (precoVenda < 100) {
+      comissaoPercent = 14;
+      taxaFixaShopee = 16;
+    } else if (precoVenda < 200) {
+      comissaoPercent = 14;
+      taxaFixaShopee = 20;
+    } else if (precoVenda < 500) {
+      comissaoPercent = 14;
+      taxaFixaShopee = 26;
+    } else {
+      comissaoPercent = 14;
+      taxaFixaShopee = 26;
+    }
+
+    // Calcular comissão (máximo R$100)
+    let comissao = (comissaoPercent / 100) * precoVenda;
+    if (comissao > 100) {
+      comissao = 100;
+    }
+
+    taxaMarketplace = comissao;
   }
-  const taxaMarketplace = (taxaMarketplacePercent / 100) * precoVenda;
 
   // Custo de frete (vendedor sempre paga uma parte)
   let custoFrete = 0;
@@ -221,7 +277,7 @@ export function ResultadoCard({ state }: ResultadoCardProps) {
   const custoImposto = (impostoPercent / 100) * precoVenda;
 
   // Total custos de venda
-  const totalCustosVenda = taxaMarketplace + custoFrete + custoImposto;
+  const totalCustosVenda = taxaMarketplace + taxaFixaShopee + custoFrete + custoImposto;
 
   // ========== LUCRO ==========
 
@@ -265,9 +321,18 @@ export function ResultadoCard({ state }: ResultadoCardProps) {
     custosProducaoList.push({ label: 'Outros custos', valor: outrosCustos, percentual: calcPercent(outrosCustos), icon: Receipt });
   }
 
-  const custosVendaList: CustoItem[] = [
-    { label: 'Taxa marketplace', valor: taxaMarketplace, percentual: calcPercent(taxaMarketplace), icon: Percent },
-  ];
+  const custosVendaList: CustoItem[] = [];
+
+  // Taxa marketplace (comissão)
+  if (taxaMarketplace > 0) {
+    const labelComissao = state.tipo === 'shopee' ? 'Comissao Shopee' : 'Taxa marketplace';
+    custosVendaList.push({ label: labelComissao, valor: taxaMarketplace, percentual: calcPercent(taxaMarketplace), icon: Percent });
+  }
+
+  // Taxa fixa Shopee
+  if (taxaFixaShopee > 0) {
+    custosVendaList.push({ label: 'Taxa fixa Shopee', valor: taxaFixaShopee, percentual: calcPercent(taxaFixaShopee), icon: Receipt });
+  }
 
   if (custoFrete > 0) {
     const freteLabel = state.tipo === 'mercadolivre' && state.mercadolivre.frete_gratis
@@ -286,8 +351,8 @@ export function ResultadoCard({ state }: ResultadoCardProps) {
 
   // Handler para salvar a precificação
   const handleSalvar = async () => {
-    // Validar nome quando não tem produto selecionado
-    if (!temProdutoSelecionado && !nomeManual.trim()) {
+    // Validar nome
+    if (!temNomeValido) {
       alert('Por favor, preencha o nome do produto/simulacao.');
       return;
     }
@@ -295,14 +360,17 @@ export function ResultadoCard({ state }: ResultadoCardProps) {
     setIsSaving(true);
     setSaveSuccess(false);
 
+    // Usar produto_id do produto selecionado, ou o ID original da simulação carregada
+    const produtoId = state.produto_selecionado?.produto.id || produtoIdOriginal || null;
+
     const precificacao: Omit<PrecificacaoSalva, 'id' | 'created_at'> = {
-      produto_id: state.produto_selecionado?.produto.id,
+      produto_id: produtoId,
       marketplace: state.tipo,
       preco_venda: precoVenda,
       custo_filamento: custoFilamento,
       custo_energia: custoEnergia,
       custo_embalagem: custoEmbalagem,
-      taxa_marketplace: taxaMarketplace,
+      taxa_marketplace: taxaMarketplace + taxaFixaShopee,
       frete_vendedor: custoFrete,
       lucro_liquido: lucroLiquido,
       margem: margemLiquida,
@@ -324,13 +392,16 @@ export function ResultadoCard({ state }: ResultadoCardProps) {
       variacao_nome: state.produto_selecionado?.variacao?.nome_variacao,
     };
 
-    const resultado = await createPrecificacao(precificacao);
+    // Se tem ID, é uma edição; senão, é nova
+    const resultado = simulacaoId
+      ? await updatePrecificacao(simulacaoId, precificacao)
+      : await createPrecificacao(precificacao);
 
     setIsSaving(false);
 
     if (resultado) {
       setSaveSuccess(true);
-      setNomeManual(''); // Limpar campo após salvar
+      onSaveSuccess?.(); // Notificar que salvou com sucesso
       setTimeout(() => setSaveSuccess(false), 3000);
     } else {
       alert('Erro ao salvar calculo. Tente novamente.');
@@ -547,11 +618,13 @@ export function ResultadoCard({ state }: ResultadoCardProps) {
       {/* Botão Salvar */}
       <button
         onClick={handleSalvar}
-        disabled={isSaving || (!temProdutoSelecionado && !nomeManual.trim())}
+        disabled={isSaving || !canSave || !temNomeValido}
         className={`w-full py-3 px-4 rounded-xl font-medium transition-all flex items-center justify-center gap-2 ${
           saveSuccess
             ? 'bg-green-500 text-white'
-            : 'bg-blue-600 hover:bg-blue-700 text-white'
+            : canSave && temNomeValido
+              ? 'bg-blue-600 hover:bg-blue-700 text-white'
+              : 'bg-gray-300 text-gray-500'
         } disabled:opacity-50 disabled:cursor-not-allowed`}
       >
         {isSaving ? (
@@ -567,7 +640,7 @@ export function ResultadoCard({ state }: ResultadoCardProps) {
         ) : (
           <>
             <Save className="w-5 h-5" />
-            Salvar calculo
+            {simulacaoId ? 'Atualizar calculo' : 'Salvar calculo'}
           </>
         )}
       </button>

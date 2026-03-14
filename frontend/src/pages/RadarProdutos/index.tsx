@@ -160,30 +160,32 @@ function ViewModal({
               </div>
             </div>
 
-            {/* Dados de Producao */}
-            <div className="space-y-2">
-              <h4 className="text-sm font-semibold text-gray-700">Dados de Producao</h4>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-3 bg-green-50 rounded-lg">
-                  <div className="flex items-center gap-2 text-green-700 mb-1">
-                    <Scale className="w-4 h-4" />
-                    <span className="text-sm">Peso</span>
+            {/* Dados de Producao - só mostra se NÃO tiver variações */}
+            {!(produto.variacoes && produto.variacoes.length > 0) && (
+              <div className="space-y-2">
+                <h4 className="text-sm font-semibold text-gray-700">Dados de Producao</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-3 bg-green-50 rounded-lg">
+                    <div className="flex items-center gap-2 text-green-700 mb-1">
+                      <Scale className="w-4 h-4" />
+                      <span className="text-sm">Peso</span>
+                    </div>
+                    <span className="text-lg font-bold text-green-800">
+                      {produto.peso_filamento ? `${produto.peso_filamento}g` : '-'}
+                    </span>
                   </div>
-                  <span className="text-lg font-bold text-green-800">
-                    {produto.peso_filamento ? `${produto.peso_filamento}g` : '-'}
-                  </span>
-                </div>
-                <div className="p-3 bg-blue-50 rounded-lg">
-                  <div className="flex items-center gap-2 text-blue-700 mb-1">
-                    <Clock className="w-4 h-4" />
-                    <span className="text-sm">Tempo de Impressao</span>
+                  <div className="p-3 bg-blue-50 rounded-lg">
+                    <div className="flex items-center gap-2 text-blue-700 mb-1">
+                      <Clock className="w-4 h-4" />
+                      <span className="text-sm">Tempo de Impressao</span>
+                    </div>
+                    <span className="text-lg font-bold text-blue-800">
+                      {produto.tempo_impressao ? formatarTempoImpressao(produto.tempo_impressao) : '-'}
+                    </span>
                   </div>
-                  <span className="text-lg font-bold text-blue-800">
-                    {produto.tempo_impressao ? formatarTempoImpressao(produto.tempo_impressao) : '-'}
-                  </span>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Precos */}
             <div className="space-y-2">
@@ -210,7 +212,7 @@ function ViewModal({
               </div>
             </div>
 
-            {/* Variacoes */}
+            {/* Variacoes - só mostra se tiver variações criadas, ordenadas por peso */}
             {produto.variacoes && produto.variacoes.length > 0 && (
               <div className="space-y-2">
                 <h4 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
@@ -218,7 +220,9 @@ function ViewModal({
                   Variacoes ({produto.variacoes.length})
                 </h4>
                 <div className="space-y-2">
-                  {produto.variacoes.map((variacao) => (
+                  {[...produto.variacoes]
+                    .sort((a, b) => (a.peso_filamento || 0) - (b.peso_filamento || 0))
+                    .map((variacao) => (
                     <div
                       key={variacao.id}
                       className="p-3 bg-purple-50 rounded-lg"
@@ -226,16 +230,28 @@ function ViewModal({
                       <span className="font-medium text-purple-800">{variacao.nome_variacao}</span>
                       <div className="flex flex-wrap gap-4 mt-2 text-sm">
                         {variacao.peso_filamento && (
-                          <span className="text-green-700">{variacao.peso_filamento}g</span>
+                          <span className="flex items-center gap-1 text-green-700">
+                            <Scale className="w-3.5 h-3.5" />
+                            {variacao.peso_filamento}g
+                          </span>
                         )}
                         {variacao.tempo_impressao && (
-                          <span className="text-blue-700">{formatarTempoImpressao(variacao.tempo_impressao)}</span>
+                          <span className="flex items-center gap-1 text-blue-700">
+                            <Clock className="w-3.5 h-3.5" />
+                            {formatarTempoImpressao(variacao.tempo_impressao)}
+                          </span>
                         )}
                         {variacao.preco_shopee && (
-                          <span className="text-orange-700">Shopee: {formatPrice(variacao.preco_shopee)}</span>
+                          <span className="flex items-center gap-1 text-orange-700">
+                            <ShopeeIcon className="w-3.5 h-3.5" />
+                            {formatPrice(variacao.preco_shopee)}
+                          </span>
                         )}
                         {variacao.preco_mercado_livre && (
-                          <span className="text-yellow-700">ML: {formatPrice(variacao.preco_mercado_livre)}</span>
+                          <span className="flex items-center gap-1 text-yellow-700">
+                            <MercadoLivreIcon className="w-3.5 h-3.5" />
+                            {formatPrice(variacao.preco_mercado_livre)}
+                          </span>
                         )}
                       </div>
                     </div>
@@ -360,8 +376,8 @@ function ProdutoCard({
           </div>
         )}
 
-        {/* Dados de Producao */}
-        {hasProducao && (
+        {/* Dados de Producao - só mostra no topo se NÃO tiver variações */}
+        {hasProducao && !hasVariacoes && (
           <div className="flex gap-3 mb-3">
             {produto.peso_filamento && (
               <div className="flex items-center gap-1.5 px-2 py-1 bg-green-50 rounded-lg">
@@ -413,7 +429,7 @@ function ProdutoCard({
           )}
         </div>
 
-        {/* Variacoes */}
+        {/* Variacoes - só mostra se tiver variações criadas, ordenadas por peso */}
         {hasVariacoes && (
           <div className="mb-4">
             <div className="flex items-center gap-2 mb-2">
@@ -422,29 +438,50 @@ function ProdutoCard({
                 Variacoes ({produto.variacoes!.length})
               </span>
             </div>
-            <div className="space-y-1.5 max-h-32 overflow-y-auto">
-              {produto.variacoes!.map((variacao) => (
+            <div className="space-y-1.5 max-h-40 overflow-y-auto">
+              {[...produto.variacoes!]
+                .sort((a, b) => (a.peso_filamento || 0) - (b.peso_filamento || 0))
+                .map((variacao) => (
                 <div
                   key={variacao.id}
-                  className="flex items-center justify-between p-2 bg-purple-50 rounded-lg text-sm"
+                  className="p-2 bg-purple-50 rounded-lg text-sm"
                 >
-                  <span className="font-medium text-gray-800 truncate flex-1">
-                    {variacao.nome_variacao}
-                  </span>
-                  <div className="flex items-center gap-2 ml-2">
-                    {variacao.preco_shopee && (
-                      <span className="flex items-center gap-1 text-orange-600">
-                        <ShopeeIcon className="w-3 h-3" />
-                        {formatPrice(variacao.preco_shopee)}
-                      </span>
-                    )}
-                    {variacao.preco_mercado_livre && (
-                      <span className="flex items-center gap-1 text-yellow-600">
-                        <MercadoLivreIcon className="w-3 h-3" />
-                        {formatPrice(variacao.preco_mercado_livre)}
-                      </span>
-                    )}
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium text-gray-800">
+                      {variacao.nome_variacao}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      {variacao.preco_shopee && (
+                        <span className="flex items-center gap-1 text-orange-600">
+                          <ShopeeIcon className="w-3 h-3" />
+                          {formatPrice(variacao.preco_shopee)}
+                        </span>
+                      )}
+                      {variacao.preco_mercado_livre && (
+                        <span className="flex items-center gap-1 text-yellow-600">
+                          <MercadoLivreIcon className="w-3 h-3" />
+                          {formatPrice(variacao.preco_mercado_livre)}
+                        </span>
+                      )}
+                    </div>
                   </div>
+                  {/* Peso e Tempo da variação */}
+                  {(variacao.peso_filamento || variacao.tempo_impressao) && (
+                    <div className="flex items-center gap-3 mt-1 text-xs text-gray-600">
+                      {variacao.peso_filamento && (
+                        <span className="flex items-center gap-1">
+                          <Scale className="w-3 h-3 text-green-600" />
+                          {variacao.peso_filamento}g
+                        </span>
+                      )}
+                      {variacao.tempo_impressao && (
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-3 h-3 text-blue-600" />
+                          {formatarTempoImpressao(variacao.tempo_impressao)}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

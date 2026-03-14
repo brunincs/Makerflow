@@ -12,11 +12,11 @@ import {
 const menuItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/radar-produtos', icon: Radar, label: 'Radar de Produtos' },
-  { to: '/precificacao', icon: Calculator, label: 'Precificacao' },
-  { to: '/simulacoes', icon: LineChart, label: 'Simulacoes' },
-  { to: '#', icon: Package, label: 'Estoque', disabled: true },
-  { to: '#', icon: Cylinder, label: 'Filamentos', disabled: true },
-  { to: '#', icon: BoxIcon, label: 'Embalagens', disabled: true },
+  { to: '/precificacao', icon: Calculator, label: 'Calculadora' },
+  { to: '/simulacoes', icon: LineChart, label: 'Precificados' },
+  { to: '/filamentos', icon: Cylinder, label: 'Filamentos' },
+  { to: '/embalagens', icon: Package, label: 'Embalagens' },
+  { to: '#', icon: BoxIcon, label: 'Estoque', disabled: true },
 ];
 
 export function Sidebar() {

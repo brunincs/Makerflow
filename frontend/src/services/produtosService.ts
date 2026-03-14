@@ -148,6 +148,35 @@ export const createProduto = async (
   return data;
 };
 
+export const getProdutoById = async (id: string): Promise<ProdutoConcorrente | null> => {
+  if (!isSupabaseConfigured() || !supabase) {
+    const produtos = getLocalProdutos();
+    const variacoes = getLocalVariacoes();
+    const produto = produtos.find(p => p.id === id);
+    if (!produto) return null;
+    return {
+      ...produto,
+      variacoes: variacoes.filter(v => v.produto_id === id),
+    };
+  }
+
+  const { data, error } = await supabase
+    .from('produtos_concorrentes')
+    .select(`
+      *,
+      variacoes:variacoes_produto(*)
+    `)
+    .eq('id', id)
+    .single();
+
+  if (error) {
+    console.error('Erro ao buscar produto:', error);
+    return null;
+  }
+
+  return data;
+};
+
 export const getProdutos = async (): Promise<ProdutoConcorrente[]> => {
   if (!isSupabaseConfigured() || !supabase) {
     const produtos = getLocalProdutos();

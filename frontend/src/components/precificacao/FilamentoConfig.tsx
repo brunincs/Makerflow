@@ -1,6 +1,8 @@
+import { useState, useEffect } from 'react';
 import { ProdutoSelecionado, Filamento } from '../../types';
+import { getFilamentos } from '../../services/filamentosService';
 import { DecimalInput } from '../ui/DecimalInput';
-import { Cylinder, Package, Info } from 'lucide-react';
+import { Cylinder, Package, Info, Loader2, Lock } from 'lucide-react';
 
 interface FilamentoConfigProps {
   precoFilamentoKg?: number;
@@ -8,10 +10,8 @@ interface FilamentoConfigProps {
   pesoFilamentoG?: number;
   onPesoFilamentoGChange: (value: number) => void;
   filamentoId?: string;
-  onFilamentoIdChange: (id: string | undefined) => void;
+  onFilamentoChange: (id: string | undefined, preco: number | undefined) => void;
   produtoSelecionado: ProdutoSelecionado | null;
-  // Futura integracao: lista de filamentos do sistema
-  filamentos?: Filamento[];
 }
 
 export function FilamentoConfig({
@@ -20,10 +20,29 @@ export function FilamentoConfig({
   pesoFilamentoG,
   onPesoFilamentoGChange,
   filamentoId,
-  onFilamentoIdChange,
+  onFilamentoChange,
   produtoSelecionado,
-  filamentos = [],
 }: FilamentoConfigProps) {
+  const [filamentos, setFilamentos] = useState<Filamento[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Carregar filamentos
+  useEffect(() => {
+    const loadFilamentos = async () => {
+      setLoading(true);
+      try {
+        const data = await getFilamentos();
+        console.log('[FilamentoConfig] Filamentos carregados:', data);
+        console.log('[FilamentoConfig] Quantidade:', data.length);
+        setFilamentos(data);
+      } catch (error) {
+        console.error('[FilamentoConfig] Erro ao carregar filamentos:', error);
+      }
+      setLoading(false);
+    };
+    loadFilamentos();
+  }, []);
+
   // Obter peso do produto selecionado (variacao tem prioridade)
   const getPesoFromProduto = (): number | null => {
     if (!produtoSelecionado) return null;
@@ -37,19 +56,43 @@ export function FilamentoConfig({
   const pesoProduto = getPesoFromProduto();
   const hasPesoProduto = pesoProduto !== null;
 
-  const handleFilamentoChange = (id: string) => {
-    if (id === '') {
-      onFilamentoIdChange(undefined);
+  // Verificar se é modo manual (valor vazio = manual)
+  const isModoManual = !filamentoId || filamentoId === '';
+
+  // Encontrar filamento selecionado
+  const filamentoSelecionado = filamentoId && filamentoId !== ''
+    ? filamentos.find(f => f.id === filamentoId)
+    : null;
+
+  // Log do estado atual (para debug)
+  useEffect(() => {
+    console.log('[FilamentoConfig] filamentoId:', filamentoId);
+    console.log('[FilamentoConfig] filamentos.length:', filamentos.length);
+    console.log('[FilamentoConfig] filamentoSelecionado:', filamentoSelecionado);
+  }, [filamentoId, filamentos, filamentoSelecionado]);
+
+  const handleFilamentoChange = (value: string) => {
+    console.log('[FilamentoConfig] handleFilamentoChange chamado com:', value);
+
+    if (value === '') {
+      // Modo manual - apenas limpa o filamentoId, mantém o preço atual
+      console.log('[FilamentoConfig] Setando modo manual (undefined)');
+      onFilamentoChange(undefined, undefined);
       return;
     }
 
-    onFilamentoIdChange(id);
+    // Selecionou um filamento - atualiza id E preço juntos
+    const filamento = filamentos.find(f => f.id === value);
+    console.log('[FilamentoConfig] Filamento encontrado:', filamento);
 
-    // Auto-preencher preco se filamento selecionado
-    const filamento = filamentos.find(f => f.id === id);
     if (filamento) {
-      onPrecoFilamentoKgChange(filamento.preco_kg);
+      console.log('[FilamentoConfig] Setando filamentoId:', value, 'e preco:', filamento.preco_por_kg);
+      onFilamentoChange(value, filamento.preco_por_kg);
     }
+  };
+
+  const formatCurrency = (value: number) => {
+    return value.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
   };
 
   return (
@@ -60,37 +103,72 @@ export function FilamentoConfig({
       </h4>
 
       <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 space-y-5">
-        {/* Seletor de Filamento (futuro) */}
+        {/* Seletor de Filamento */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Selecionar filamento (opcional)
+            Selecionar filamento
           </label>
-          <select
-            value={filamentoId || ''}
-            onChange={(e) => handleFilamentoChange(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white
-              focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500
-              text-sm"
-          >
-            <option value="">Digitar manualmente</option>
-            {filamentos.map((filamento) => (
-              <option key={filamento.id} value={filamento.id}>
-                {filamento.nome} {filamento.cor ? `(${filamento.cor})` : ''} — R$ {filamento.preco_kg.toFixed(2)}/kg
-              </option>
-            ))}
-          </select>
-          {filamentos.length === 0 && (
+          {loading ? (
+            <div className="flex items-center gap-2 text-gray-500 text-sm py-2">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Carregando filamentos...
+            </div>
+          ) : (
+            <select
+              value={filamentoId || ''}
+              onChange={(e) => handleFilamentoChange(e.target.value)}
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg bg-white
+                focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500
+                text-sm"
+            >
+              <option value="">Digitar valor manualmente</option>
+              {filamentos.map((filamento) => (
+                <option key={filamento.id} value={filamento.id}>
+                  {filamento.marca} • {filamento.nome_filamento} • R${formatCurrency(filamento.preco_por_kg)}/kg
+                </option>
+              ))}
+            </select>
+          )}
+
+          {filamentos.length === 0 && !loading && (
             <p className="text-xs text-purple-600 mt-1.5 flex items-center gap-1">
               <Info className="w-3 h-3" />
-              Cadastre filamentos no painel "Filamentos" para selecionar aqui
+              Cadastre filamentos no menu "Filamentos" para selecionar aqui
             </p>
           )}
         </div>
 
-        {/* Custo do Filamento por kg */}
+        {/* Mostrar info do filamento selecionado */}
+        {filamentoSelecionado && (
+          <div className="bg-white border border-purple-200 rounded-lg p-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-purple-600 font-medium">{filamentoSelecionado.marca}</p>
+                <p className="text-sm font-semibold text-gray-900">{filamentoSelecionado.nome_filamento}</p>
+                <p className="text-xs text-gray-500">
+                  {filamentoSelecionado.material} {filamentoSelecionado.cor && `• ${filamentoSelecionado.cor}`}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-xl font-bold text-purple-700">
+                  R$ {filamentoSelecionado.preco_por_kg.toFixed(2)}
+                </p>
+                <p className="text-xs text-gray-500">/kg</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Valor do kg - sempre visível, editável apenas no modo manual */}
         <div className="border-t border-purple-200 pt-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Custo do filamento (R$/kg)
+          <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+            Valor do kg (R$)
+            {!isModoManual && (
+              <span className="flex items-center gap-1 text-xs text-purple-600 font-normal">
+                <Lock className="w-3 h-3" />
+                Valor do filamento selecionado
+              </span>
+            )}
           </label>
           <div className="relative max-w-[200px]">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 pointer-events-none">
@@ -100,8 +178,10 @@ export function FilamentoConfig({
               value={precoFilamentoKg}
               onChange={onPrecoFilamentoKgChange}
               placeholder="89.90"
-              className="w-full pl-9 pr-14 py-2 border border-gray-300 rounded-lg bg-white
-                focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              disabled={!isModoManual}
+              className={`w-full pl-9 pr-14 py-2 border border-gray-300 rounded-lg
+                focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500
+                ${!isModoManual ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : 'bg-white'}`}
             />
             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 pointer-events-none">
               /kg

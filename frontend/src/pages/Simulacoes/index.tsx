@@ -79,12 +79,14 @@ export function Simulacoes() {
     setLoading(false);
   };
 
-  // Agrupar simulações por produto
+  // Agrupar simulações por produto_id (produtos do radar) ou por id individual (manuais)
   const produtosAgrupados = useMemo(() => {
     const grupos = new Map<string, ProdutoAgrupado>();
 
     simulacoes.forEach(sim => {
-      const key = sim.produto_id || sim.nome_produto || 'manual';
+      // Se tem produto_id, agrupa pelo produto do radar
+      // Se não tem, cada simulação manual é seu próprio grupo (usa o id da simulação)
+      const key = sim.produto_id || `manual_${sim.id}`;
 
       if (!grupos.has(key)) {
         grupos.set(key, {
