@@ -6,6 +6,7 @@ import { Precificacao } from './pages/Precificacao';
 import { Simulacoes } from './pages/Simulacoes';
 import { Filamentos } from './pages/Filamentos';
 import { Embalagens } from './pages/Embalagens';
+import { Impressoes } from './pages/Impressoes';
 
 export const router = createBrowserRouter([
   {
@@ -53,6 +54,14 @@ export const router = createBrowserRouter([
     element: (
       <MainLayout>
         <Embalagens />
+      </MainLayout>
+    ),
+  },
+  {
+    path: '/impressoes',
+    element: (
+      <MainLayout>
+        <Impressoes />
       </MainLayout>
     ),
   },

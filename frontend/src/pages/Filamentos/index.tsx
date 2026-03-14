@@ -11,7 +11,9 @@ import {
   X,
   Check,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  AlertTriangle,
+  Package
 } from 'lucide-react';
 
 const MATERIAIS = ['PLA', 'PETG', 'ABS', 'TPU'];
@@ -22,6 +24,7 @@ interface FilamentoForm {
   cor: string;
   material: string;
   preco_pago: number;
+  quantidade_rolos: number;
 }
 
 const initialForm: FilamentoForm = {
@@ -30,6 +33,7 @@ const initialForm: FilamentoForm = {
   cor: '',
   material: 'PLA',
   preco_pago: 0,
+  quantidade_rolos: 1,
 };
 
 export function Filamentos() {
@@ -62,21 +66,34 @@ export function Filamentos() {
 
     setSaving(true);
 
-    if (editingId) {
-      const resultado = await updateFilamento(editingId, form);
-      if (resultado) {
-        setFilamentos(prev => prev.map(f => f.id === editingId ? resultado : f));
-        setEditingId(null);
+    try {
+      if (editingId) {
+        const resultado = await updateFilamento(editingId, form);
+        if (resultado) {
+          // Recarregar lista para garantir consistência
+          await loadFilamentos();
+          setEditingId(null);
+          setForm(initialForm);
+          setShowForm(false);
+        } else {
+          alert('Erro ao salvar alteracoes. Verifique o console.');
+        }
+      } else {
+        const resultado = await createFilamento(form);
+        if (resultado) {
+          // Recarregar lista para garantir consistência
+          await loadFilamentos();
+          setForm(initialForm);
+          setShowForm(false);
+        } else {
+          alert('Erro ao cadastrar filamento. Verifique o console.');
+        }
       }
-    } else {
-      const resultado = await createFilamento(form);
-      if (resultado) {
-        setFilamentos(prev => [resultado, ...prev]);
-      }
+    } catch (error) {
+      console.error('Erro:', error);
+      alert('Erro ao salvar: ' + (error as Error).message);
     }
 
-    setForm(initialForm);
-    setShowForm(false);
     setSaving(false);
   };
 
@@ -87,6 +104,7 @@ export function Filamentos() {
       cor: filamento.cor,
       material: filamento.material,
       preco_pago: filamento.preco_pago,
+      quantidade_rolos: filamento.quantidade_rolos || 0,
     });
     setEditingId(filamento.id);
     setShowForm(true);
@@ -112,6 +130,13 @@ export function Filamentos() {
   const formatCurrency = (value: number) => {
     return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
+
+  const formatEstoque = (gramas: number) => {
+    const kg = gramas / 1000;
+    return kg.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
+  const isEstoqueBaixo = (gramas: number) => gramas < 1000;
 
   if (loading) {
     return (
@@ -255,6 +280,29 @@ export function Filamentos() {
                     Preco por kg (todos os rolos sao considerados 1kg)
                   </p>
                 </div>
+
+                {/* Quantidade de Rolos */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Quantidade de rolos em estoque
+                  </label>
+                  <div className="relative">
+                    <Package className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={form.quantidade_rolos}
+                      onChange={(e) => setForm(prev => ({ ...prev, quantidade_rolos: parseInt(e.target.value) || 0 }))}
+                      placeholder="1"
+                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg bg-white
+                        focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Estoque total: {(form.quantidade_rolos * 1000).toLocaleString('pt-BR')}g ({form.quantidade_rolos}kg)
+                  </p>
+                </div>
               </div>
 
               {/* Botoes */}
@@ -337,6 +385,23 @@ export function Filamentos() {
                   </h3>
                 </div>
 
+                {/* Estoque */}
+                <div className="text-center px-4 border-l border-gray-200">
+                  <div className={`flex items-center gap-1 ${
+                    isEstoqueBaixo(filamento.estoque_gramas || 0) ? 'text-red-600' : 'text-green-600'
+                  }`}>
+                    {isEstoqueBaixo(filamento.estoque_gramas || 0) && (
+                      <AlertTriangle className="w-4 h-4" />
+                    )}
+                    <span className="text-lg font-bold">
+                      {formatEstoque(filamento.estoque_gramas || 0)} kg
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    ({filamento.quantidade_rolos || 0} {(filamento.quantidade_rolos || 0) === 1 ? 'rolo' : 'rolos'})
+                  </p>
+                </div>
+
                 {/* Preco */}
                 <div className="text-right">
                   <p className="text-2xl font-bold text-purple-700">
@@ -379,6 +444,11 @@ export function Filamentos() {
           <div className="flex items-center justify-between text-sm">
             <span className="text-gray-500">
               <strong className="text-gray-900">{filamentos.length}</strong> {filamentos.length === 1 ? 'filamento cadastrado' : 'filamentos cadastrados'}
+            </span>
+            <span className="text-gray-500">
+              Estoque total: <strong className="text-gray-900">
+                {formatEstoque(filamentos.reduce((acc, f) => acc + (f.estoque_gramas || 0), 0))} kg
+              </strong>
             </span>
           </div>
         </div>

@@ -33,7 +33,10 @@ export function DecimalInput({
   }, [value]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
+    let val = e.target.value;
+
+    // Converter virgula para ponto (suporte a entrada brasileira)
+    val = val.replace(',', '.');
 
     // Permitir string vazia, digitos e ponto decimal
     // Regex: opcional digitos, opcional ponto, opcional digitos

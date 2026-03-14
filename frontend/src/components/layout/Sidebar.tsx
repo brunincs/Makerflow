@@ -7,6 +7,7 @@ import {
   Package,
   Cylinder,
   BoxIcon,
+  Printer,
 } from 'lucide-react';
 
 const menuItems = [
@@ -14,6 +15,7 @@ const menuItems = [
   { to: '/radar-produtos', icon: Radar, label: 'Radar de Produtos' },
   { to: '/precificacao', icon: Calculator, label: 'Calculadora' },
   { to: '/simulacoes', icon: LineChart, label: 'Precificados' },
+  { to: '/impressoes', icon: Printer, label: 'Impressoes' },
   { to: '/filamentos', icon: Cylinder, label: 'Filamentos' },
   { to: '/embalagens', icon: Package, label: 'Embalagens' },
   { to: '#', icon: BoxIcon, label: 'Estoque', disabled: true },

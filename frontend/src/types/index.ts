@@ -74,7 +74,38 @@ export interface Filamento {
   material: string; // PLA, PETG, ABS, TPU
   preco_pago: number;
   preco_por_kg: number; // = preco_pago (todos são 1kg)
+  quantidade_rolos: number; // Quantidade de rolos em estoque
+  estoque_gramas: number; // = quantidade_rolos * 1000 (atualizado automaticamente)
   created_at?: string;
+}
+
+// Impressao (registro de impressões realizadas)
+export interface Impressao {
+  id?: string;
+  produto_id: string; // '__MANUAL__' para impressões manuais
+  variacao_id?: string;
+  filamento_id: string;
+  quantidade: number;
+  peso_peca_g: number;
+  peso_total_g: number; // = peso_peca_g * quantidade
+  tempo_peca_min?: number; // tempo por peça em minutos
+  tempo_total_min?: number; // = tempo_peca_min * quantidade
+  impressora?: ImpressoraModelo;
+  nome_peca_manual?: string; // nome da peça para impressões manuais
+  created_at?: string;
+  // Dados via join
+  produto?: {
+    nome: string;
+    imagem_url?: string;
+  };
+  variacao?: {
+    nome_variacao: string;
+  };
+  filamento?: {
+    nome_filamento: string;
+    cor: string;
+    material: string;
+  };
 }
 
 // Embalagem
