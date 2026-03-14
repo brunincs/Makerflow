@@ -72,10 +72,20 @@ export interface Filamento {
   nome_filamento: string;
   cor: string;
   material: string; // PLA, PETG, ABS, TPU
-  preco_pago: number;
-  preco_por_kg: number; // = preco_pago (todos são 1kg)
-  quantidade_rolos: number; // Quantidade de rolos em estoque
-  estoque_gramas: number; // = quantidade_rolos * 1000 (atualizado automaticamente)
+  preco_pago: number; // Mantido para compatibilidade, mas usamos preco_por_kg
+  preco_por_kg: number; // Preço médio ponderado por kg
+  quantidade_rolos: number; // Total de rolos adicionados (histórico)
+  estoque_gramas: number; // Estoque atual em gramas
+  created_at?: string;
+}
+
+// Entrada de estoque de filamento
+export interface FilamentoEntrada {
+  id?: string;
+  filamento_id: string;
+  quantidade_rolos: number;
+  preco_por_rolo: number;
+  peso_total_g: number; // = quantidade_rolos * 1000
   created_at?: string;
 }
 

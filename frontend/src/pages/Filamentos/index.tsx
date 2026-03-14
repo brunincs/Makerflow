@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardBody } from '../../components/ui';
 import { Filamento } from '../../types';
-import { getFilamentos, createFilamento, updateFilamento, deleteFilamento } from '../../services/filamentosService';
+import { getFilamentos, createFilamento, updateFilamento, deleteFilamento, adicionarEstoqueFilamento } from '../../services/filamentosService';
 import { DecimalInput } from '../../components/ui/DecimalInput';
 import {
   Cylinder,
@@ -27,6 +27,11 @@ interface FilamentoForm {
   quantidade_rolos: number;
 }
 
+interface EstoqueForm {
+  quantidade_rolos: number;
+  preco_por_rolo: number;
+}
+
 const initialForm: FilamentoForm = {
   marca: '',
   nome_filamento: '',
@@ -34,6 +39,11 @@ const initialForm: FilamentoForm = {
   material: 'PLA',
   preco_pago: 0,
   quantidade_rolos: 1,
+};
+
+const initialEstoqueForm: EstoqueForm = {
+  quantidade_rolos: 1,
+  preco_por_rolo: 0,
 };
 
 export function Filamentos() {
@@ -44,6 +54,12 @@ export function Filamentos() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<FilamentoForm>(initialForm);
+
+  // Modal de adicionar estoque
+  const [showEstoqueModal, setShowEstoqueModal] = useState(false);
+  const [estoqueFilamentoId, setEstoqueFilamentoId] = useState<string | null>(null);
+  const [estoqueForm, setEstoqueForm] = useState<EstoqueForm>(initialEstoqueForm);
+  const [savingEstoque, setSavingEstoque] = useState(false);
 
   useEffect(() => {
     loadFilamentos();
@@ -68,9 +84,10 @@ export function Filamentos() {
 
     try {
       if (editingId) {
-        const resultado = await updateFilamento(editingId, form);
+        // Na edição, não enviamos quantidade_rolos
+        const { quantidade_rolos, ...formSemQuantidade } = form;
+        const resultado = await updateFilamento(editingId, formSemQuantidade);
         if (resultado) {
-          // Recarregar lista para garantir consistência
           await loadFilamentos();
           setEditingId(null);
           setForm(initialForm);
@@ -81,7 +98,6 @@ export function Filamentos() {
       } else {
         const resultado = await createFilamento(form);
         if (resultado) {
-          // Recarregar lista para garantir consistência
           await loadFilamentos();
           setForm(initialForm);
           setShowForm(false);
@@ -103,8 +119,8 @@ export function Filamentos() {
       nome_filamento: filamento.nome_filamento,
       cor: filamento.cor,
       material: filamento.material,
-      preco_pago: filamento.preco_pago,
-      quantidade_rolos: filamento.quantidade_rolos || 0,
+      preco_pago: filamento.preco_por_kg, // Usar preço médio atual
+      quantidade_rolos: 0, // Não usado na edição
     });
     setEditingId(filamento.id);
     setShowForm(true);
@@ -127,6 +143,50 @@ export function Filamentos() {
     setShowForm(false);
   };
 
+  // Funções do modal de estoque
+  const handleOpenEstoqueModal = (filamentoId: string) => {
+    setEstoqueFilamentoId(filamentoId);
+    setEstoqueForm(initialEstoqueForm);
+    setShowEstoqueModal(true);
+  };
+
+  const handleCloseEstoqueModal = () => {
+    setShowEstoqueModal(false);
+    setEstoqueFilamentoId(null);
+    setEstoqueForm(initialEstoqueForm);
+  };
+
+  const handleAdicionarEstoque = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!estoqueFilamentoId || estoqueForm.quantidade_rolos <= 0 || estoqueForm.preco_por_rolo <= 0) {
+      alert('Preencha todos os campos corretamente.');
+      return;
+    }
+
+    setSavingEstoque(true);
+
+    try {
+      const resultado = await adicionarEstoqueFilamento(
+        estoqueFilamentoId,
+        estoqueForm.quantidade_rolos,
+        estoqueForm.preco_por_rolo
+      );
+
+      if (resultado) {
+        await loadFilamentos();
+        handleCloseEstoqueModal();
+      } else {
+        alert('Erro ao adicionar estoque. Verifique o console.');
+      }
+    } catch (error) {
+      console.error('Erro:', error);
+      alert('Erro ao adicionar estoque: ' + (error as Error).message);
+    }
+
+    setSavingEstoque(false);
+  };
+
   const formatCurrency = (value: number) => {
     return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
@@ -137,6 +197,20 @@ export function Filamentos() {
   };
 
   const isEstoqueBaixo = (gramas: number) => gramas < 1000;
+
+  // Calcular preview do novo preço médio
+  const getFilamentoAtual = () => filamentos.find(f => f.id === estoqueFilamentoId);
+  const calcularNovoPrecoMedio = () => {
+    const filamento = getFilamentoAtual();
+    if (!filamento) return 0;
+
+    const estoqueAtualKg = (filamento.estoque_gramas || 0) / 1000;
+    const valorEstoqueAtual = filamento.preco_por_kg * estoqueAtualKg;
+    const valorCompra = estoqueForm.preco_por_rolo * estoqueForm.quantidade_rolos;
+    const novoEstoqueKg = estoqueAtualKg + estoqueForm.quantidade_rolos;
+
+    return novoEstoqueKg > 0 ? (valorEstoqueAtual + valorCompra) / novoEstoqueKg : estoqueForm.preco_por_rolo;
+  };
 
   if (loading) {
     return (
@@ -259,10 +333,10 @@ export function Filamentos() {
                   />
                 </div>
 
-                {/* Preco Pago */}
+                {/* Preco Pago - apenas na criação ou edição de preço base */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Preco pago (R$) *
+                    {editingId ? 'Preco medio atual (R$/kg)' : 'Preco pago por rolo (R$) *'}
                   </label>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 pointer-events-none">
@@ -272,37 +346,47 @@ export function Filamentos() {
                       value={form.preco_pago}
                       onChange={(value) => setForm(prev => ({ ...prev, preco_pago: value }))}
                       placeholder="89.90"
-                      className="w-full pl-9 px-3 py-2 border border-gray-300 rounded-lg bg-white
-                        focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                      disabled={editingId !== null}
+                      className={`w-full pl-9 px-3 py-2 border border-gray-300 rounded-lg
+                        focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500
+                        ${editingId ? 'bg-gray-50 text-gray-500 cursor-not-allowed' : 'bg-white'}`}
                     />
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Preco por kg (todos os rolos sao considerados 1kg)
-                  </p>
+                  {editingId ? (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Use "Adicionar estoque" para atualizar o preco medio
+                    </p>
+                  ) : (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Preco por kg (todos os rolos sao considerados 1kg)
+                    </p>
+                  )}
                 </div>
 
-                {/* Quantidade de Rolos */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Quantidade de rolos em estoque
-                  </label>
-                  <div className="relative">
-                    <Package className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input
-                      type="number"
-                      min="0"
-                      step="1"
-                      value={form.quantidade_rolos}
-                      onChange={(e) => setForm(prev => ({ ...prev, quantidade_rolos: parseInt(e.target.value) || 0 }))}
-                      placeholder="1"
-                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg bg-white
-                        focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                    />
+                {/* Quantidade de Rolos - apenas na criação */}
+                {!editingId && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Quantidade de rolos inicial
+                    </label>
+                    <div className="relative">
+                      <Package className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <input
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={form.quantidade_rolos}
+                        onChange={(e) => setForm(prev => ({ ...prev, quantidade_rolos: parseInt(e.target.value) || 1 }))}
+                        placeholder="1"
+                        className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg bg-white
+                          focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Estoque inicial: {(form.quantidade_rolos * 1000).toLocaleString('pt-BR')}g ({form.quantidade_rolos}kg)
+                    </p>
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Estoque total: {(form.quantidade_rolos * 1000).toLocaleString('pt-BR')}g ({form.quantidade_rolos}kg)
-                  </p>
-                </div>
+                )}
               </div>
 
               {/* Botoes */}
@@ -397,21 +481,27 @@ export function Filamentos() {
                       {formatEstoque(filamento.estoque_gramas || 0)} kg
                     </span>
                   </div>
-                  <p className="text-xs text-gray-500">
-                    ({filamento.quantidade_rolos || 0} {(filamento.quantidade_rolos || 0) === 1 ? 'rolo' : 'rolos'})
-                  </p>
+                  <p className="text-xs text-gray-500">em estoque</p>
                 </div>
 
-                {/* Preco */}
-                <div className="text-right">
-                  <p className="text-2xl font-bold text-purple-700">
+                {/* Preco Medio */}
+                <div className="text-right px-4 border-l border-gray-200">
+                  <p className="text-lg font-bold text-purple-700">
                     R$ {formatCurrency(filamento.preco_por_kg)}
                   </p>
-                  <p className="text-xs text-gray-500">/kg</p>
+                  <p className="text-xs text-gray-500">preco medio/kg</p>
                 </div>
 
                 {/* Acoes */}
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 border-l border-gray-200 pl-4">
+                  <button
+                    onClick={() => handleOpenEstoqueModal(filamento.id)}
+                    className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-green-600 bg-green-50 rounded-lg hover:bg-green-100 transition-colors"
+                    title="Adicionar estoque"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Estoque
+                  </button>
                   <button
                     onClick={() => handleEdit(filamento)}
                     className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
@@ -450,6 +540,137 @@ export function Filamentos() {
                 {formatEstoque(filamentos.reduce((acc, f) => acc + (f.estoque_gramas || 0), 0))} kg
               </strong>
             </span>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Adicionar Estoque */}
+      {showEstoqueModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="fixed inset-0 bg-black/50" onClick={handleCloseEstoqueModal} />
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md">
+              {/* Header */}
+              <div className="px-6 py-4 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-gray-900">Adicionar Estoque</h3>
+                  <button onClick={handleCloseEstoqueModal} className="p-2 hover:bg-gray-100 rounded-lg">
+                    <X className="w-5 h-5 text-gray-500" />
+                  </button>
+                </div>
+                {getFilamentoAtual() && (
+                  <p className="text-sm text-gray-500 mt-1">
+                    {getFilamentoAtual()?.marca} - {getFilamentoAtual()?.nome_filamento}
+                  </p>
+                )}
+              </div>
+
+              {/* Form */}
+              <form onSubmit={handleAdicionarEstoque} className="p-6 space-y-4">
+                {/* Quantidade de Rolos */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Quantidade de rolos *
+                  </label>
+                  <div className="relative">
+                    <Package className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={estoqueForm.quantidade_rolos}
+                      onChange={(e) => setEstoqueForm(prev => ({ ...prev, quantidade_rolos: parseInt(e.target.value) || 1 }))}
+                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg bg-white
+                        focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Cada rolo = 1kg ({(estoqueForm.quantidade_rolos * 1000).toLocaleString('pt-BR')}g)
+                  </p>
+                </div>
+
+                {/* Preco por Rolo */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Preco pago por rolo (R$) *
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 pointer-events-none">
+                      R$
+                    </span>
+                    <DecimalInput
+                      value={estoqueForm.preco_por_rolo}
+                      onChange={(value) => setEstoqueForm(prev => ({ ...prev, preco_por_rolo: value }))}
+                      placeholder="89.90"
+                      className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg bg-white
+                        focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Preview do calculo */}
+                {estoqueForm.preco_por_rolo > 0 && getFilamentoAtual() && (
+                  <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                    <h4 className="text-sm font-medium text-green-800 mb-2">Resultado da entrada:</h4>
+                    <div className="space-y-1 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-green-700">Estoque atual:</span>
+                        <span className="font-medium text-green-800">
+                          {formatEstoque(getFilamentoAtual()?.estoque_gramas || 0)} kg
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-green-700">Adicionando:</span>
+                        <span className="font-medium text-green-800">
+                          +{estoqueForm.quantidade_rolos} kg
+                        </span>
+                      </div>
+                      <div className="flex justify-between border-t border-green-200 pt-1 mt-1">
+                        <span className="text-green-700">Novo estoque:</span>
+                        <span className="font-bold text-green-800">
+                          {formatEstoque((getFilamentoAtual()?.estoque_gramas || 0) + (estoqueForm.quantidade_rolos * 1000))} kg
+                        </span>
+                      </div>
+                      <div className="flex justify-between border-t border-green-200 pt-1 mt-1">
+                        <span className="text-green-700">Preco medio atual:</span>
+                        <span className="font-medium text-green-800">
+                          R$ {formatCurrency(getFilamentoAtual()?.preco_por_kg || 0)}/kg
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-green-700">Novo preco medio:</span>
+                        <span className="font-bold text-green-800">
+                          R$ {formatCurrency(calcularNovoPrecoMedio())}/kg
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Botoes */}
+                <div className="flex gap-3 pt-4">
+                  <button
+                    type="submit"
+                    disabled={savingEstoque}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                  >
+                    {savingEstoque ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Check className="w-4 h-4" />
+                    )}
+                    Adicionar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCloseEstoqueModal}
+                    className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}

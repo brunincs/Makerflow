@@ -1,11 +1,12 @@
 import { supabase, isSupabaseConfigured } from './supabaseClient';
-import { Filamento } from '../types';
+import { Filamento, FilamentoEntrada } from '../types';
 
 const STORAGE_KEY = 'makerflow_filamentos';
 const IMPRESSOES_STORAGE_KEY = 'makerflow_impressoes';
+const ENTRADAS_STORAGE_KEY = 'makerflow_filamento_entradas';
 
-// Função auxiliar para calcular consumo total de um filamento
-const calcularConsumoFilamento = async (filamentoId: string): Promise<number> => {
+// Função auxiliar para calcular consumo total de um filamento (exportada para uso futuro)
+export const calcularConsumoFilamento = async (filamentoId: string): Promise<number> => {
   if (!isSupabaseConfigured() || !supabase) {
     // Fallback local: ler impressões do localStorage
     const impressoesData = localStorage.getItem(IMPRESSOES_STORAGE_KEY);
@@ -106,22 +107,14 @@ export const getFilamentos = async (): Promise<Filamento[]> => {
 
 export const updateFilamento = async (
   id: string,
-  filamento: Partial<Omit<Filamento, 'id' | 'created_at' | 'preco_por_kg' | 'estoque_gramas'>>
+  filamento: Partial<Omit<Filamento, 'id' | 'created_at' | 'preco_por_kg' | 'estoque_gramas' | 'quantidade_rolos'>>
 ): Promise<Filamento | null> => {
   const dadosParaAtualizar: Record<string, unknown> = { ...filamento };
 
-  // Se atualizou preco_pago, atualizar preco_por_kg também
-  if (filamento.preco_pago !== undefined) {
-    dadosParaAtualizar.preco_por_kg = filamento.preco_pago;
-  }
-
-  // Se atualizou quantidade_rolos, recalcular estoque_gramas
-  // Nova lógica: estoque = (rolos * 1000g) - consumo_total
-  if (filamento.quantidade_rolos !== undefined) {
-    const consumoTotal = await calcularConsumoFilamento(id);
-    const estoqueTotal = filamento.quantidade_rolos * 1000;
-    dadosParaAtualizar.estoque_gramas = Math.max(0, estoqueTotal - consumoTotal);
-  }
+  // Remover campos que não devem ser atualizados diretamente
+  delete dadosParaAtualizar.quantidade_rolos;
+  delete dadosParaAtualizar.estoque_gramas;
+  delete dadosParaAtualizar.preco_por_kg; // Preço médio só atualiza via adição de estoque
 
   if (!isSupabaseConfigured() || !supabase) {
     const filamentos = getLocalFilamentos();
@@ -236,6 +229,136 @@ export const descontarEstoqueFilamento = async (
   }
 
   return data;
+};
+
+// Adicionar estoque a um filamento (com cálculo de preço médio)
+export const adicionarEstoqueFilamento = async (
+  filamentoId: string,
+  quantidadeRolos: number,
+  precoPorRolo: number
+): Promise<Filamento | null> => {
+  const pesoAdicionado = quantidadeRolos * 1000; // gramas
+
+  // Buscar filamento atual
+  let filamentoAtual: Filamento | null = null;
+
+  if (!isSupabaseConfigured() || !supabase) {
+    const filamentos = getLocalFilamentos();
+    filamentoAtual = filamentos.find(f => f.id === filamentoId) || null;
+  } else {
+    const { data, error } = await supabase
+      .from('filamentos')
+      .select('*')
+      .eq('id', filamentoId)
+      .single();
+
+    if (error) {
+      console.error('Erro ao buscar filamento:', error);
+      return null;
+    }
+    filamentoAtual = data;
+  }
+
+  if (!filamentoAtual) return null;
+
+  // Calcular novo preço médio ponderado
+  const estoqueAtualKg = (filamentoAtual.estoque_gramas || 0) / 1000;
+  const valorEstoqueAtual = filamentoAtual.preco_por_kg * estoqueAtualKg;
+  const valorCompra = precoPorRolo * quantidadeRolos;
+  const novoEstoqueKg = estoqueAtualKg + quantidadeRolos;
+
+  // Preço médio = (valor estoque atual + valor compra) / novo estoque total em kg
+  const novoPrecoMedio = novoEstoqueKg > 0
+    ? (valorEstoqueAtual + valorCompra) / novoEstoqueKg
+    : precoPorRolo;
+
+  const novoEstoqueGramas = filamentoAtual.estoque_gramas + pesoAdicionado;
+  const novaQuantidadeRolos = (filamentoAtual.quantidade_rolos || 0) + quantidadeRolos;
+
+  // Registrar entrada no histórico
+  const entrada: Omit<FilamentoEntrada, 'id' | 'created_at'> = {
+    filamento_id: filamentoId,
+    quantidade_rolos: quantidadeRolos,
+    preco_por_rolo: precoPorRolo,
+    peso_total_g: pesoAdicionado,
+  };
+
+  if (!isSupabaseConfigured() || !supabase) {
+    // Salvar entrada no localStorage
+    const entradasData = localStorage.getItem(ENTRADAS_STORAGE_KEY);
+    const entradas = entradasData ? JSON.parse(entradasData) : [];
+    entradas.unshift({
+      ...entrada,
+      id: crypto.randomUUID(),
+      created_at: new Date().toISOString(),
+    });
+    localStorage.setItem(ENTRADAS_STORAGE_KEY, JSON.stringify(entradas));
+
+    // Atualizar filamento
+    const filamentos = getLocalFilamentos();
+    const index = filamentos.findIndex(f => f.id === filamentoId);
+    if (index !== -1) {
+      filamentos[index].estoque_gramas = novoEstoqueGramas;
+      filamentos[index].quantidade_rolos = novaQuantidadeRolos;
+      filamentos[index].preco_por_kg = novoPrecoMedio;
+      filamentos[index].preco_pago = novoPrecoMedio; // Manter sincronizado
+      setLocalFilamentos(filamentos);
+      return filamentos[index];
+    }
+    return null;
+  }
+
+  // Salvar entrada no Supabase
+  const { error: entradaError } = await supabase
+    .from('filamento_entradas')
+    .insert([entrada]);
+
+  if (entradaError) {
+    console.error('Erro ao registrar entrada:', entradaError);
+    // Continuar mesmo com erro no histórico
+  }
+
+  // Atualizar filamento no Supabase
+  const { data, error } = await supabase
+    .from('filamentos')
+    .update({
+      estoque_gramas: novoEstoqueGramas,
+      quantidade_rolos: novaQuantidadeRolos,
+      preco_por_kg: novoPrecoMedio,
+      preco_pago: novoPrecoMedio,
+    })
+    .eq('id', filamentoId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Erro ao atualizar filamento:', error);
+    return null;
+  }
+
+  return data;
+};
+
+// Buscar histórico de entradas de um filamento
+export const getEntradasFilamento = async (filamentoId: string): Promise<FilamentoEntrada[]> => {
+  if (!isSupabaseConfigured() || !supabase) {
+    const entradasData = localStorage.getItem(ENTRADAS_STORAGE_KEY);
+    const entradas = entradasData ? JSON.parse(entradasData) : [];
+    return entradas.filter((e: FilamentoEntrada) => e.filamento_id === filamentoId);
+  }
+
+  const { data, error } = await supabase
+    .from('filamento_entradas')
+    .select('*')
+    .eq('filamento_id', filamentoId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Erro ao buscar entradas:', error);
+    return [];
+  }
+
+  return data || [];
 };
 
 export const deleteFilamento = async (id: string): Promise<boolean> => {
