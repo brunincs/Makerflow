@@ -8,6 +8,7 @@ import { consumirFilamento, getFilamentos } from '../../services/filamentosServi
 import {
   ClipboardList,
   Plus,
+  Minus,
   Trash2,
   Check,
   Package,
@@ -15,15 +16,81 @@ import {
   Cylinder,
   Loader2,
   X,
-  Factory,
   ShoppingCart,
   Archive,
   CheckCircle2,
   ImageOff,
   Printer,
   AlertTriangle,
-  TrendingUp
+  TrendingUp,
+  Download,
+  Search,
+  FileText,
+  AlertCircle,
+  CalendarClock,
+  ListOrdered,
+  Timer
 } from 'lucide-react';
+
+// Interface para pedido importado/analisado
+interface PedidoImportado {
+  textoOriginal: string;
+  nomeProduto: string;
+  nomeVariacao?: string;
+  quantidade: number;
+  produtoEncontrado?: ProdutoConcorrente;
+  variacaoEncontrada?: { id: string; nome_variacao: string };
+  status: 'encontrado' | 'nao_encontrado' | 'variacao_nao_encontrada';
+}
+
+// Parser de pedidos colados
+function parsePedidosTexto(texto: string): { nome: string; variacao?: string; quantidade: number }[] {
+  const linhas = texto.split('\n').filter(l => l.trim());
+  const pedidos: { nome: string; variacao?: string; quantidade: number }[] = [];
+
+  for (const linha of linhas) {
+    const linhaLimpa = linha.trim();
+    if (!linhaLimpa) continue;
+
+    let quantidade = 1;
+    let nomeProduto = linhaLimpa;
+
+    // Tentar extrair quantidade nos formatos:
+    // "3x Produto" ou "3 x Produto"
+    const matchInicio = linhaLimpa.match(/^(\d+)\s*[xX]\s+(.+)$/);
+    if (matchInicio) {
+      quantidade = parseInt(matchInicio[1]);
+      nomeProduto = matchInicio[2].trim();
+    } else {
+      // "Produto - 3" ou "Produto x3" ou "Produto (3)"
+      const matchFim = linhaLimpa.match(/^(.+?)\s*[-xX]\s*(\d+)$|^(.+?)\s*\((\d+)\)$/);
+      if (matchFim) {
+        nomeProduto = (matchFim[1] || matchFim[3]).trim();
+        quantidade = parseInt(matchFim[2] || matchFim[4]);
+      }
+    }
+
+    // Tentar separar variação do nome do produto
+    // Formatos: "Produto - Variacao", "Produto (Variacao)", "Produto Variacao"
+    let nomeBase = nomeProduto;
+    let variacao: string | undefined;
+
+    // Tentar "Produto - Variacao"
+    const matchVariacao = nomeProduto.match(/^(.+?)\s*[-–]\s*(.+)$/);
+    if (matchVariacao) {
+      nomeBase = matchVariacao[1].trim();
+      variacao = matchVariacao[2].trim();
+    }
+
+    pedidos.push({
+      nome: nomeBase,
+      variacao,
+      quantidade
+    });
+  }
+
+  return pedidos;
+}
 
 // Impressoras disponíveis
 const IMPRESSORAS: { id: ImpressoraModelo; nome: string }[] = [
@@ -58,6 +125,89 @@ function formatarTempo(horas: number): string {
   return `${h}h ${m}min`;
 }
 
+// Formatar horário (ex: 14:30)
+function formatarHorario(date: Date): string {
+  return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+}
+
+// Calcular previsão de término
+function calcularPrevisaoTermino(horasAPartirDeAgora: number): Date {
+  const agora = new Date();
+  const minutos = horasAPartirDeAgora * 60;
+  return new Date(agora.getTime() + minutos * 60 * 1000);
+}
+
+// Interface para item planejado com previsão
+interface ItemPlanejado extends ItemFilaProducao {
+  ordem: number;
+  horarioInicio: Date;
+  horarioTermino: Date;
+  impressoraId?: ImpressoraModelo;
+}
+
+// Distribuir itens entre impressoras de forma inteligente (balanceada por tempo)
+function distribuirEntreImpressoras(
+  itens: ItemFilaProducao[],
+  impressoras: ImpressoraModelo[]
+): Map<ImpressoraModelo, ItemPlanejado[]> {
+  const distribuicao = new Map<ImpressoraModelo, ItemPlanejado[]>();
+  const temposPorImpressora = new Map<ImpressoraModelo, number>();
+
+  // Inicializar
+  impressoras.forEach(imp => {
+    distribuicao.set(imp, []);
+    temposPorImpressora.set(imp, 0);
+  });
+
+  // Ordenar itens por tempo total (maior primeiro para melhor balanceamento)
+  const itensOrdenados = [...itens].sort((a, b) => b.tempo_total - a.tempo_total);
+
+  // Distribuir usando algoritmo de balanceamento (atribuir ao menos carregado)
+  itensOrdenados.forEach(item => {
+    // Encontrar impressora com menor tempo acumulado
+    let impressoraMenosCarregada = impressoras[0];
+    let menorTempo = temposPorImpressora.get(impressoras[0]) || 0;
+
+    impressoras.forEach(imp => {
+      const tempo = temposPorImpressora.get(imp) || 0;
+      if (tempo < menorTempo) {
+        menorTempo = tempo;
+        impressoraMenosCarregada = imp;
+      }
+    });
+
+    // Adicionar item à impressora
+    const lista = distribuicao.get(impressoraMenosCarregada)!;
+    const tempoAtual = temposPorImpressora.get(impressoraMenosCarregada) || 0;
+
+    const itemPlanejado: ItemPlanejado = {
+      ...item,
+      ordem: lista.length + 1,
+      horarioInicio: calcularPrevisaoTermino(tempoAtual),
+      horarioTermino: calcularPrevisaoTermino(tempoAtual + item.tempo_total),
+      impressoraId: impressoraMenosCarregada,
+    };
+
+    lista.push(itemPlanejado);
+    temposPorImpressora.set(impressoraMenosCarregada, tempoAtual + item.tempo_total);
+  });
+
+  // Reordenar cada lista por tempo (menor primeiro)
+  distribuicao.forEach((lista) => {
+    lista.sort((a, b) => a.tempo_total - b.tempo_total);
+    // Recalcular horários após reordenação
+    let tempoAcumulado = 0;
+    lista.forEach((item, idx) => {
+      item.ordem = idx + 1;
+      item.horarioInicio = calcularPrevisaoTermino(tempoAcumulado);
+      item.horarioTermino = calcularPrevisaoTermino(tempoAcumulado + item.tempo_total);
+      tempoAcumulado += item.tempo_total;
+    });
+  });
+
+  return distribuicao;
+}
+
 export function FilaProducao() {
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [estoque, setEstoque] = useState<EstoqueProduto[]>([]);
@@ -85,6 +235,13 @@ export function FilaProducao() {
   const [qtdProduzida, setQtdProduzida] = useState<number>(1);
   const [filamentoId, setFilamentoId] = useState<string>('');
   const [produzindo, setProduzindo] = useState(false);
+
+  // Modal de importar pedidos
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [textoImportacao, setTextoImportacao] = useState('');
+  const [pedidosImportados, setPedidosImportados] = useState<PedidoImportado[]>([]);
+  const [analisando, setAnalisando] = useState(false);
+  const [importando, setImportando] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -167,7 +324,9 @@ export function FilaProducao() {
       item.tempo_total = item.quantidade_produzir * item.tempo_por_peca;
     });
 
-    return Array.from(mapa.values()).filter(item => item.quantidade_produzir > 0);
+    // Ordenar por tempo total (menor primeiro) para otimizar produção
+    const itens = Array.from(mapa.values()).filter(item => item.quantidade_produzir > 0);
+    return itens.sort((a, b) => a.tempo_total - b.tempo_total);
   }, [pedidos, estoque]);
 
   // Totais
@@ -186,6 +345,56 @@ export function FilaProducao() {
   const cargaProducao = useMemo(() => {
     return getCargaProducao(totais.tempo);
   }, [totais.tempo]);
+
+  // Planejamento com previsão de término
+  const planejamento = useMemo(() => {
+    if (filaProducao.length === 0) return { itens: [], previsaoFinal: null };
+
+    // Calcular previsão para fila simples (1 impressora ou nenhuma configurada)
+    let tempoAcumulado = 0;
+    const itensPlanejados: ItemPlanejado[] = filaProducao.map((item, idx) => {
+      const inicio = calcularPrevisaoTermino(tempoAcumulado);
+      const termino = calcularPrevisaoTermino(tempoAcumulado + item.tempo_total);
+      tempoAcumulado += item.tempo_total;
+
+      return {
+        ...item,
+        ordem: idx + 1,
+        horarioInicio: inicio,
+        horarioTermino: termino,
+      };
+    });
+
+    return {
+      itens: itensPlanejados,
+      previsaoFinal: itensPlanejados.length > 0
+        ? itensPlanejados[itensPlanejados.length - 1].horarioTermino
+        : null,
+    };
+  }, [filaProducao]);
+
+  // Distribuição por impressoras (se houver mais de 1)
+  const distribuicaoPorImpressora = useMemo(() => {
+    if (impressorasUsuario.length <= 1 || filaProducao.length === 0) {
+      return null;
+    }
+    return distribuirEntreImpressoras(filaProducao, impressorasUsuario);
+  }, [filaProducao, impressorasUsuario]);
+
+  // Calcular tempo máximo entre impressoras (para previsão com múltiplas)
+  const previsaoComMultiplasImpressoras = useMemo(() => {
+    if (!distribuicaoPorImpressora) return null;
+
+    let maiorTempo = 0;
+    distribuicaoPorImpressora.forEach((itens) => {
+      const tempoImpressora = itens.reduce((acc, item) => acc + item.tempo_total, 0);
+      if (tempoImpressora > maiorTempo) {
+        maiorTempo = tempoImpressora;
+      }
+    });
+
+    return calcularPrevisaoTermino(maiorTempo);
+  }, [distribuicaoPorImpressora]);
 
   // Variações do produto selecionado
   const variacoesProduto = useMemo(() => {
@@ -232,6 +441,107 @@ export function FilaProducao() {
     setQtdProduzida(item.quantidade_produzir);
     setFilamentoId('');
     setShowProduzidoModal(true);
+  };
+
+  // Analisar texto colado para encontrar produtos
+  const handleAnalisarPedidos = () => {
+    if (!textoImportacao.trim()) return;
+
+    setAnalisando(true);
+    const pedidosParsed = parsePedidosTexto(textoImportacao);
+
+    const resultado: PedidoImportado[] = pedidosParsed.map(p => {
+      // Buscar produto pelo nome (case insensitive, parcial)
+      const nomeBusca = p.nome.toLowerCase();
+      const produtoEncontrado = produtos.find(prod =>
+        prod.nome.toLowerCase().includes(nomeBusca) ||
+        nomeBusca.includes(prod.nome.toLowerCase())
+      );
+
+      if (!produtoEncontrado) {
+        return {
+          textoOriginal: `${p.quantidade}x ${p.nome}${p.variacao ? ` - ${p.variacao}` : ''}`,
+          nomeProduto: p.nome,
+          nomeVariacao: p.variacao,
+          quantidade: p.quantidade,
+          status: 'nao_encontrado' as const
+        };
+      }
+
+      // Se tem variação especificada, tentar encontrar
+      let variacaoEncontrada: { id: string; nome_variacao: string } | undefined;
+      if (p.variacao && produtoEncontrado.variacoes?.length) {
+        const variacaoBusca = p.variacao.toLowerCase();
+        const variacao = produtoEncontrado.variacoes.find(v =>
+          v.nome_variacao.toLowerCase().includes(variacaoBusca) ||
+          variacaoBusca.includes(v.nome_variacao.toLowerCase())
+        );
+        if (variacao) {
+          variacaoEncontrada = { id: variacao.id!, nome_variacao: variacao.nome_variacao };
+        }
+      }
+
+      // Se produto tem variações mas não encontrou a especificada
+      if (p.variacao && produtoEncontrado.variacoes?.length && !variacaoEncontrada) {
+        return {
+          textoOriginal: `${p.quantidade}x ${p.nome} - ${p.variacao}`,
+          nomeProduto: p.nome,
+          nomeVariacao: p.variacao,
+          quantidade: p.quantidade,
+          produtoEncontrado,
+          status: 'variacao_nao_encontrada' as const
+        };
+      }
+
+      return {
+        textoOriginal: `${p.quantidade}x ${p.nome}${p.variacao ? ` - ${p.variacao}` : ''}`,
+        nomeProduto: produtoEncontrado.nome,
+        nomeVariacao: variacaoEncontrada?.nome_variacao,
+        quantidade: p.quantidade,
+        produtoEncontrado,
+        variacaoEncontrada,
+        status: 'encontrado' as const
+      };
+    });
+
+    setPedidosImportados(resultado);
+    setAnalisando(false);
+  };
+
+  // Importar pedidos analisados
+  const handleImportarPedidos = async () => {
+    const pedidosValidos = pedidosImportados.filter(p => p.status === 'encontrado');
+    if (pedidosValidos.length === 0) return;
+
+    setImportando(true);
+
+    try {
+      for (const pedido of pedidosValidos) {
+        await createPedido({
+          produto_id: pedido.produtoEncontrado!.id!,
+          variacao_id: pedido.variacaoEncontrada?.id || null,
+          quantidade: pedido.quantidade,
+          quantidade_produzida: 0,
+          status: 'pendente',
+        });
+      }
+
+      await loadData();
+      setShowImportModal(false);
+      setTextoImportacao('');
+      setPedidosImportados([]);
+    } catch (error) {
+      console.error('Erro ao importar pedidos:', error);
+      alert('Erro ao importar pedidos. Tente novamente.');
+    }
+
+    setImportando(false);
+  };
+
+  // Limpar importação
+  const handleLimparImportacao = () => {
+    setTextoImportacao('');
+    setPedidosImportados([]);
   };
 
   const handleMarcarProduzido = async () => {
@@ -322,13 +632,22 @@ export function FilaProducao() {
           </p>
         </div>
 
-        <button
-          onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Novo Pedido
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowImportModal(true)}
+            className="flex items-center gap-2 px-4 py-2 border border-indigo-600 text-indigo-600 rounded-lg hover:bg-indigo-50 transition-colors"
+          >
+            <Download className="w-4 h-4" />
+            Importar Pedidos
+          </button>
+          <button
+            onClick={() => setShowModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Novo Pedido
+          </button>
+        </div>
       </div>
 
       {/* Indicador de Carga + Resumo */}
@@ -373,7 +692,7 @@ export function FilaProducao() {
           </Card>
 
           {/* Cards de resumo */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             <Card>
               <CardBody className="p-4">
                 <div className="flex items-center gap-3">
@@ -413,8 +732,31 @@ export function FilaProducao() {
                     <Clock className="w-5 h-5 text-green-600" />
                   </div>
                   <div>
-                    <p className="text-sm text-gray-500">Tempo total estimado</p>
+                    <p className="text-sm text-gray-500">Tempo total</p>
                     <p className="text-2xl font-bold text-gray-900">{formatarTempo(totais.tempo)}</p>
+                  </div>
+                </div>
+              </CardBody>
+            </Card>
+
+            <Card>
+              <CardBody className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-orange-100 rounded-lg">
+                    <CalendarClock className="w-5 h-5 text-orange-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Previsao de termino</p>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {previsaoComMultiplasImpressoras
+                        ? formatarHorario(previsaoComMultiplasImpressoras)
+                        : planejamento.previsaoFinal
+                        ? formatarHorario(planejamento.previsaoFinal)
+                        : '-'}
+                    </p>
+                    {impressorasUsuario.length > 1 && (
+                      <p className="text-xs text-gray-400">com {impressorasUsuario.length} impressoras</p>
+                    )}
                   </div>
                 </div>
               </CardBody>
@@ -422,48 +764,74 @@ export function FilaProducao() {
           </div>
 
           {/* Distribuição por Impressora (se tiver mais de 1) */}
-          {impressorasUsuario.length > 1 && (
+          {impressorasUsuario.length > 1 && distribuicaoPorImpressora && (
             <Card className="mb-6">
               <CardBody className="p-4">
                 <h3 className="font-semibold text-gray-900 flex items-center gap-2 mb-4">
                   <Printer className="w-4 h-4" />
-                  Distribuicao por Impressora
+                  Planejador Automatico - Distribuicao por Impressora
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {impressorasUsuario.map((impId, idx) => {
+                  {Array.from(distribuicaoPorImpressora.entries()).map(([impId, itensImpressora]) => {
                     const impressora = IMPRESSORAS.find(i => i.id === impId);
-                    // Distribuir itens igualmente entre impressoras
-                    const itensParaImpressora = filaProducao.filter((_, i) => i % impressorasUsuario.length === idx);
-                    const tempoImpressora = itensParaImpressora.reduce((acc, item) => acc + item.tempo_total, 0);
-                    const pesoImpressora = itensParaImpressora.reduce((acc, item) => acc + item.peso_total, 0);
+                    const tempoImpressora = itensImpressora.reduce((acc, item) => acc + item.tempo_total, 0);
+                    const pesoImpressora = itensImpressora.reduce((acc, item) => acc + item.peso_total, 0);
+                    const previsaoTerminoImpressora = itensImpressora.length > 0
+                      ? itensImpressora[itensImpressora.length - 1].horarioTermino
+                      : null;
 
                     return (
                       <div
                         key={impId}
                         className="p-4 bg-gray-50 rounded-lg border border-gray-200"
                       >
-                        <div className="flex items-center gap-2 mb-3">
-                          <Printer className="w-4 h-4 text-indigo-600" />
-                          <span className="font-medium text-gray-900">{impressora?.nome || impId}</span>
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <Printer className="w-4 h-4 text-indigo-600" />
+                            <span className="font-medium text-gray-900">{impressora?.nome || impId}</span>
+                          </div>
+                          {previsaoTerminoImpressora && (
+                            <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded">
+                              termina {formatarHorario(previsaoTerminoImpressora)}
+                            </span>
+                          )}
                         </div>
-                        {itensParaImpressora.length === 0 ? (
+                        {itensImpressora.length === 0 ? (
                           <p className="text-sm text-gray-400">Nenhum item</p>
                         ) : (
                           <>
-                            <div className="space-y-1 mb-3">
-                              {itensParaImpressora.map(item => (
-                                <div key={`${item.produto_id}-${item.variacao_id}`} className="text-sm">
-                                  <span className="text-gray-700">{item.nome_produto}</span>
-                                  {item.nome_variacao && (
-                                    <span className="text-gray-400"> ({item.nome_variacao})</span>
-                                  )}
-                                  <span className="text-indigo-600 font-medium"> x{item.quantidade_produzir}</span>
+                            <div className="space-y-2 mb-3">
+                              {itensImpressora.map((item, idx) => (
+                                <div key={`${item.produto_id}-${item.variacao_id}`} className="flex items-start gap-2">
+                                  <span className="text-xs bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded font-medium">
+                                    {idx + 1}
+                                  </span>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="text-sm">
+                                      <span className="text-gray-700 font-medium">{item.nome_produto}</span>
+                                      {item.nome_variacao && (
+                                        <span className="text-gray-400"> ({item.nome_variacao})</span>
+                                      )}
+                                      <span className="text-indigo-600 font-bold"> x{item.quantidade_produzir}</span>
+                                    </div>
+                                    <div className="text-xs text-gray-400 flex items-center gap-2">
+                                      <span>{formatarTempo(item.tempo_total)}</span>
+                                      <span>•</span>
+                                      <span>termina {formatarHorario(item.horarioTermino)}</span>
+                                    </div>
+                                  </div>
                                 </div>
                               ))}
                             </div>
-                            <div className="flex items-center gap-4 text-xs text-gray-500 pt-2 border-t border-gray-200">
-                              <span>{formatarTempo(tempoImpressora)}</span>
-                              <span>{pesoImpressora.toFixed(0)}g</span>
+                            <div className="flex items-center justify-between text-xs text-gray-500 pt-2 border-t border-gray-200">
+                              <span className="flex items-center gap-1">
+                                <Timer className="w-3 h-3" />
+                                {formatarTempo(tempoImpressora)}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Cylinder className="w-3 h-3" />
+                                {pesoImpressora.toFixed(0)}g
+                              </span>
                             </div>
                           </>
                         )}
@@ -472,7 +840,7 @@ export function FilaProducao() {
                   })}
                 </div>
                 <p className="text-xs text-gray-400 mt-3">
-                  * Distribuicao automatica. Os itens sao divididos igualmente entre as impressoras.
+                  * Distribuicao otimizada automaticamente. Os itens sao balanceados por tempo de impressao.
                 </p>
               </CardBody>
             </Card>
@@ -503,22 +871,30 @@ export function FilaProducao() {
       ) : (
         <Card>
           <CardBody className="p-0">
-            <div className="p-4 border-b border-gray-100">
+            <div className="p-4 border-b border-gray-100 flex items-center justify-between">
               <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                <Factory className="w-4 h-4" />
-                Itens para Produzir
+                <ListOrdered className="w-4 h-4" />
+                Ordem de Producao
               </h3>
+              <span className="text-xs text-gray-400">
+                Ordenado do menor para o maior tempo
+              </span>
             </div>
 
             <div className="divide-y divide-gray-100">
-              {filaProducao.map((item) => (
+              {planejamento.itens.map((item, idx) => (
                 <div
                   key={`${item.produto_id}-${item.variacao_id || 'sem'}`}
                   className="p-4 hover:bg-gray-50 transition-colors"
                 >
                   <div className="flex items-start gap-4">
+                    {/* Ordem */}
+                    <div className="flex-shrink-0 w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center">
+                      <span className="text-sm font-bold text-indigo-600">{idx + 1}</span>
+                    </div>
+
                     {/* Imagem */}
-                    <div className="w-16 h-16 flex-shrink-0 bg-gray-100 rounded-lg overflow-hidden">
+                    <div className="w-14 h-14 flex-shrink-0 bg-gray-100 rounded-lg overflow-hidden">
                       {item.imagem_url ? (
                         <img
                           src={item.imagem_url}
@@ -527,22 +903,24 @@ export function FilaProducao() {
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
-                          <ImageOff className="w-6 h-6 text-gray-300" />
+                          <ImageOff className="w-5 h-5 text-gray-300" />
                         </div>
                       )}
                     </div>
 
                     {/* Info principal */}
                     <div className="flex-1 min-w-0">
-                      <h4 className="font-semibold text-gray-900 truncate">
-                        {item.nome_produto}
-                      </h4>
-                      {item.nome_variacao && (
-                        <p className="text-sm text-indigo-600 font-medium">{item.nome_variacao}</p>
-                      )}
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-semibold text-gray-900 truncate">
+                          {item.nome_produto}
+                        </h4>
+                        {item.nome_variacao && (
+                          <span className="text-sm text-indigo-600 font-medium">({item.nome_variacao})</span>
+                        )}
+                      </div>
 
                       {/* Cálculo: Vendidos - Estoque = Produzir */}
-                      <div className="flex items-center gap-2 mt-2 text-sm">
+                      <div className="flex items-center gap-2 mt-1 text-sm">
                         <span className="flex items-center gap-1 text-gray-600">
                           <ShoppingCart className="w-3.5 h-3.5" />
                           <span className="font-medium">{item.quantidade_pedida}</span>
@@ -552,36 +930,32 @@ export function FilaProducao() {
                         <span className="flex items-center gap-1 text-green-600">
                           <Archive className="w-3.5 h-3.5" />
                           <span className="font-medium">{item.quantidade_estoque}</span>
-                          <span className="text-green-500">em estoque</span>
+                          <span className="text-green-500">estoque</span>
                         </span>
                         <span className="text-gray-400">=</span>
                         <span className="flex items-center gap-1 text-indigo-600 font-bold">
-                          {item.quantidade_produzir} para produzir
+                          {item.quantidade_produzir} produzir
                         </span>
                       </div>
 
                       {/* Detalhes de tempo e filamento */}
-                      <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
-                        <span className="flex items-center gap-1">
-                          <Cylinder className="w-3 h-3" />
-                          {item.peso_por_peca}g/peca
-                        </span>
+                      <div className="flex items-center gap-4 mt-1 text-xs text-gray-500">
                         <span className="flex items-center gap-1">
                           <Clock className="w-3 h-3" />
-                          {formatarTempo(item.tempo_por_peca)}/peca
+                          {formatarTempo(item.tempo_por_peca)}/peca × {item.quantidade_produzir} = <strong className="text-blue-600">{formatarTempo(item.tempo_total)}</strong>
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Cylinder className="w-3 h-3" />
+                          {item.peso_por_peca}g × {item.quantidade_produzir} = <strong className="text-purple-600">{item.peso_total.toFixed(0)}g</strong>
                         </span>
                       </div>
                     </div>
 
-                    {/* Resumo de produção */}
-                    <div className="hidden md:flex flex-col items-end gap-2 min-w-[140px]">
+                    {/* Previsão de término */}
+                    <div className="hidden md:flex flex-col items-end gap-1 min-w-[120px]">
                       <div className="text-right">
-                        <p className="text-lg font-bold text-purple-600">{item.peso_total.toFixed(0)}g</p>
-                        <p className="text-xs text-gray-400">filamento total</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-lg font-bold text-blue-600">{formatarTempo(item.tempo_total)}</p>
-                        <p className="text-xs text-gray-400">tempo total</p>
+                        <p className="text-xs text-gray-400">Termina as</p>
+                        <p className="text-lg font-bold text-orange-600">{formatarHorario(item.horarioTermino)}</p>
                       </div>
                     </div>
 
@@ -591,14 +965,18 @@ export function FilaProducao() {
                       className="flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
                     >
                       <Check className="w-4 h-4" />
-                      Marcar Produzido
+                      Produzido
                     </button>
                   </div>
 
                   {/* Mobile: detalhes extras */}
                   <div className="md:hidden flex items-center justify-between mt-3 pt-3 border-t border-gray-100 text-sm">
-                    <span className="text-purple-600 font-medium">{item.peso_total.toFixed(0)}g filamento</span>
+                    <span className="text-purple-600 font-medium">{item.peso_total.toFixed(0)}g</span>
                     <span className="text-blue-600 font-medium">{formatarTempo(item.tempo_total)}</span>
+                    <span className="text-orange-600 font-medium flex items-center gap-1">
+                      <CalendarClock className="w-3 h-3" />
+                      {formatarHorario(item.horarioTermino)}
+                    </span>
                   </div>
                 </div>
               ))}
@@ -738,19 +1116,37 @@ export function FilaProducao() {
                 </div>
               )}
 
-              {/* Quantidade */}
+              {/* Quantidade com controles [-] [+] */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Quantidade vendida
                 </label>
-                <input
-                  type="number"
-                  min="1"
-                  value={quantidade}
-                  onChange={(e) => setQuantidade(parseInt(e.target.value) || 1)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg
-                    focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setQuantidade(Math.max(1, quantidade - 1))}
+                    className="w-10 h-10 flex items-center justify-center rounded-lg border border-gray-300
+                      hover:bg-gray-100 transition-colors text-gray-600"
+                  >
+                    <Minus className="w-4 h-4" />
+                  </button>
+                  <input
+                    type="number"
+                    min="1"
+                    value={quantidade}
+                    onChange={(e) => setQuantidade(Math.max(1, parseInt(e.target.value) || 1))}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-center text-lg font-semibold
+                      focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setQuantidade(quantidade + 1)}
+                    className="w-10 h-10 flex items-center justify-center rounded-lg border border-gray-300
+                      hover:bg-gray-100 transition-colors text-gray-600"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -911,6 +1307,204 @@ export function FilaProducao() {
                   <Check className="w-4 h-4" />
                 )}
                 Confirmar Producao
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Importar Pedidos */}
+      {showImportModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <Download className="w-5 h-5 text-indigo-600" />
+                Importar Pedidos
+              </h3>
+              <button
+                onClick={() => {
+                  setShowImportModal(false);
+                  setTextoImportacao('');
+                  setPedidosImportados([]);
+                }}
+                className="p-1 text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-4 flex-1 overflow-y-auto space-y-4">
+              {/* Instrucoes */}
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-800 font-medium mb-1">
+                  <FileText className="w-4 h-4 inline mr-1" />
+                  Cole os pedidos copiados do marketplace
+                </p>
+                <p className="text-xs text-blue-600">
+                  Formatos aceitos: "3x Produto", "Produto - 3", "Produto x3", "Produto (3)"
+                </p>
+              </div>
+
+              {/* Campo de texto */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Pedidos
+                </label>
+                <textarea
+                  value={textoImportacao}
+                  onChange={(e) => setTextoImportacao(e.target.value)}
+                  placeholder={`Cole os pedidos aqui, um por linha:
+
+3x Estatueta Gatos Irmaos Medio
+2x Estatueta Gatos Irmaos Grande
+5x Dragao Articulado`}
+                  rows={6}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg
+                    focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none
+                    font-mono text-sm"
+                />
+              </div>
+
+              {/* Botoes de acao */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleAnalisarPedidos}
+                  disabled={!textoImportacao.trim() || analisando}
+                  className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg
+                    hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {analisando ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Search className="w-4 h-4" />
+                  )}
+                  Analisar Pedidos
+                </button>
+                <button
+                  onClick={handleLimparImportacao}
+                  className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Limpar
+                </button>
+              </div>
+
+              {/* Resultado da analise */}
+              {pedidosImportados.length > 0 && (
+                <div className="space-y-3">
+                  <h4 className="font-medium text-gray-900">
+                    Pedidos analisados ({pedidosImportados.length})
+                  </h4>
+
+                  <div className="space-y-2">
+                    {pedidosImportados.map((pedido, index) => (
+                      <div
+                        key={index}
+                        className={`p-3 rounded-lg border ${
+                          pedido.status === 'encontrado'
+                            ? 'bg-green-50 border-green-200'
+                            : pedido.status === 'variacao_nao_encontrada'
+                            ? 'bg-yellow-50 border-yellow-200'
+                            : 'bg-red-50 border-red-200'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              {pedido.status === 'encontrado' ? (
+                                <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0" />
+                              ) : pedido.status === 'variacao_nao_encontrada' ? (
+                                <AlertCircle className="w-4 h-4 text-yellow-600 flex-shrink-0" />
+                              ) : (
+                                <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
+                              )}
+                              <span className={`font-medium ${
+                                pedido.status === 'encontrado'
+                                  ? 'text-green-800'
+                                  : pedido.status === 'variacao_nao_encontrada'
+                                  ? 'text-yellow-800'
+                                  : 'text-red-800'
+                              }`}>
+                                {pedido.nomeProduto}
+                                {pedido.nomeVariacao && (
+                                  <span className="font-normal"> - {pedido.nomeVariacao}</span>
+                                )}
+                              </span>
+                            </div>
+                            <p className={`text-xs mt-1 ${
+                              pedido.status === 'encontrado'
+                                ? 'text-green-600'
+                                : pedido.status === 'variacao_nao_encontrada'
+                                ? 'text-yellow-600'
+                                : 'text-red-600'
+                            }`}>
+                              {pedido.status === 'encontrado'
+                                ? `Encontrado: ${pedido.produtoEncontrado?.nome}${pedido.variacaoEncontrada ? ` (${pedido.variacaoEncontrada.nome_variacao})` : ''}`
+                                : pedido.status === 'variacao_nao_encontrada'
+                                ? `Produto encontrado, mas variacao "${pedido.nomeVariacao}" nao existe`
+                                : 'Produto nao encontrado no Radar'}
+                            </p>
+                          </div>
+                          <span className={`px-2 py-1 rounded text-sm font-bold ${
+                            pedido.status === 'encontrado'
+                              ? 'bg-green-200 text-green-800'
+                              : pedido.status === 'variacao_nao_encontrada'
+                              ? 'bg-yellow-200 text-yellow-800'
+                              : 'bg-red-200 text-red-800'
+                          }`}>
+                            x{pedido.quantidade}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Resumo */}
+                  <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-600">Prontos para importar:</span>
+                      <span className="font-bold text-green-600">
+                        {pedidosImportados.filter(p => p.status === 'encontrado').length} pedidos
+                      </span>
+                    </div>
+                    {pedidosImportados.some(p => p.status !== 'encontrado') && (
+                      <div className="flex items-center justify-between text-sm mt-1">
+                        <span className="text-gray-600">Com problemas:</span>
+                        <span className="font-bold text-red-600">
+                          {pedidosImportados.filter(p => p.status !== 'encontrado').length} pedidos
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-3 p-4 border-t bg-white">
+              <button
+                onClick={() => {
+                  setShowImportModal(false);
+                  setTextoImportacao('');
+                  setPedidosImportados([]);
+                }}
+                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleImportarPedidos}
+                disabled={pedidosImportados.filter(p => p.status === 'encontrado').length === 0 || importando}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700
+                  transition-colors disabled:opacity-50 disabled:cursor-not-allowed
+                  flex items-center gap-2"
+              >
+                {importando ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Check className="w-4 h-4" />
+                )}
+                Importar {pedidosImportados.filter(p => p.status === 'encontrado').length} Pedidos
               </button>
             </div>
           </div>
