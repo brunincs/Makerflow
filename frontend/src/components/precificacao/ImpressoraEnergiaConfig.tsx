@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react';
 import { ProdutoSelecionado, ImpressoraModelo } from '../../types';
 import { Toggle } from '../ui/Toggle';
 import { DecimalInput } from '../ui/DecimalInput';
@@ -11,7 +10,7 @@ interface ImpressoraEnergiaConfigProps {
   onTempoMinutosChange: (value: number) => void;
   produtoSelecionado: ProdutoSelecionado | null;
   impressoraModelo?: ImpressoraModelo;
-  onImpressoraModeloChange: (modelo: ImpressoraModelo) => void;
+  onImpressoraChange: (modelo: ImpressoraModelo | undefined, consumo: number) => void;
   consumoKwh?: number;
   onConsumoKwhChange: (value: number) => void;
   valorKwh?: number;
@@ -55,7 +54,7 @@ export function ImpressoraEnergiaConfig({
   onTempoMinutosChange,
   produtoSelecionado,
   impressoraModelo,
-  onImpressoraModeloChange,
+  onImpressoraChange,
   consumoKwh,
   onConsumoKwhChange,
   valorKwh,
@@ -65,24 +64,14 @@ export function ImpressoraEnergiaConfig({
   quantidadePecas,
   onQuantidadePecasChange,
 }: ImpressoraEnergiaConfigProps) {
-  // Estado local para o select
-  const [selectedModelo, setSelectedModelo] = useState<string>(impressoraModelo || '');
-
-  // Sincronizar estado local com prop
-  useEffect(() => {
-    setSelectedModelo(impressoraModelo || '');
-  }, [impressoraModelo]);
-
-  // Handler para mudança de impressora
+  // Handler para mudança de impressora (atualiza modelo e consumo juntos)
   const handleSelectChange = (value: string) => {
-    setSelectedModelo(value);
     if (value) {
       const modelo = value as ImpressoraModelo;
-      onImpressoraModeloChange(modelo);
       const imp = IMPRESSORAS.find(i => i.id === modelo);
-      if (imp && modelo !== 'outra') {
-        onConsumoKwhChange(imp.consumo);
-      }
+      // Atualizar modelo e consumo de uma vez só
+      const novoConsumo = (imp && modelo !== 'outra') ? imp.consumo : (consumoKwh || 0);
+      onImpressoraChange(modelo, novoConsumo);
     }
   };
 
@@ -117,7 +106,7 @@ export function ImpressoraEnergiaConfig({
           </label>
           <div className="flex flex-wrap items-center gap-3">
             <select
-              value={selectedModelo}
+              value={impressoraModelo || ''}
               onChange={(e) => handleSelectChange(e.target.value)}
               className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm
                 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
@@ -134,7 +123,7 @@ export function ImpressoraEnergiaConfig({
             </select>
 
             {/* Consumo manual (se "Outra impressora") */}
-            {selectedModelo === 'outra' && (
+            {impressoraModelo === 'outra' && (
               <div className="flex items-center gap-2">
                 <span className="text-sm text-gray-600">Consumo:</span>
                 <DecimalInput

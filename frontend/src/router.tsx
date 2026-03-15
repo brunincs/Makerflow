@@ -7,6 +7,7 @@ import { Simulacoes } from './pages/Simulacoes';
 import { Filamentos } from './pages/Filamentos';
 import { Embalagens } from './pages/Embalagens';
 import { Impressoes } from './pages/Impressoes';
+import { FilaProducao } from './pages/FilaProducao';
 
 export const router = createBrowserRouter([
   {
@@ -62,6 +63,14 @@ export const router = createBrowserRouter([
     element: (
       <MainLayout>
         <Impressoes />
+      </MainLayout>
+    ),
+  },
+  {
+    path: '/fila-producao',
+    element: (
+      <MainLayout>
+        <FilaProducao />
       </MainLayout>
     ),
   },

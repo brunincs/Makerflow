@@ -605,3 +605,74 @@ export const deleteFilamento = async (id: string): Promise<boolean> => {
 
   return true;
 };
+
+// Consumir filamento (descontar do estoque em gramas)
+export const consumirFilamento = async (
+  filamentoId: string,
+  pesoGramas: number,
+  motivo?: string
+): Promise<Filamento | null> => {
+  // Buscar filamento atual
+  let filamentoAtual: Filamento | null = null;
+
+  if (!isSupabaseConfigured() || !supabase) {
+    const filamentos = getLocalFilamentos();
+    filamentoAtual = filamentos.find(f => f.id === filamentoId) || null;
+  } else {
+    const { data, error } = await supabase
+      .from('filamentos')
+      .select('*')
+      .eq('id', filamentoId)
+      .single();
+
+    if (error) {
+      console.error('Erro ao buscar filamento:', error);
+      return null;
+    }
+    filamentoAtual = data;
+  }
+
+  if (!filamentoAtual) return null;
+
+  const novoEstoqueGramas = Math.max(0, (filamentoAtual.estoque_gramas || 0) - pesoGramas);
+  const novaQuantidadeRolos = Math.ceil(novoEstoqueGramas / 1000);
+
+  // Registrar movimentação
+  await registrarMovimentacao(
+    filamentoId,
+    'saida',
+    pesoGramas,
+    undefined,
+    motivo || 'Consumo de producao'
+  );
+
+  const dadosAtualizar = {
+    estoque_gramas: novoEstoqueGramas,
+    quantidade_rolos: novaQuantidadeRolos,
+  };
+
+  if (!isSupabaseConfigured() || !supabase) {
+    const filamentos = getLocalFilamentos();
+    const index = filamentos.findIndex(f => f.id === filamentoId);
+    if (index !== -1) {
+      filamentos[index] = { ...filamentos[index], ...dadosAtualizar };
+      setLocalFilamentos(filamentos);
+      return filamentos[index];
+    }
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from('filamentos')
+    .update(dadosAtualizar)
+    .eq('id', filamentoId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Erro ao consumir filamento:', error);
+    return null;
+  }
+
+  return data;
+};

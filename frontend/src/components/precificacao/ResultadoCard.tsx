@@ -377,6 +377,7 @@ export function ResultadoCard({ state, canSave = true, onSaveSuccess, nomeProdut
       lucro_por_hora: lucroPorHora,
       tempo_impressao: tempoHoras,
       // Inputs para restaurar simulacao
+      filamento_id: custos.filamento_id || null,
       peso_filamento_g: pesoFilamento,
       preco_filamento_kg: custos.preco_filamento_kg || 0,
       consumo_kwh: custos.consumo_kwh || 0,
@@ -384,9 +385,13 @@ export function ResultadoCard({ state, canSave = true, onSaveSuccess, nomeProdut
       peso_kg: state.mercadolivre?.peso_kg || 0,
       imposto_aliquota: custos.imposto_aliquota || 0,
       outros_custos: custos.outros_custos || 0,
+      embalagens_ids: custos.embalagens_ids || [],
+      impressora_modelo: custos.impressora_modelo || null,
       frete_gratis: state.mercadolivre?.frete_gratis || false,
       tipo_anuncio: state.mercadolivre?.tipo_anuncio,
       categoria_id: state.mercadolivre?.categoria_id,
+      multiplas_pecas: custos.multiplas_pecas || false,
+      quantidade_pecas: custos.quantidade_pecas || 1,
       // Metadata
       nome_produto: state.produto_selecionado?.produto.nome || nomeManual.trim() || null,
       variacao_nome: state.produto_selecionado?.variacao?.nome_variacao,

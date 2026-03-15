@@ -32,11 +32,9 @@ export function FilamentoConfig({
       setLoading(true);
       try {
         const data = await getFilamentos();
-        console.log('[FilamentoConfig] Filamentos carregados:', data);
-        console.log('[FilamentoConfig] Quantidade:', data.length);
         setFilamentos(data);
       } catch (error) {
-        console.error('[FilamentoConfig] Erro ao carregar filamentos:', error);
+        console.error('Erro ao carregar filamentos:', error);
       }
       setLoading(false);
     };
@@ -64,29 +62,17 @@ export function FilamentoConfig({
     ? filamentos.find(f => f.id === filamentoId)
     : null;
 
-  // Log do estado atual (para debug)
-  useEffect(() => {
-    console.log('[FilamentoConfig] filamentoId:', filamentoId);
-    console.log('[FilamentoConfig] filamentos.length:', filamentos.length);
-    console.log('[FilamentoConfig] filamentoSelecionado:', filamentoSelecionado);
-  }, [filamentoId, filamentos, filamentoSelecionado]);
 
   const handleFilamentoChange = (value: string) => {
-    console.log('[FilamentoConfig] handleFilamentoChange chamado com:', value);
-
     if (value === '') {
-      // Modo manual - apenas limpa o filamentoId, mantém o preço atual
-      console.log('[FilamentoConfig] Setando modo manual (undefined)');
+      // Modo manual - limpa o filamentoId
       onFilamentoChange(undefined, undefined);
       return;
     }
 
     // Selecionou um filamento - atualiza id E preço juntos
     const filamento = filamentos.find(f => f.id === value);
-    console.log('[FilamentoConfig] Filamento encontrado:', filamento);
-
     if (filamento) {
-      console.log('[FilamentoConfig] Setando filamentoId:', value, 'e preco:', filamento.preco_por_kg);
       onFilamentoChange(value, filamento.preco_por_kg);
     }
   };

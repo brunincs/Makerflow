@@ -2,9 +2,10 @@ import { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Card, CardBody } from '../../components/ui';
 import { MarketplaceSelector } from '../../components/precificacao';
-import { MarketplaceState, PrecificacaoSalva, ProdutoSelecionado } from '../../types';
+import { MarketplaceState, PrecificacaoSalva, ProdutoSelecionado, Filamento } from '../../types';
 import { getProdutoById } from '../../services/produtosService';
-import { Calculator, RotateCcw, Info, ArrowLeft } from 'lucide-react';
+import { getFilamentos } from '../../services/filamentosService';
+import { Calculator, RotateCcw, Info, ArrowLeft, AlertTriangle, RefreshCw, Lock } from 'lucide-react';
 
 const initialMarketplaceState: MarketplaceState = {
   tipo: 'mercadolivre',
@@ -52,6 +53,12 @@ export function Precificacao() {
   const [canSave, setCanSave] = useState(true); // Nova precificação pode salvar imediatamente
   const isInitialLoad = useRef(true);
 
+  // Estado para aviso de mudança de preço do filamento
+  const [filamentoMudou, setFilamentoMudou] = useState(false);
+  const [precoFilamentoSalvo, setPrecoFilamentoSalvo] = useState<number>(0);
+  const [precoFilamentoAtual, setPrecoFilamentoAtual] = useState<number>(0);
+  const [filamentoAtual, setFilamentoAtual] = useState<Filamento | null>(null);
+
   // Carregar dados da simulação quando vem da página de Simulações
   useEffect(() => {
     const carregarSimulacao = async () => {
@@ -79,6 +86,23 @@ export function Precificacao() {
         }
       }
 
+      // Verificar se o preço do filamento mudou
+      if (sim.filamento_id && sim.preco_filamento_kg) {
+        const filamentos = await getFilamentos();
+        const filamento = filamentos.find(f => f.id === sim.filamento_id);
+        if (filamento) {
+          setFilamentoAtual(filamento);
+          setPrecoFilamentoSalvo(sim.preco_filamento_kg);
+          setPrecoFilamentoAtual(filamento.preco_por_kg);
+
+          // Verificar se houve mudança significativa (mais de 1 centavo)
+          const diferenca = Math.abs(filamento.preco_por_kg - sim.preco_filamento_kg);
+          if (diferenca > 0.01) {
+            setFilamentoMudou(true);
+          }
+        }
+      }
+
       setMarketplace(prev => ({
         ...prev,
         tipo: sim.marketplace,
@@ -93,15 +117,19 @@ export function Precificacao() {
         },
         custos_producao: {
           ...prev.custos_producao,
+          filamento_id: sim.filamento_id || undefined,
           peso_filamento_g: sim.peso_filamento_g || 0,
           preco_filamento_kg: sim.preco_filamento_kg || 0,
           consumo_kwh: sim.consumo_kwh || 0,
-          valor_kwh: sim.valor_kwh || 0,
-          custo_embalagem: sim.custo_embalagem || 0,
+          valor_kwh: sim.valor_kwh || 0.85,
           imposto_aliquota: sim.imposto_aliquota || 0,
           outros_custos: sim.outros_custos || 0,
+          embalagens_ids: sim.embalagens_ids || [],
+          impressora_modelo: sim.impressora_modelo as any || undefined,
           tempo_impressao_horas: horasInteiras,
           tempo_impressao_minutos: minutosRestantes,
+          multiplas_pecas: sim.multiplas_pecas || false,
+          quantidade_pecas: sim.quantidade_pecas || 1,
         },
         modo_precificacao: 'preco_manual',
       }));
@@ -151,6 +179,26 @@ export function Precificacao() {
     setCanSave(false); // Após salvar, desabilita até nova alteração
   };
 
+  // Manter o custo antigo do filamento
+  const handleManterCustoAntigo = () => {
+    setFilamentoMudou(false);
+  };
+
+  // Recalcular com o preço atual do filamento
+  const handleRecalcularPreco = () => {
+    if (filamentoAtual) {
+      setMarketplace(prev => ({
+        ...prev,
+        custos_producao: {
+          ...prev.custos_producao,
+          preco_filamento_kg: filamentoAtual.preco_por_kg,
+        },
+      }));
+      setFilamentoMudou(false);
+      setCanSave(true); // Habilitar salvamento após recálculo
+    }
+  };
+
   return (
     <div>
       {/* Botao Voltar */}
@@ -190,23 +238,64 @@ export function Precificacao() {
 
       {/* Banner de Simulacao Carregada */}
       {simulacaoCarregada && (
-        <div className="mb-6 p-4 bg-purple-50 border border-purple-200 rounded-xl flex items-center gap-3">
-          <Info className="w-5 h-5 text-purple-600 flex-shrink-0" />
-          <div className="flex-1">
-            <p className="text-sm font-medium text-purple-800">
-              Simulacao carregada: {simulacaoCarregada.nome_produto || 'Simulacao manual'}
-              {simulacaoCarregada.variacao_nome && ` (${simulacaoCarregada.variacao_nome})`}
-            </p>
-            <p className="text-xs text-purple-600">
-              Modifique os valores para criar uma nova simulacao
-            </p>
+        <div className="mb-6 p-4 bg-purple-50 border border-purple-200 rounded-xl">
+          <div className="flex items-center gap-3">
+            <Info className="w-5 h-5 text-purple-600 flex-shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-purple-800">
+                Simulacao carregada: {simulacaoCarregada.nome_produto || 'Simulacao manual'}
+                {simulacaoCarregada.variacao_nome && ` (${simulacaoCarregada.variacao_nome})`}
+              </p>
+              <p className="text-xs text-purple-600">
+                Modifique os valores para criar uma nova simulacao
+              </p>
+            </div>
+            <button
+              onClick={handleResetForm}
+              className="text-sm text-purple-600 hover:text-purple-800 font-medium"
+            >
+              Limpar
+            </button>
           </div>
-          <button
-            onClick={handleResetForm}
-            className="text-sm text-purple-600 hover:text-purple-800 font-medium"
-          >
-            Limpar
-          </button>
+
+          {/* Aviso de mudanca no preco do filamento (dentro do banner) */}
+          {filamentoMudou && (
+            <div className="mt-4 pt-4 border-t border-purple-200">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-amber-800">
+                    O preco do filamento mudou desde esta simulacao.
+                  </p>
+                  <div className="mt-2 flex flex-wrap items-center gap-4 text-sm">
+                    <span className="text-amber-700">
+                      <Lock className="w-3.5 h-3.5 inline mr-1" />
+                      Salvo: <strong>R$ {precoFilamentoSalvo.toFixed(2)}</strong>/kg
+                    </span>
+                    <span className="text-amber-700">
+                      <RefreshCw className="w-3.5 h-3.5 inline mr-1" />
+                      Atual: <strong>R$ {precoFilamentoAtual.toFixed(2)}</strong>/kg
+                    </span>
+                  </div>
+                  <div className="mt-3 flex gap-2">
+                    <button
+                      onClick={handleManterCustoAntigo}
+                      className="px-3 py-1.5 text-sm bg-white border border-amber-300 text-amber-700 rounded-lg hover:bg-amber-50 transition-colors"
+                    >
+                      Manter custo antigo
+                    </button>
+                    <button
+                      onClick={handleRecalcularPreco}
+                      className="px-3 py-1.5 text-sm bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors flex items-center gap-1.5"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      Recalcular custos
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

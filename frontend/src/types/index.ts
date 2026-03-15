@@ -250,6 +250,7 @@ export interface PrecificacaoSalva {
   tempo_impressao: number;
 
   // Inputs salvos (para restaurar simulacao)
+  filamento_id?: string | null;
   peso_filamento_g?: number;
   preco_filamento_kg?: number;
   consumo_kwh?: number;
@@ -257,9 +258,14 @@ export interface PrecificacaoSalva {
   peso_kg?: number;
   imposto_aliquota?: number;
   outros_custos?: number;
+  embalagens_ids?: string[];
+  impressora_modelo?: string | null;
   frete_gratis?: boolean;
   tipo_anuncio?: string | null;
   categoria_id?: string | null;
+  // Campos adicionais para restaurar simulacao
+  multiplas_pecas?: boolean;
+  quantidade_pecas?: number;
 
   // Metadata
   nome_produto?: string | null;
@@ -271,4 +277,66 @@ export interface PrecificacaoSalva {
   } | null;
 
   created_at?: string;
+}
+
+// ============ FILA DE PRODUCAO ============
+
+// Pedido de venda
+export interface Pedido {
+  id?: string;
+  produto_id: string;
+  variacao_id?: string | null;
+  quantidade: number;
+  quantidade_produzida: number;
+  status: 'pendente' | 'em_producao' | 'concluido';
+  observacao?: string;
+  created_at?: string;
+  updated_at?: string;
+  // Dados via join
+  produto?: {
+    nome: string;
+    imagem_url?: string;
+    peso_filamento?: number;
+    tempo_impressao?: number;
+  };
+  variacao?: {
+    nome_variacao: string;
+    peso_filamento?: number;
+    tempo_impressao?: number;
+  };
+}
+
+// Estoque de produtos acabados
+export interface EstoqueProduto {
+  id?: string;
+  produto_id: string;
+  variacao_id?: string | null;
+  quantidade: number;
+  created_at?: string;
+  updated_at?: string;
+  // Dados via join
+  produto?: {
+    nome: string;
+    imagem_url?: string;
+  };
+  variacao?: {
+    nome_variacao: string;
+  };
+}
+
+// Item da fila de produção (calculado)
+export interface ItemFilaProducao {
+  produto_id: string;
+  variacao_id?: string | null;
+  nome_produto: string;
+  nome_variacao?: string;
+  imagem_url?: string;
+  quantidade_pedida: number;
+  quantidade_estoque: number;
+  quantidade_produzir: number;
+  peso_por_peca: number;
+  tempo_por_peca: number;
+  peso_total: number;
+  tempo_total: number;
+  pedidos: Pedido[];
 }

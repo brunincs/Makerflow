@@ -198,7 +198,17 @@ export function MarketplaceSelector({ value, onChange, canSave = true, onSaveSuc
           onTempoMinutosChange={(v) => handleCustosProducaoChange('tempo_impressao_minutos', v >= 0 && v < 60 ? v : 0)}
           produtoSelecionado={value.produto_selecionado || null}
           impressoraModelo={custos.impressora_modelo}
-          onImpressoraModeloChange={(v) => handleCustosProducaoChange('impressora_modelo', v)}
+          onImpressoraChange={(modelo, consumo) => {
+            // Atualizar modelo e consumo de uma vez só para evitar race condition
+            onChange({
+              ...value,
+              custos_producao: {
+                ...value.custos_producao,
+                impressora_modelo: modelo,
+                consumo_kwh: consumo,
+              },
+            });
+          }}
           consumoKwh={custos.consumo_kwh}
           onConsumoKwhChange={(v) => handleCustosProducaoChange('consumo_kwh', v >= 0 ? v : 0)}
           valorKwh={custos.valor_kwh}

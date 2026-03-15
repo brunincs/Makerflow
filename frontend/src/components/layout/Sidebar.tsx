@@ -8,6 +8,7 @@ import {
   Cylinder,
   BoxIcon,
   Printer,
+  ClipboardList,
 } from 'lucide-react';
 
 const menuItems = [
@@ -15,6 +16,7 @@ const menuItems = [
   { to: '/radar-produtos', icon: Radar, label: 'Radar de Produtos' },
   { to: '/precificacao', icon: Calculator, label: 'Calculadora' },
   { to: '/simulacoes', icon: LineChart, label: 'Precificados' },
+  { to: '/fila-producao', icon: ClipboardList, label: 'Fila de Producao' },
   { to: '/impressoes', icon: Printer, label: 'Impressoes' },
   { to: '/filamentos', icon: Cylinder, label: 'Filamentos' },
   { to: '/embalagens', icon: Package, label: 'Embalagens' },
