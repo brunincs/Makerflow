@@ -267,9 +267,12 @@ export function FilaProducao() {
 
   // Verificar conexao ML ao carregar
   useEffect(() => {
+    console.log('[ML DEBUG] useEffect iniciado');
     const checkML = async () => {
+      console.log('[ML DEBUG] checkML chamado');
       try {
         const status = await checkMLConnection();
+        console.log('[ML DEBUG] status:', status);
         setMlStatus(status);
 
         // Se estiver conectado, buscar pedidos pendentes
@@ -278,8 +281,9 @@ export function FilaProducao() {
           setMlOrders(orders);
         }
       } catch (error) {
-        console.error('Erro ao verificar ML:', error);
+        console.error('[ML DEBUG] Erro:', error);
       } finally {
+        console.log('[ML DEBUG] setMlLoaded(true)');
         setMlLoaded(true);
       }
     };
