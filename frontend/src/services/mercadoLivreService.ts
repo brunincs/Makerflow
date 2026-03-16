@@ -5,6 +5,10 @@ import { MLOrder, MLConnectionStatus, MLSyncResponse } from '../types';
 
 const STORAGE_KEY = 'makerflow_ml_orders';
 
+// URL base das Edge Functions do Supabase
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
+const FUNCTIONS_URL = SUPABASE_URL ? `${SUPABASE_URL}/functions/v1` : '';
+
 // Local storage fallback
 const getLocalMLOrders = (): MLOrder[] => {
   const data = localStorage.getItem(STORAGE_KEY);
@@ -17,8 +21,16 @@ const setLocalMLOrders = (orders: MLOrder[]): void => {
 
 // Verificar status da conexao com Mercado Livre
 export const checkMLConnection = async (): Promise<MLConnectionStatus> => {
+  if (!FUNCTIONS_URL) {
+    return { connected: false, reason: 'no_supabase' };
+  }
+
   try {
-    const response = await fetch('/api/mercadolivre/status');
+    const response = await fetch(`${FUNCTIONS_URL}/mercadolivre-status`, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
     if (!response.ok) {
       return { connected: false };
     }
@@ -31,8 +43,16 @@ export const checkMLConnection = async (): Promise<MLConnectionStatus> => {
 
 // Sincronizar pedidos do Mercado Livre
 export const syncMLOrders = async (): Promise<MLSyncResponse | null> => {
+  if (!FUNCTIONS_URL) {
+    return null;
+  }
+
   try {
-    const response = await fetch('/api/mercadolivre/sync');
+    const response = await fetch(`${FUNCTIONS_URL}/mercadolivre-sync`, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
     if (!response.ok) {
       const error = await response.json();
       console.error('Erro ao sincronizar ML:', error);
@@ -188,9 +208,16 @@ export const importMultipleMLOrders = async (
 
 // Desconectar do Mercado Livre
 export const disconnectML = async (): Promise<boolean> => {
+  if (!FUNCTIONS_URL) {
+    return false;
+  }
+
   try {
-    const response = await fetch('/api/mercadolivre/disconnect', {
+    const response = await fetch(`${FUNCTIONS_URL}/mercadolivre-disconnect`, {
       method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
     });
     return response.ok;
   } catch (error) {
@@ -201,5 +228,5 @@ export const disconnectML = async (): Promise<boolean> => {
 
 // URL para login do Mercado Livre
 export const getMLLoginUrl = (): string => {
-  return '/api/mercadolivre/login';
+  return `${FUNCTIONS_URL}/mercadolivre-login`;
 };
