@@ -1,7 +1,0 @@
-{
-  "name": "makerflow",
-  "private": true,
-  "dependencies": {
-    "@supabase/supabase-js": "^2.99.1"
-  }
-}
