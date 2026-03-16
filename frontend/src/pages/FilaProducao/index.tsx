@@ -266,6 +266,7 @@ export function FilaProducao() {
   const [mlImporting, setMlImporting] = useState(false);
   const [mlOrdersToImport, setMlOrdersToImport] = useState<Set<string>>(new Set());
   const [mlLoaded, setMlLoaded] = useState(false);
+  const [mlLoginUrl, setMlLoginUrl] = useState<string>('');
 
   // Historico de pedidos concluidos
   const [showHistoricoModal, setShowHistoricoModal] = useState(false);
@@ -284,6 +285,10 @@ export function FilaProducao() {
         if (status.connected) {
           const orders = await getMLOrders(true);
           setMlOrders(orders);
+        } else {
+          // Carregar URL de login
+          const loginUrl = await getMLLoginUrl();
+          setMlLoginUrl(loginUrl);
         }
       } catch (error) {
         console.error('Erro ao verificar ML:', error);
@@ -893,15 +898,15 @@ export function FilaProducao() {
                 <Unlink className="w-4 h-4" />
               </button>
             </>
-          ) : (
+          ) : mlLoginUrl ? (
             <a
-              href={getMLLoginUrl()}
+              href={mlLoginUrl}
               className="flex items-center gap-2 px-3 py-2 text-sm bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors"
             >
               <Link2 className="w-4 h-4" />
               Conectar Mercado Livre
             </a>
-          )}
+          ) : null}
 
           <button
             onClick={() => setShowImportModal(true)}

@@ -1,5 +1,8 @@
 import { createBrowserRouter } from 'react-router-dom';
+import { RootLayout } from './components/RootLayout';
 import { MainLayout } from './components/layout';
+import { ProtectedRoute } from './components/ProtectedRoute';
+import { AdminRoute } from './components/AdminRoute';
 import { Dashboard } from './pages/Dashboard';
 import { RadarProdutos } from './pages/RadarProdutos';
 import { Precificacao } from './pages/Precificacao';
@@ -8,70 +11,118 @@ import { Filamentos } from './pages/Filamentos';
 import { Embalagens } from './pages/Embalagens';
 import { Impressoes } from './pages/Impressoes';
 import { FilaProducao } from './pages/FilaProducao';
+import { Login, Register, ForgotPassword } from './pages/Auth';
+import { Admin } from './pages/Admin';
 
 export const router = createBrowserRouter([
   {
-    path: '/',
-    element: (
-      <MainLayout>
-        <Dashboard />
-      </MainLayout>
-    ),
-  },
-  {
-    path: '/radar-produtos',
-    element: (
-      <MainLayout>
-        <RadarProdutos />
-      </MainLayout>
-    ),
-  },
-  {
-    path: '/precificacao',
-    element: (
-      <MainLayout>
-        <Precificacao />
-      </MainLayout>
-    ),
-  },
-  {
-    path: '/simulacoes',
-    element: (
-      <MainLayout>
-        <Simulacoes />
-      </MainLayout>
-    ),
-  },
-  {
-    path: '/filamentos',
-    element: (
-      <MainLayout>
-        <Filamentos />
-      </MainLayout>
-    ),
-  },
-  {
-    path: '/embalagens',
-    element: (
-      <MainLayout>
-        <Embalagens />
-      </MainLayout>
-    ),
-  },
-  {
-    path: '/impressoes',
-    element: (
-      <MainLayout>
-        <Impressoes />
-      </MainLayout>
-    ),
-  },
-  {
-    path: '/fila-producao',
-    element: (
-      <MainLayout>
-        <FilaProducao />
-      </MainLayout>
-    ),
+    element: <RootLayout />,
+    children: [
+      // Rotas Publicas
+      {
+        path: '/login',
+        element: <Login />,
+      },
+      {
+        path: '/register',
+        element: <Register />,
+      },
+      {
+        path: '/forgot-password',
+        element: <ForgotPassword />,
+      },
+      // Rotas Protegidas
+      {
+        path: '/',
+        element: (
+          <ProtectedRoute>
+            <MainLayout>
+              <Dashboard />
+            </MainLayout>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: '/radar-produtos',
+        element: (
+          <ProtectedRoute>
+            <MainLayout>
+              <RadarProdutos />
+            </MainLayout>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: '/precificacao',
+        element: (
+          <ProtectedRoute>
+            <MainLayout>
+              <Precificacao />
+            </MainLayout>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: '/simulacoes',
+        element: (
+          <ProtectedRoute>
+            <MainLayout>
+              <Simulacoes />
+            </MainLayout>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: '/filamentos',
+        element: (
+          <ProtectedRoute>
+            <MainLayout>
+              <Filamentos />
+            </MainLayout>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: '/embalagens',
+        element: (
+          <ProtectedRoute>
+            <MainLayout>
+              <Embalagens />
+            </MainLayout>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: '/impressoes',
+        element: (
+          <ProtectedRoute>
+            <MainLayout>
+              <Impressoes />
+            </MainLayout>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: '/fila-producao',
+        element: (
+          <ProtectedRoute>
+            <MainLayout>
+              <FilaProducao />
+            </MainLayout>
+          </ProtectedRoute>
+        ),
+      },
+      // Rota Admin
+      {
+        path: '/admin',
+        element: (
+          <AdminRoute>
+            <MainLayout>
+              <Admin />
+            </MainLayout>
+          </AdminRoute>
+        ),
+      },
+    ],
   },
 ]);

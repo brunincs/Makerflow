@@ -1,4 +1,4 @@
-import { supabase, isSupabaseConfigured } from './supabaseClient';
+import { supabase, isSupabaseConfigured, getCurrentUserId } from './supabaseClient';
 import { Pedido } from '../types';
 
 const STORAGE_KEY = 'makerflow_pedidos';
@@ -90,9 +90,12 @@ export const createPedido = async (
     return novo;
   }
 
+  const user_id = await getCurrentUserId();
+  const dadosComUserId = { ...dadosParaSalvar, user_id };
+
   const { data, error } = await supabase
     .from('pedidos')
-    .insert([dadosParaSalvar])
+    .insert([dadosComUserId])
     .select(`
       *,
       produto:produtos_concorrentes(nome, imagem_url, peso_filamento, tempo_impressao),

@@ -1,4 +1,4 @@
-import { supabase, isSupabaseConfigured } from './supabaseClient';
+import { supabase, isSupabaseConfigured, getCurrentUserId } from './supabaseClient';
 import { EstoqueProduto } from '../types';
 
 const STORAGE_KEY = 'makerflow_estoque_produtos';
@@ -103,9 +103,12 @@ export const adicionarEstoque = async (
     return novo;
   }
 
+  const user_id = await getCurrentUserId();
+  const dadosComUserId = { ...dadosParaSalvar, user_id };
+
   const { data, error } = await supabase
     .from('estoque_produtos')
-    .insert([dadosParaSalvar])
+    .insert([dadosComUserId])
     .select()
     .single();
 

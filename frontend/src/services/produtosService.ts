@@ -1,4 +1,4 @@
-import { supabase, isSupabaseConfigured } from './supabaseClient';
+import { supabase, isSupabaseConfigured, getCurrentUserId } from './supabaseClient';
 import { ProdutoConcorrente, VariacaoProduto } from '../types';
 
 const STORAGE_KEY = 'makerflow_produtos';
@@ -91,7 +91,7 @@ export const createProduto = async (
     produtos.push(novoProduto);
     setLocalProdutos(produtos);
 
-    // Criar variações locais
+    // Criar variacoes locais
     if (variacoes && variacoes.length > 0) {
       const localVariacoes = getLocalVariacoes();
       const novasVariacoes = variacoes.map(v => ({
@@ -108,11 +108,15 @@ export const createProduto = async (
     return novoProduto;
   }
 
-  console.log('Dados enviados para o Supabase:', produto);
+  // Obter user_id do usuario logado
+  const user_id = await getCurrentUserId();
+  const produtoComUserId = { ...produto, user_id };
+
+  console.log('Dados enviados para o Supabase:', produtoComUserId);
 
   const { data, error } = await supabase
     .from('produtos_concorrentes')
-    .insert([produto])
+    .insert([produtoComUserId])
     .select()
     .single();
 
@@ -126,11 +130,13 @@ export const createProduto = async (
 
   console.log('Produto criado com sucesso:', data);
 
-  // Criar variações no Supabase
+  // Criar variacoes no Supabase
   if (variacoes && variacoes.length > 0 && data) {
+    const user_id = await getCurrentUserId();
     const variacoesComProdutoId = variacoes.map(v => ({
       ...v,
       produto_id: data.id,
+      user_id,
     }));
 
     const { data: variacoesData, error: variacoesError } = await supabase
@@ -251,9 +257,9 @@ export const updateProduto = async (
     return null;
   }
 
-  // Atualizar variações no Supabase
+  // Atualizar variacoes no Supabase
   if (variacoes !== undefined && data) {
-    // Remove variações antigas
+    // Remove variacoes antigas
     await supabase
       .from('variacoes_produto')
       .delete()
@@ -261,9 +267,11 @@ export const updateProduto = async (
 
     // Adiciona novas
     if (variacoes.length > 0) {
+      const user_id = await getCurrentUserId();
       const variacoesComProdutoId = variacoes.map(v => ({
         ...v,
         produto_id: id,
+        user_id,
       }));
 
       const { data: variacoesData, error: variacoesError } = await supabase
@@ -329,9 +337,12 @@ export const createVariacao = async (
     return novaVariacao;
   }
 
+  const user_id = await getCurrentUserId();
+  const variacaoComUserId = { ...variacao, user_id };
+
   const { data, error } = await supabase
     .from('variacoes_produto')
-    .insert([variacao])
+    .insert([variacaoComUserId])
     .select()
     .single();
 

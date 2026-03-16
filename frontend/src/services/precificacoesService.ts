@@ -1,4 +1,4 @@
-import { supabase, isSupabaseConfigured } from './supabaseClient';
+import { supabase, isSupabaseConfigured, getCurrentUserId } from './supabaseClient';
 import { PrecificacaoSalva } from '../types';
 
 const STORAGE_KEY = 'makerflow_precificacoes';
@@ -51,7 +51,7 @@ export const createPrecificacao = async (
     variacao_nome: precificacao.variacao_nome || null,
   };
 
-  console.log('Salvando precificação:', dadosParaSalvar);
+  console.log('Salvando precificacao:', dadosParaSalvar);
 
   if (!isSupabaseConfigured() || !supabase) {
     const nova: PrecificacaoSalva = {
@@ -67,9 +67,12 @@ export const createPrecificacao = async (
     return nova;
   }
 
+  const user_id = await getCurrentUserId();
+  const dadosComUserId = { ...dadosParaSalvar, user_id };
+
   const { data, error } = await supabase
     .from('precificacoes')
-    .insert([dadosParaSalvar])
+    .insert([dadosComUserId])
     .select()
     .single();
 

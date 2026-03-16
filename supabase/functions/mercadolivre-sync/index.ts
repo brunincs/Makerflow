@@ -28,7 +28,23 @@ interface MLOrder {
   order_items: MLOrderItem[]
 }
 
-async function refreshToken(supabase: any, refreshTokenValue: string) {
+// Extrair user_id do JWT
+function getUserIdFromJWT(authHeader: string | null): string | null {
+  if (!authHeader) return null
+
+  try {
+    const token = authHeader.replace('Bearer ', '')
+    const parts = token.split('.')
+    if (parts.length !== 3) return null
+
+    const payload = JSON.parse(atob(parts[1]))
+    return payload.sub || null
+  } catch {
+    return null
+  }
+}
+
+async function refreshToken(supabase: any, userId: string, refreshTokenValue: string) {
   const clientId = Deno.env.get('ML_CLIENT_ID')
   const clientSecret = Deno.env.get('ML_CLIENT_SECRET')
 
@@ -55,13 +71,16 @@ async function refreshToken(supabase: any, refreshTokenValue: string) {
   const expiresAt = new Date()
   expiresAt.setSeconds(expiresAt.getSeconds() + tokenData.expires_in)
 
-  await supabase.from('mercadolivre_tokens').delete().neq('id', '00000000-0000-0000-0000-000000000000')
-  await supabase.from('mercadolivre_tokens').insert({
-    access_token: tokenData.access_token,
-    refresh_token: tokenData.refresh_token,
-    ml_user_id: tokenData.user_id?.toString(),
-    expires_at: expiresAt.toISOString(),
-  })
+  // Atualizar token do usuario especifico
+  await supabase
+    .from('mercadolivre_tokens')
+    .update({
+      access_token: tokenData.access_token,
+      refresh_token: tokenData.refresh_token,
+      ml_user_id: tokenData.user_id?.toString(),
+      expires_at: expiresAt.toISOString(),
+    })
+    .eq('user_id', userId)
 
   return tokenData.access_token
 }
@@ -76,10 +95,22 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, supabaseKey)
 
-    // Buscar token
+    // Extrair user_id do JWT
+    const authHeader = req.headers.get('Authorization')
+    const userId = getUserIdFromJWT(authHeader)
+
+    if (!userId) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized - No valid user token' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Buscar token do usuario especifico
     const { data: tokenData, error: tokenError } = await supabase
       .from('mercadolivre_tokens')
       .select('*')
+      .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .limit(1)
       .single()
@@ -97,7 +128,7 @@ serve(async (req) => {
     // Verificar se token expirou
     if (tokenData.expires_at && new Date(tokenData.expires_at) < new Date()) {
       if (tokenData.refresh_token) {
-        accessToken = await refreshToken(supabase, tokenData.refresh_token)
+        accessToken = await refreshToken(supabase, userId, tokenData.refresh_token)
       } else {
         return new Response(
           JSON.stringify({ error: 'Token expired and no refresh token' }),
@@ -132,11 +163,12 @@ serve(async (req) => {
       for (const orderItem of order.order_items) {
         const mlOrderId = `${order.id}-${orderItem.item.id}`
 
-        // Verificar se ja existe
+        // Verificar se ja existe para este usuario
         const { data: existing } = await supabase
           .from('ml_orders')
           .select('id')
           .eq('ml_order_id', mlOrderId)
+          .eq('user_id', userId)
           .single()
 
         if (!existing) {
@@ -147,7 +179,7 @@ serve(async (req) => {
               .join(', ')
           }
 
-          // Extrair SKU do vendedor (pode estar em seller_custom_field ou seller_sku)
+          // Extrair SKU do vendedor
           const sellerSku = orderItem.item.seller_sku || orderItem.item.seller_custom_field || null
 
           const { data: inserted, error: insertError } = await supabase
@@ -163,6 +195,7 @@ serve(async (req) => {
               buyer_nickname: order.buyer.nickname,
               date_created: order.date_created,
               imported: false,
+              user_id: userId, // Associar ao usuario
             })
             .select()
             .single()
@@ -174,12 +207,13 @@ serve(async (req) => {
       }
     }
 
-    // Limpar ml_orders orfaos (pedido foi excluido)
-    // 1. Resetar ml_orders que estao imported=true mas pedido_id=null (orfaos antigos)
+    // Limpar ml_orders orfaos deste usuario
+    // 1. Resetar ml_orders que estao imported=true mas pedido_id=null
     await supabase
       .from('ml_orders')
       .update({ imported: false })
       .eq('imported', true)
+      .eq('user_id', userId)
       .is('pedido_id', null)
 
     // 2. Buscar ml_orders marcados como imported mas cujo pedido nao existe mais
@@ -187,6 +221,7 @@ serve(async (req) => {
       .from('ml_orders')
       .select('id, pedido_id')
       .eq('imported', true)
+      .eq('user_id', userId)
       .not('pedido_id', 'is', null)
 
     if (orphanedOrders && orphanedOrders.length > 0) {
@@ -196,6 +231,7 @@ serve(async (req) => {
         .from('pedidos')
         .select('id')
         .in('id', pedidoIds)
+        .eq('user_id', userId)
 
       const existingIds = new Set(existingPedidos?.map(p => p.id) || [])
 
@@ -212,11 +248,12 @@ serve(async (req) => {
       }
     }
 
-    // Buscar todos os pedidos nao importados
+    // Buscar todos os pedidos nao importados deste usuario
     const { data: pendingOrders } = await supabase
       .from('ml_orders')
       .select('*')
       .eq('imported', false)
+      .eq('user_id', userId)
       .order('date_created', { ascending: false })
 
     return new Response(

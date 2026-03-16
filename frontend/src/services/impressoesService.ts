@@ -1,4 +1,4 @@
-import { supabase, isSupabaseConfigured } from './supabaseClient';
+import { supabase, isSupabaseConfigured, getCurrentUserId } from './supabaseClient';
 import { Impressao } from '../types';
 import { descontarEstoqueFilamento, devolverEstoqueFilamento } from './filamentosService';
 
@@ -60,11 +60,14 @@ export const createImpressao = async (
     return novo;
   }
 
-  console.log('Enviando para Supabase:', dadosParaSalvar);
+  const user_id = await getCurrentUserId();
+  const dadosComUserId = { ...dadosParaSalvar, user_id };
+
+  console.log('Enviando para Supabase:', dadosComUserId);
 
   const { data, error } = await supabase
     .from('impressoes')
-    .insert([dadosParaSalvar])
+    .insert([dadosComUserId])
     .select()
     .single();
 

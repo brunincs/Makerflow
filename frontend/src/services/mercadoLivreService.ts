@@ -1,4 +1,4 @@
-import { supabase, isSupabaseConfigured } from './supabaseClient';
+import { supabase, isSupabaseConfigured, getCurrentUserId } from './supabaseClient';
 import { createPedido } from './pedidosService';
 import { getProdutos } from './produtosService';
 import { MLOrder, MLConnectionStatus, MLSyncResponse } from '../types';
@@ -20,6 +20,13 @@ const setLocalMLOrders = (orders: MLOrder[]): void => {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(orders));
 };
 
+// Funcao helper para obter o token JWT do usuario logado
+const getAuthToken = async (): Promise<string | null> => {
+  if (!supabase) return null;
+  const { data: { session } } = await supabase.auth.getSession();
+  return session?.access_token || null;
+};
+
 // Verificar status da conexao com Mercado Livre
 export const checkMLConnection = async (): Promise<MLConnectionStatus> => {
   if (!FUNCTIONS_URL) {
@@ -27,10 +34,11 @@ export const checkMLConnection = async (): Promise<MLConnectionStatus> => {
   }
 
   try {
+    const token = await getAuthToken();
     const response = await fetch(`${FUNCTIONS_URL}/mercadolivre-status`, {
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'Authorization': `Bearer ${token || SUPABASE_ANON_KEY}`,
       },
     });
     if (!response.ok) {
@@ -50,10 +58,11 @@ export const syncMLOrders = async (): Promise<MLSyncResponse | null> => {
   }
 
   try {
+    const token = await getAuthToken();
     const response = await fetch(`${FUNCTIONS_URL}/mercadolivre-sync`, {
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'Authorization': `Bearer ${token || SUPABASE_ANON_KEY}`,
       },
     });
     if (!response.ok) {
@@ -249,11 +258,12 @@ export const disconnectML = async (): Promise<boolean> => {
   }
 
   try {
+    const token = await getAuthToken();
     const response = await fetch(`${FUNCTIONS_URL}/mercadolivre-disconnect`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'Authorization': `Bearer ${token || SUPABASE_ANON_KEY}`,
       },
     });
     return response.ok;
@@ -264,6 +274,8 @@ export const disconnectML = async (): Promise<boolean> => {
 };
 
 // URL para login do Mercado Livre
-export const getMLLoginUrl = (): string => {
-  return `${FUNCTIONS_URL}/mercadolivre-login`;
+export const getMLLoginUrl = async (): Promise<string> => {
+  const userId = await getCurrentUserId();
+  // Incluir user_id como state para o callback
+  return `${FUNCTIONS_URL}/mercadolivre-login?state=${userId || ''}`;
 };

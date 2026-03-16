@@ -4,6 +4,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 serve(async (req) => {
   const url = new URL(req.url)
   const code = url.searchParams.get('code')
+  const state = url.searchParams.get('state') // user_id enviado como state
   const frontendUrl = Deno.env.get('FRONTEND_URL') || 'https://frontend-lyart-ten-15.vercel.app'
 
   if (!code) {
@@ -19,6 +20,13 @@ serve(async (req) => {
   if (!clientId || !clientSecret || !redirectUri) {
     return Response.redirect(`${frontendUrl}/fila-producao?ml=error&reason=missing_config`, 302)
   }
+
+  // Validar que temos o user_id
+  if (!state) {
+    return Response.redirect(`${frontendUrl}/fila-producao?ml=error&reason=no_user`, 302)
+  }
+
+  const userId = state
 
   try {
     // Trocar code por access_token
@@ -51,11 +59,15 @@ serve(async (req) => {
     // Salvar no Supabase
     const supabase = createClient(supabaseUrl, supabaseKey)
 
-    // Deletar tokens antigos
-    await supabase.from('mercadolivre_tokens').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+    // Deletar tokens antigos deste usuario
+    await supabase
+      .from('mercadolivre_tokens')
+      .delete()
+      .eq('user_id', userId)
 
-    // Inserir novo token
+    // Inserir novo token com user_id
     const { error: insertError } = await supabase.from('mercadolivre_tokens').insert({
+      user_id: userId,
       access_token: tokenData.access_token,
       refresh_token: tokenData.refresh_token,
       ml_user_id: tokenData.user_id?.toString(),

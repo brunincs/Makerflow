@@ -1,6 +1,33 @@
+// ============ AUTH / PROFILE ============
+
+export interface Profile {
+  id: string;
+  name: string | null;
+  email: string | null;
+  role: 'user' | 'admin';
+  suspended: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Integration {
+  id: string;
+  user_id: string;
+  provider: 'mercadolivre' | 'shopee';
+  access_token: string;
+  refresh_token?: string;
+  expires_at?: string;
+  provider_user_id?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// ============ PRODUTOS ============
+
 export interface VariacaoProduto {
   id?: string;
   produto_id?: string;
+  user_id?: string;
   nome_variacao: string;
   sku?: string;
   preco_shopee?: number;
@@ -13,6 +40,7 @@ export interface VariacaoProduto {
 
 export interface ProdutoConcorrente {
   id?: string;
+  user_id?: string;
   imagem_url?: string;
   nome: string;
   sku?: string;
@@ -70,13 +98,14 @@ export type ImpressoraModelo = 'a1_mini' | 'a1' | 'p1p' | 'p1s' | 'x1_carbon' | 
 // Filamento (para futura integracao com biblioteca de filamentos)
 export interface Filamento {
   id: string;
+  user_id?: string;
   marca: string;
   nome_filamento: string;
   cor: string;
   material: string; // PLA, PETG, ABS, TPU
   preco_pago: number; // Mantido para compatibilidade, mas usamos preco_por_kg
-  preco_por_kg: number; // Preço médio ponderado por kg
-  quantidade_rolos: number; // Total de rolos adicionados (histórico)
+  preco_por_kg: number; // Preco medio ponderado por kg
+  quantidade_rolos: number; // Total de rolos adicionados (historico)
   estoque_gramas: number; // Estoque atual em gramas
   created_at?: string;
 }
@@ -96,6 +125,7 @@ export type TipoMovimentacao = 'entrada' | 'saida' | 'ajuste';
 
 export interface FilamentoMovimentacao {
   id?: string;
+  user_id?: string;
   filamento_id: string;
   tipo: TipoMovimentacao;
   quantidade_g: number;
@@ -104,19 +134,20 @@ export interface FilamentoMovimentacao {
   created_at?: string;
 }
 
-// Impressao (registro de impressões realizadas)
+// Impressao (registro de impressoes realizadas)
 export interface Impressao {
   id?: string;
-  produto_id: string; // '__MANUAL__' para impressões manuais
+  user_id?: string;
+  produto_id: string; // '__MANUAL__' para impressoes manuais
   variacao_id?: string;
   filamento_id: string;
   quantidade: number;
   peso_peca_g: number;
   peso_total_g: number; // = peso_peca_g * quantidade
-  tempo_peca_min?: number; // tempo por peça em minutos
+  tempo_peca_min?: number; // tempo por peca em minutos
   tempo_total_min?: number; // = tempo_peca_min * quantidade
   impressora?: ImpressoraModelo;
-  nome_peca_manual?: string; // nome da peça para impressões manuais
+  nome_peca_manual?: string; // nome da peca para impressoes manuais
   created_at?: string;
   // Dados via join
   produto?: {
@@ -138,6 +169,7 @@ export type TipoEmbalagem = 'Envelope' | 'Proteção' | 'Caixa';
 
 export interface Embalagem {
   id: string;
+  user_id?: string;
   tipo: TipoEmbalagem;
   nome_embalagem: string;
   preco_unitario: number;
@@ -286,6 +318,7 @@ export interface PrecificacaoSalva {
 // Pedido de venda
 export interface Pedido {
   id?: string;
+  user_id?: string;
   produto_id: string;
   variacao_id?: string | null;
   quantidade: number;
@@ -311,6 +344,7 @@ export interface Pedido {
 // Estoque de produtos acabados
 export interface EstoqueProduto {
   id?: string;
+  user_id?: string;
   produto_id: string;
   variacao_id?: string | null;
   quantidade: number;
@@ -347,6 +381,7 @@ export interface ItemFilaProducao {
 
 export interface MLOrder {
   id?: string;
+  user_id?: string;
   ml_order_id: string;
   product_title: string;
   variation?: string | null;

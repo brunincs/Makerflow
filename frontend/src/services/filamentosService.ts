@@ -1,4 +1,4 @@
-import { supabase, isSupabaseConfigured } from './supabaseClient';
+import { supabase, isSupabaseConfigured, getCurrentUserId } from './supabaseClient';
 import { Filamento, FilamentoEntrada, FilamentoMovimentacao, TipoMovimentacao } from '../types';
 
 const STORAGE_KEY = 'makerflow_filamentos';
@@ -54,7 +54,7 @@ export const createFilamento = async (
     cor: filamento.cor,
     material: filamento.material,
     preco_pago: filamento.preco_pago,
-    preco_por_kg: filamento.preco_pago, // Todos são 1kg
+    preco_por_kg: filamento.preco_pago, // Todos sao 1kg
     quantidade_rolos: filamento.quantidade_rolos || 0,
     estoque_gramas: estoqueGramas,
   };
@@ -73,9 +73,12 @@ export const createFilamento = async (
     return novo;
   }
 
+  const user_id = await getCurrentUserId();
+  const dadosComUserId = { ...dadosParaSalvar, user_id };
+
   const { data, error } = await supabase
     .from('filamentos')
-    .insert([dadosParaSalvar])
+    .insert([dadosComUserId])
     .select()
     .single();
 
@@ -276,8 +279,8 @@ export const adicionarEstoqueFilamento = async (
   const novoEstoqueGramas = filamentoAtual.estoque_gramas + pesoAdicionado;
   const novaQuantidadeRolos = (filamentoAtual.quantidade_rolos || 0) + quantidadeRolos;
 
-  // Registrar entrada no histórico
-  const entrada: Omit<FilamentoEntrada, 'id' | 'created_at'> = {
+  // Registrar entrada no historico
+  const entrada: Omit<FilamentoEntrada, 'id' | 'created_at'> & { user_id?: string | null } = {
     filamento_id: filamentoId,
     quantidade_rolos: quantidadeRolos,
     preco_por_rolo: precoPorRolo,
@@ -310,9 +313,12 @@ export const adicionarEstoqueFilamento = async (
   }
 
   // Salvar entrada no Supabase
+  const user_id = await getCurrentUserId();
+  const entradaComUserId = { ...entrada, user_id };
+
   const { error: entradaError } = await supabase
     .from('filamento_entradas')
-    .insert([entrada]);
+    .insert([entradaComUserId]);
 
   if (entradaError) {
     console.error('Erro ao registrar entrada:', entradaError);
@@ -364,7 +370,7 @@ export const getEntradasFilamento = async (filamentoId: string): Promise<Filamen
 
 // ============ SISTEMA DE MOVIMENTAÇÕES ============
 
-// Registrar movimentação no histórico
+// Registrar movimentacao no historico
 const registrarMovimentacao = async (
   filamentoId: string,
   tipo: TipoMovimentacao,
@@ -392,9 +398,12 @@ const registrarMovimentacao = async (
     return;
   }
 
+  const user_id = await getCurrentUserId();
+  const movimentacaoComUserId = { ...movimentacao, user_id };
+
   const { error } = await supabase
     .from('filamento_movimentacoes')
-    .insert([movimentacao]);
+    .insert([movimentacaoComUserId]);
 
   if (error) {
     console.error('Erro ao registrar movimentação:', error);

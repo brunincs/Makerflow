@@ -6,6 +6,22 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Extrair user_id do JWT
+function getUserIdFromJWT(authHeader: string | null): string | null {
+  if (!authHeader) return null
+
+  try {
+    const token = authHeader.replace('Bearer ', '')
+    const parts = token.split('.')
+    if (parts.length !== 3) return null
+
+    const payload = JSON.parse(atob(parts[1]))
+    return payload.sub || null
+  } catch {
+    return null
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -16,9 +32,22 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, supabaseKey)
 
+    // Extrair user_id do JWT
+    const authHeader = req.headers.get('Authorization')
+    const userId = getUserIdFromJWT(authHeader)
+
+    if (!userId) {
+      return new Response(
+        JSON.stringify({ connected: false, reason: 'no_user' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Buscar token do usuario especifico
     const { data: tokenData, error } = await supabase
       .from('mercadolivre_tokens')
       .select('*')
+      .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .limit(1)
       .single()
