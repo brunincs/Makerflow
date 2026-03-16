@@ -263,30 +263,44 @@ export function FilaProducao() {
   const [showMLModal, setShowMLModal] = useState(false);
   const [mlImporting, setMlImporting] = useState(false);
   const [mlOrdersToImport, setMlOrdersToImport] = useState<Set<string>>(new Set());
+  const [mlLoaded, setMlLoaded] = useState(false);
 
-  // Verificar conexao ML ao carregar e quando voltar do callback
+  // Verificar conexao ML ao carregar
   useEffect(() => {
     const checkML = async () => {
-      const status = await checkMLConnection();
-      setMlStatus(status);
+      try {
+        const status = await checkMLConnection();
+        setMlStatus(status);
 
-      // Se estiver conectado, buscar pedidos pendentes
-      if (status.connected) {
-        const orders = await getMLOrders(true);
-        setMlOrders(orders);
+        // Se estiver conectado, buscar pedidos pendentes
+        if (status.connected) {
+          const orders = await getMLOrders(true);
+          setMlOrders(orders);
+        }
+      } catch (error) {
+        console.error('Erro ao verificar ML:', error);
+      } finally {
+        setMlLoaded(true);
       }
     };
 
     checkML();
+  }, []);
 
-    // Verificar se veio do callback do ML
+  // Verificar se veio do callback do ML
+  useEffect(() => {
     const mlParam = searchParams.get('ml');
     if (mlParam === 'connected') {
       // Limpar parametro da URL
       searchParams.delete('ml');
       setSearchParams(searchParams, { replace: true });
       // Recarregar status
-      checkML();
+      checkMLConnection().then(status => {
+        setMlStatus(status);
+        if (status.connected) {
+          getMLOrders(true).then(setMlOrders);
+        }
+      });
     }
   }, [searchParams, setSearchParams]);
 
@@ -751,7 +765,15 @@ export function FilaProducao() {
 
         <div className="flex items-center gap-2">
           {/* Mercado Livre */}
-          {mlStatus.connected ? (
+          {!mlLoaded ? (
+            <button
+              disabled
+              className="flex items-center gap-2 px-3 py-2 text-sm bg-yellow-500 text-white rounded-lg opacity-50"
+            >
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Mercado Livre
+            </button>
+          ) : mlStatus.connected ? (
             <>
               <button
                 onClick={handleSyncML}
