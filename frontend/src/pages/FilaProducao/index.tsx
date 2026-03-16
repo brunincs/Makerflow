@@ -221,7 +221,6 @@ function distribuirEntreImpressoras(
 }
 
 export function FilaProducao() {
-  console.log('=== FILA PRODUCAO CARREGADA ===');
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [estoque, setEstoque] = useState<EstoqueProduto[]>([]);
   const [produtos, setProdutos] = useState<ProdutoConcorrente[]>([]);

@@ -9,9 +9,6 @@ const STORAGE_KEY = 'makerflow_ml_orders';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
 const FUNCTIONS_URL = SUPABASE_URL ? `${SUPABASE_URL}/functions/v1` : '';
 
-console.log('[ML Service] SUPABASE_URL:', SUPABASE_URL);
-console.log('[ML Service] FUNCTIONS_URL:', FUNCTIONS_URL);
-
 // Local storage fallback
 const getLocalMLOrders = (): MLOrder[] => {
   const data = localStorage.getItem(STORAGE_KEY);
