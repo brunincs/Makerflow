@@ -340,3 +340,34 @@ export interface ItemFilaProducao {
   tempo_total: number;
   pedidos: Pedido[];
 }
+
+// ============ MERCADO LIVRE ============
+
+export interface MLOrder {
+  id?: string;
+  ml_order_id: string;
+  product_title: string;
+  variation?: string | null;
+  quantity: number;
+  unit_price?: number;
+  status: string;
+  buyer_nickname?: string;
+  date_created?: string;
+  imported: boolean;
+  pedido_id?: string | null;
+  created_at?: string;
+}
+
+export interface MLConnectionStatus {
+  connected: boolean;
+  ml_user_id?: string;
+  expires_at?: string;
+  can_refresh?: boolean;
+  reason?: string;
+}
+
+export interface MLSyncResponse {
+  synced: number;
+  pending: MLOrder[];
+  total_from_ml: number;
+}

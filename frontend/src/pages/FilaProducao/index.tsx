@@ -1,10 +1,19 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Card, CardBody } from '../../components/ui';
-import { Pedido, ProdutoConcorrente, ItemFilaProducao, EstoqueProduto, Filamento, ImpressoraModelo } from '../../types';
+import { Pedido, ProdutoConcorrente, ItemFilaProducao, EstoqueProduto, Filamento, ImpressoraModelo, MLOrder, MLConnectionStatus } from '../../types';
 import { getPedidosPendentes, createPedido, deletePedido, marcarProduzido } from '../../services/pedidosService';
 import { getEstoqueProdutos, adicionarEstoque, removerDoEstoque } from '../../services/estoqueProdutosService';
 import { getProdutos } from '../../services/produtosService';
 import { consumirFilamento, getFilamentos } from '../../services/filamentosService';
+import {
+  checkMLConnection,
+  syncMLOrders,
+  getMLOrders,
+  importMLOrderToPedido,
+  disconnectML,
+  getMLLoginUrl,
+} from '../../services/mercadoLivreService';
 import {
   ClipboardList,
   Plus,
@@ -29,7 +38,10 @@ import {
   AlertCircle,
   CalendarClock,
   ListOrdered,
-  Timer
+  Timer,
+  Link2,
+  RefreshCw,
+  Unlink,
 } from 'lucide-react';
 
 // Interface para pedido importado/analisado
@@ -243,6 +255,41 @@ export function FilaProducao() {
   const [analisando, setAnalisando] = useState(false);
   const [importando, setImportando] = useState(false);
 
+  // Mercado Livre
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [mlStatus, setMlStatus] = useState<MLConnectionStatus>({ connected: false });
+  const [mlOrders, setMlOrders] = useState<MLOrder[]>([]);
+  const [mlSyncing, setMlSyncing] = useState(false);
+  const [showMLModal, setShowMLModal] = useState(false);
+  const [mlImporting, setMlImporting] = useState(false);
+  const [mlOrdersToImport, setMlOrdersToImport] = useState<Set<string>>(new Set());
+
+  // Verificar conexao ML ao carregar e quando voltar do callback
+  useEffect(() => {
+    const checkML = async () => {
+      const status = await checkMLConnection();
+      setMlStatus(status);
+
+      // Se estiver conectado, buscar pedidos pendentes
+      if (status.connected) {
+        const orders = await getMLOrders(true);
+        setMlOrders(orders);
+      }
+    };
+
+    checkML();
+
+    // Verificar se veio do callback do ML
+    const mlParam = searchParams.get('ml');
+    if (mlParam === 'connected') {
+      // Limpar parametro da URL
+      searchParams.delete('ml');
+      setSearchParams(searchParams, { replace: true });
+      // Recarregar status
+      checkML();
+    }
+  }, [searchParams, setSearchParams]);
+
   useEffect(() => {
     loadData();
   }, []);
@@ -260,6 +307,76 @@ export function FilaProducao() {
     setProdutos(produtosData);
     setFilamentos(filamentosData);
     setLoading(false);
+  };
+
+  // Sincronizar pedidos do Mercado Livre
+  const handleSyncML = async () => {
+    setMlSyncing(true);
+    try {
+      const result = await syncMLOrders();
+      if (result) {
+        setMlOrders(result.pending);
+        if (result.synced > 0) {
+          alert(`${result.synced} novos pedidos sincronizados do Mercado Livre!`);
+        } else if (result.pending.length === 0) {
+          alert('Nenhum pedido pendente no Mercado Livre.');
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao sincronizar ML:', error);
+      alert('Erro ao sincronizar com Mercado Livre');
+    } finally {
+      setMlSyncing(false);
+    }
+  };
+
+  // Importar pedidos selecionados do ML
+  const handleImportMLOrders = async () => {
+    if (mlOrdersToImport.size === 0) {
+      alert('Selecione pelo menos um pedido para importar');
+      return;
+    }
+
+    setMlImporting(true);
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const orderId of mlOrdersToImport) {
+      const order = mlOrders.find(o => o.id === orderId);
+      if (order) {
+        const success = await importMLOrderToPedido(order);
+        if (success) {
+          successCount++;
+        } else {
+          failCount++;
+        }
+      }
+    }
+
+    // Recarregar dados
+    await loadData();
+    const orders = await getMLOrders(true);
+    setMlOrders(orders);
+    setMlOrdersToImport(new Set());
+    setMlImporting(false);
+    setShowMLModal(false);
+
+    if (successCount > 0) {
+      alert(`${successCount} pedido(s) importado(s) com sucesso!${failCount > 0 ? ` (${failCount} falharam)` : ''}`);
+    } else {
+      alert('Nenhum pedido foi importado. Verifique se os produtos existem no Radar de Produtos.');
+    }
+  };
+
+  // Desconectar do Mercado Livre
+  const handleDisconnectML = async () => {
+    if (confirm('Deseja desconectar do Mercado Livre?')) {
+      const success = await disconnectML();
+      if (success) {
+        setMlStatus({ connected: false });
+        setMlOrders([]);
+      }
+    }
   };
 
   // Salvar impressoras do usuário no localStorage
@@ -633,6 +750,46 @@ export function FilaProducao() {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Mercado Livre */}
+          {mlStatus.connected ? (
+            <>
+              <button
+                onClick={handleSyncML}
+                disabled={mlSyncing}
+                className="flex items-center gap-2 px-3 py-2 text-sm bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors disabled:opacity-50"
+              >
+                {mlSyncing ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-4 h-4" />
+                )}
+                Sincronizar ML
+                {mlOrders.length > 0 && (
+                  <span className="bg-white text-yellow-600 px-1.5 py-0.5 rounded-full text-xs font-bold">
+                    {mlOrders.length}
+                  </span>
+                )}
+              </button>
+              {mlOrders.length > 0 && (
+                <button
+                  onClick={() => setShowMLModal(true)}
+                  className="flex items-center gap-2 px-3 py-2 text-sm border border-yellow-500 text-yellow-600 rounded-lg hover:bg-yellow-50 transition-colors"
+                >
+                  <ShoppingCart className="w-4 h-4" />
+                  Ver Pedidos ML
+                </button>
+              )}
+            </>
+          ) : (
+            <a
+              href={getMLLoginUrl()}
+              className="flex items-center gap-2 px-3 py-2 text-sm bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors"
+            >
+              <Link2 className="w-4 h-4" />
+              Conectar Mercado Livre
+            </a>
+          )}
+
           <button
             onClick={() => setShowImportModal(true)}
             className="flex items-center gap-2 px-4 py-2 border border-indigo-600 text-indigo-600 rounded-lg hover:bg-indigo-50 transition-colors"
@@ -1518,6 +1675,170 @@ export function FilaProducao() {
           onSave={handleSaveImpressoras}
           onClose={() => setShowImpressorasConfig(false)}
         />
+      )}
+
+      {/* Modal Pedidos Mercado Livre */}
+      {showMLModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-yellow-100 rounded-lg">
+                  <ShoppingCart className="w-5 h-5 text-yellow-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Pedidos Mercado Livre
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    {mlOrders.length} pedido(s) pendente(s)
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleDisconnectML}
+                  className="p-2 text-gray-400 hover:text-red-600 transition-colors"
+                  title="Desconectar"
+                >
+                  <Unlink className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => setShowMLModal(false)}
+                  className="p-1 text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4">
+              {mlOrders.length === 0 ? (
+                <div className="text-center py-8">
+                  <CheckCircle2 className="w-12 h-12 text-green-400 mx-auto mb-3" />
+                  <p className="text-gray-500">Todos os pedidos foram importados!</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {/* Selecionar todos */}
+                  <div className="flex items-center gap-2 pb-2 border-b">
+                    <input
+                      type="checkbox"
+                      checked={mlOrdersToImport.size === mlOrders.length && mlOrders.length > 0}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setMlOrdersToImport(new Set(mlOrders.map(o => o.id!)));
+                        } else {
+                          setMlOrdersToImport(new Set());
+                        }
+                      }}
+                      className="w-4 h-4 text-yellow-600 rounded"
+                    />
+                    <span className="text-sm text-gray-600">Selecionar todos</span>
+                  </div>
+
+                  {mlOrders.map((order) => (
+                    <div
+                      key={order.id}
+                      className={`p-3 rounded-lg border-2 transition-colors ${
+                        mlOrdersToImport.has(order.id!)
+                          ? 'border-yellow-500 bg-yellow-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <input
+                          type="checkbox"
+                          checked={mlOrdersToImport.has(order.id!)}
+                          onChange={(e) => {
+                            const newSet = new Set(mlOrdersToImport);
+                            if (e.target.checked) {
+                              newSet.add(order.id!);
+                            } else {
+                              newSet.delete(order.id!);
+                            }
+                            setMlOrdersToImport(newSet);
+                          }}
+                          className="w-4 h-4 text-yellow-600 rounded mt-1"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-gray-900 truncate">
+                            {order.product_title}
+                          </p>
+                          {order.variation && (
+                            <p className="text-sm text-gray-500">
+                              Variacao: {order.variation}
+                            </p>
+                          )}
+                          <div className="flex items-center gap-4 mt-1 text-sm">
+                            <span className="font-semibold text-indigo-600">
+                              {order.quantity}x
+                            </span>
+                            {order.unit_price && (
+                              <span className="text-green-600">
+                                R$ {order.unit_price.toFixed(2)}
+                              </span>
+                            )}
+                            <span className="text-gray-400">
+                              {order.buyer_nickname}
+                            </span>
+                          </div>
+                          {order.date_created && (
+                            <p className="text-xs text-gray-400 mt-1">
+                              {new Date(order.date_created).toLocaleDateString('pt-BR', {
+                                day: '2-digit',
+                                month: '2-digit',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </p>
+                          )}
+                        </div>
+                        <span className={`px-2 py-1 text-xs rounded-full ${
+                          order.status === 'paid' ? 'bg-green-100 text-green-700' :
+                          order.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                          'bg-gray-100 text-gray-700'
+                        }`}>
+                          {order.status === 'paid' ? 'Pago' :
+                           order.status === 'pending' ? 'Pendente' :
+                           order.status}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between gap-3 p-4 border-t bg-gray-50">
+              <p className="text-sm text-gray-500">
+                {mlOrdersToImport.size} selecionado(s)
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowMLModal(false)}
+                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  Fechar
+                </button>
+                <button
+                  onClick={handleImportMLOrders}
+                  disabled={mlOrdersToImport.size === 0 || mlImporting}
+                  className="flex items-center gap-2 px-4 py-2 bg-yellow-500 text-white rounded-lg
+                    hover:bg-yellow-600 transition-colors disabled:opacity-50"
+                >
+                  {mlImporting ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Check className="w-4 h-4" />
+                  )}
+                  Importar para Fila
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

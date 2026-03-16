@@ -6,8 +6,9 @@ import { getPedidosPendentes } from '../../services/pedidosService';
 import { getEstoqueProdutos } from '../../services/estoqueProdutosService';
 import { getFilamentos } from '../../services/filamentosService';
 import { getPrecificacoes } from '../../services/precificacoesService';
+import { getImpressoes } from '../../services/impressoesService';
 import { isSupabaseConfigured } from '../../services/supabaseClient';
-import { ProdutoConcorrente, Pedido, EstoqueProduto, Filamento, PrecificacaoSalva } from '../../types';
+import { ProdutoConcorrente, Pedido, EstoqueProduto, Filamento, PrecificacaoSalva, Impressao } from '../../types';
 import {
   Package,
   AlertCircle,
@@ -25,6 +26,7 @@ import {
   Loader2,
   ArrowRight,
   Factory,
+  Zap,
 } from 'lucide-react';
 
 // Formatar tempo
@@ -65,6 +67,7 @@ export function Dashboard() {
   const [estoque, setEstoque] = useState<EstoqueProduto[]>([]);
   const [filamentos, setFilamentos] = useState<Filamento[]>([]);
   const [precificacoes, setPrecificacoes] = useState<PrecificacaoSalva[]>([]);
+  const [impressoes, setImpressoes] = useState<Impressao[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -73,18 +76,20 @@ export function Dashboard() {
 
   const loadData = async () => {
     setLoading(true);
-    const [produtosData, pedidosData, estoqueData, filamentosData, precificacoesData] = await Promise.all([
+    const [produtosData, pedidosData, estoqueData, filamentosData, precificacoesData, impressoesData] = await Promise.all([
       getProdutos(),
       getPedidosPendentes(),
       getEstoqueProdutos(),
       getFilamentos(),
       getPrecificacoes(),
+      getImpressoes(),
     ]);
     setProdutos(produtosData);
     setPedidos(pedidosData);
     setEstoque(estoqueData);
     setFilamentos(filamentosData);
     setPrecificacoes(precificacoesData);
+    setImpressoes(impressoesData);
     setLoading(false);
   };
 
@@ -175,19 +180,37 @@ export function Dashboard() {
     return { receita, lucro };
   }, [filaProducao, precificacoes]);
 
+  // Peças produzidas hoje (baseado nas impressões do dia)
+  const pecasProduzidasHoje = useMemo(() => {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+
+    return impressoes
+      .filter(imp => {
+        if (!imp.created_at) return false;
+        const dataImpressao = new Date(imp.created_at);
+        dataImpressao.setHours(0, 0, 0, 0);
+        return dataImpressao.getTime() === hoje.getTime();
+      })
+      .reduce((acc, imp) => acc + imp.quantidade, 0);
+  }, [impressoes]);
+
   // Produtos mais vendidos (baseado nos pedidos)
   const produtosMaisVendidos = useMemo(() => {
-    const contagem = new Map<string, { nome: string; imagem_url?: string; quantidade: number }>();
+    const contagem = new Map<string, { nome: string; imagem_url?: string; quantidade: number; pedidos: number }>();
 
     pedidos.forEach(pedido => {
       const key = pedido.produto_id;
       if (contagem.has(key)) {
-        contagem.get(key)!.quantidade += pedido.quantidade;
+        const item = contagem.get(key)!;
+        item.quantidade += pedido.quantidade;
+        item.pedidos += 1;
       } else {
         contagem.set(key, {
           nome: pedido.produto?.nome || 'Produto',
           imagem_url: pedido.produto?.imagem_url,
           quantidade: pedido.quantidade,
+          pedidos: 1,
         });
       }
     });
@@ -202,11 +225,13 @@ export function Dashboard() {
   const consumoFilamento = useMemo(() => {
     const totalNecessario = totais.peso;
     const totalEmEstoque = filamentos.reduce((acc, f) => acc + f.estoque_gramas, 0);
-    const suficiente = totalEmEstoque >= totalNecessario;
+    const aposProducao = totalEmEstoque - totalNecessario;
+    const suficiente = aposProducao >= 0;
 
     return {
       necessario: totalNecessario,
       emEstoque: totalEmEstoque,
+      aposProducao,
       suficiente,
       filamentos: filamentos.slice(0, 5),
     };
@@ -245,12 +270,13 @@ export function Dashboard() {
   // Indicador de carga
   const cargaProducao = useMemo(() => {
     const horas = totais.tempo;
+    const tempoFormatado = formatarTempo(horas);
     if (horas <= 8) {
-      return { cor: 'text-green-600', bgCor: 'bg-green-100', texto: 'Producao tranquila' };
+      return { cor: 'text-green-600', bgCor: 'bg-green-100', texto: `Producao tranquila — ${tempoFormatado} de producao pendente` };
     } else if (horas <= 16) {
-      return { cor: 'text-yellow-600', bgCor: 'bg-yellow-100', texto: 'Producao cheia' };
+      return { cor: 'text-yellow-600', bgCor: 'bg-yellow-100', texto: `Producao moderada — ${tempoFormatado} de producao pendente` };
     } else {
-      return { cor: 'text-red-600', bgCor: 'bg-red-100', texto: 'Producao critica' };
+      return { cor: 'text-red-600', bgCor: 'bg-red-100', texto: `Producao critica — ${tempoFormatado} de producao pendente` };
     }
   }, [totais.tempo]);
 
@@ -326,14 +352,25 @@ export function Dashboard() {
           <span className={`font-semibold ${cargaProducao.cor}`}>
             {cargaProducao.texto}
           </span>
-          <span className="text-gray-600">
-            - {formatarTempo(totais.tempo)} de producao pendente
-          </span>
         </div>
       )}
 
       {/* Cards de Resumo */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+        <Card>
+          <CardBody className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-emerald-100 rounded-lg">
+                <Zap className="w-5 h-5 text-emerald-600" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Produzidas hoje</p>
+                <p className="text-2xl font-bold text-emerald-600">{pecasProduzidasHoje}</p>
+              </div>
+            </div>
+          </CardBody>
+        </Card>
+
         <Card>
           <CardBody className="p-4">
             <div className="flex items-center gap-3">
@@ -369,7 +406,7 @@ export function Dashboard() {
                 <Clock className="w-5 h-5 text-purple-600" />
               </div>
               <div>
-                <p className="text-xs text-gray-500">Tempo de producao</p>
+                <p className="text-xs text-gray-500">Tempo restante</p>
                 <p className="text-2xl font-bold text-gray-900">{formatarTempo(totais.tempo)}</p>
               </div>
             </div>
@@ -524,8 +561,9 @@ export function Dashboard() {
                     )}
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-gray-900 text-sm truncate">{item.nome}</p>
+                      <p className="text-xs text-gray-500">{item.pedidos} {item.pedidos === 1 ? 'pedido' : 'pedidos'}</p>
                     </div>
-                    <span className="text-sm font-bold text-indigo-600">{item.quantidade}</span>
+                    <span className="text-sm font-bold text-indigo-600">{item.quantidade} un</span>
                   </div>
                 ))}
               </div>
@@ -560,7 +598,7 @@ export function Dashboard() {
                         {item.variacao && <span className="text-gray-400"> ({item.variacao})</span>}
                       </span>
                       <span className="text-sm text-gray-500">
-                        {item.produzidos}/{item.total}
+                        Produzidos: {item.produzidos} / {item.total} ({item.percentual}%)
                       </span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
@@ -590,8 +628,8 @@ export function Dashboard() {
 
             <div className="space-y-4">
               {/* Resumo */}
-              <div className="p-3 bg-gray-50 rounded-lg">
-                <div className="flex items-center justify-between mb-1">
+              <div className="p-3 bg-gray-50 rounded-lg space-y-2">
+                <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-600">Necessario:</span>
                   <span className="font-bold text-gray-900">
                     {consumoFilamento.necessario >= 1000
@@ -605,6 +643,16 @@ export function Dashboard() {
                     {(consumoFilamento.emEstoque / 1000).toFixed(2)}kg
                   </span>
                 </div>
+                <div className="border-t border-gray-200 pt-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">Apos producao restara:</span>
+                    <span className={`font-bold ${consumoFilamento.suficiente ? 'text-green-600' : 'text-red-600'}`}>
+                      {consumoFilamento.aposProducao >= 1000 || consumoFilamento.aposProducao <= -1000
+                        ? `${(consumoFilamento.aposProducao / 1000).toFixed(2)}kg`
+                        : `${consumoFilamento.aposProducao.toFixed(0)}g`}
+                    </span>
+                  </div>
+                </div>
               </div>
 
               {/* Alerta se insuficiente */}
@@ -612,7 +660,9 @@ export function Dashboard() {
                 <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
                   <AlertTriangle className="w-4 h-4 text-red-600" />
                   <span className="text-sm text-red-700 font-medium">
-                    Filamento insuficiente
+                    Filamento insuficiente — faltam {Math.abs(consumoFilamento.aposProducao) >= 1000
+                      ? `${(Math.abs(consumoFilamento.aposProducao) / 1000).toFixed(2)}kg`
+                      : `${Math.abs(consumoFilamento.aposProducao).toFixed(0)}g`}
                   </span>
                 </div>
               )}
