@@ -400,20 +400,24 @@ export function FilaProducao() {
     setShowImpressorasConfig(false);
   };
 
-  // Calcular fila de produção
+  // Calcular fila de produção - v2
   const filaProducao = useMemo(() => {
     const mapa = new Map<string, ItemFilaProducao>();
 
     // Agrupar pedidos por produto/variação
+    // Usar quantidade total do pedido, não qtdRestante
     pedidos.forEach(pedido => {
       const key = `${pedido.produto_id}-${pedido.variacao_id || 'sem_variacao'}`;
-      const qtdRestante = pedido.quantidade - (pedido.quantidade_produzida || 0);
 
-      if (qtdRestante <= 0) return;
+      // Quantidade total do pedido (ignorar quantidade_produzida para cálculo de vendidos)
+      const qtdPedido = pedido.quantidade;
+
+      // Só pular se o pedido estiver completamente concluído
+      if (pedido.status === 'concluido') return;
 
       if (mapa.has(key)) {
         const item = mapa.get(key)!;
-        item.quantidade_pedida += qtdRestante;
+        item.quantidade_pedida += qtdPedido;
         item.pedidos.push(pedido);
       } else {
         // Obter dados do produto/variação
@@ -426,9 +430,9 @@ export function FilaProducao() {
           nome_produto: pedido.produto?.nome || 'Produto',
           nome_variacao: pedido.variacao?.nome_variacao,
           imagem_url: pedido.produto?.imagem_url,
-          quantidade_pedida: qtdRestante,
+          quantidade_pedida: qtdPedido,
           quantidade_estoque: 0,
-          quantidade_produzir: qtdRestante,
+          quantidade_produzir: 0, // Será calculado depois
           peso_por_peca: peso,
           tempo_por_peca: tempo,
           peso_total: 0,
