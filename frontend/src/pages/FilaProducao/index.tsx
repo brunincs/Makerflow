@@ -765,6 +765,7 @@ export function FilaProducao() {
           </h1>
           <p className="text-gray-500 mt-2">
             Gerencie pedidos e saiba o que precisa produzir
+            <span className="ml-2 text-xs text-red-500 font-bold">[v2.1]</span>
           </p>
         </div>
 
