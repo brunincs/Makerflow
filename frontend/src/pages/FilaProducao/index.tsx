@@ -267,13 +267,9 @@ export function FilaProducao() {
 
   // Verificar conexao ML ao carregar
   useEffect(() => {
-    console.log('[ML DEBUG] useEffect iniciado - v2');
-    console.log('[ML DEBUG] checkMLConnection function:', typeof checkMLConnection);
     const checkML = async () => {
-      console.log('[ML DEBUG] checkML chamado - v2');
       try {
         const status = await checkMLConnection();
-        console.log('[ML DEBUG] status:', status);
         setMlStatus(status);
 
         // Se estiver conectado, buscar pedidos pendentes
@@ -282,9 +278,8 @@ export function FilaProducao() {
           setMlOrders(orders);
         }
       } catch (error) {
-        console.error('[ML DEBUG] Erro:', error);
+        console.error('Erro ao verificar ML:', error);
       } finally {
-        console.log('[ML DEBUG] setMlLoaded(true)');
         setMlLoaded(true);
       }
     };
@@ -765,14 +760,10 @@ export function FilaProducao() {
           </h1>
           <p className="text-gray-500 mt-2">
             Gerencie pedidos e saiba o que precisa produzir
-            <span className="ml-2 text-xs bg-red-500 text-white px-2 py-1 rounded font-bold">[VERSAO 3.0 - TESTE]</span>
           </p>
         </div>
 
         <div className="flex items-center gap-2">
-          {/* DEBUG: Este texto deve aparecer sempre */}
-          <span className="text-xs text-red-500 font-bold">ML:{mlLoaded ? 'OK' : 'LOADING'}</span>
-
           {/* Mercado Livre */}
           {!mlLoaded ? (
             <button
