@@ -768,6 +768,9 @@ export function FilaProducao() {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* DEBUG: Este texto deve aparecer sempre */}
+          <span className="text-xs text-red-500 font-bold">ML:{mlLoaded ? 'OK' : 'LOADING'}</span>
+
           {/* Mercado Livre */}
           {!mlLoaded ? (
             <button
