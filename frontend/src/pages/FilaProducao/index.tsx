@@ -221,6 +221,7 @@ function distribuirEntreImpressoras(
 }
 
 export function FilaProducao() {
+  console.log('=== FILA PRODUCAO CARREGADA ===');
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [estoque, setEstoque] = useState<EstoqueProduto[]>([]);
   const [produtos, setProdutos] = useState<ProdutoConcorrente[]>([]);
@@ -1951,4 +1952,3 @@ function ModalImpressoras({
     </div>
   );
 }
-// force rebuild dom, 15 de mar de 2026 22:51:33
