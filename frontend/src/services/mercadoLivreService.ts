@@ -7,6 +7,7 @@ const STORAGE_KEY = 'makerflow_ml_orders';
 
 // URL base das Edge Functions do Supabase
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 const FUNCTIONS_URL = SUPABASE_URL ? `${SUPABASE_URL}/functions/v1` : '';
 
 // Local storage fallback
@@ -29,6 +30,7 @@ export const checkMLConnection = async (): Promise<MLConnectionStatus> => {
     const response = await fetch(`${FUNCTIONS_URL}/mercadolivre-status`, {
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
       },
     });
     if (!response.ok) {
@@ -51,6 +53,7 @@ export const syncMLOrders = async (): Promise<MLSyncResponse | null> => {
     const response = await fetch(`${FUNCTIONS_URL}/mercadolivre-sync`, {
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
       },
     });
     if (!response.ok) {
@@ -250,6 +253,7 @@ export const disconnectML = async (): Promise<boolean> => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
       },
     });
     return response.ok;
