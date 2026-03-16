@@ -438,17 +438,18 @@ export function FilaProducao() {
       }
     });
 
-    // Subtrair estoque
+    // Calcular producao considerando estoque
     mapa.forEach((item) => {
       const estoqueItem = estoque.find(e =>
         e.produto_id === item.produto_id &&
         (item.variacao_id ? e.variacao_id === item.variacao_id : !e.variacao_id)
       );
 
-      if (estoqueItem) {
-        item.quantidade_estoque = estoqueItem.quantidade;
-        item.quantidade_produzir = Math.max(0, item.quantidade_pedida - estoqueItem.quantidade);
-      }
+      // Atualizar estoque (0 se não encontrar)
+      item.quantidade_estoque = estoqueItem?.quantidade || 0;
+
+      // Calcular quantidade a produzir: vendidos - estoque (mínimo 0)
+      item.quantidade_produzir = Math.max(0, item.quantidade_pedida - item.quantidade_estoque);
 
       // Calcular totais
       item.peso_total = item.quantidade_produzir * item.peso_por_peca;
