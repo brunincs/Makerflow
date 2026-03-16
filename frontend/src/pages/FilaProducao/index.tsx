@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Card, CardBody } from '../../components/ui';
 import { Pedido, ProdutoConcorrente, ItemFilaProducao, EstoqueProduto, Filamento, ImpressoraModelo, MLOrder, MLConnectionStatus } from '../../types';
-import { getPedidosPendentes, createPedido, deletePedido, marcarProduzido } from '../../services/pedidosService';
+import { getPedidosPendentes, createPedido, deletePedido, marcarProduzido, getPedidosConcluidos, reverterPedido } from '../../services/pedidosService';
 import { getEstoqueProdutos, adicionarEstoque, removerDoEstoque } from '../../services/estoqueProdutosService';
 import { getProdutos } from '../../services/produtosService';
 import { consumirFilamento, getFilamentos } from '../../services/filamentosService';
@@ -42,6 +42,8 @@ import {
   Link2,
   RefreshCw,
   Unlink,
+  History,
+  Undo2,
 } from 'lucide-react';
 
 // Interface para pedido importado/analisado
@@ -265,6 +267,11 @@ export function FilaProducao() {
   const [mlOrdersToImport, setMlOrdersToImport] = useState<Set<string>>(new Set());
   const [mlLoaded, setMlLoaded] = useState(false);
 
+  // Historico de pedidos concluidos
+  const [showHistoricoModal, setShowHistoricoModal] = useState(false);
+  const [pedidosConcluidos, setPedidosConcluidos] = useState<Pedido[]>([]);
+  const [loadingHistorico, setLoadingHistorico] = useState(false);
+
   // Verificar conexao ML ao carregar
   useEffect(() => {
     const checkML = async () => {
@@ -398,6 +405,38 @@ export function FilaProducao() {
     setImpressorasUsuario(impressoras);
     localStorage.setItem('makerflow_impressoras_usuario', JSON.stringify(impressoras));
     setShowImpressorasConfig(false);
+  };
+
+  // Abrir historico de pedidos concluidos
+  const handleOpenHistorico = async () => {
+    setShowHistoricoModal(true);
+    setLoadingHistorico(true);
+    try {
+      const concluidos = await getPedidosConcluidos();
+      setPedidosConcluidos(concluidos);
+    } catch (error) {
+      console.error('Erro ao buscar historico:', error);
+    } finally {
+      setLoadingHistorico(false);
+    }
+  };
+
+  // Reverter pedido para pendente
+  const handleReverterPedido = async (id: string) => {
+    if (!confirm('Deseja reverter este pedido para pendente?')) return;
+
+    try {
+      await reverterPedido(id);
+      // Atualizar lista de concluidos
+      const concluidos = await getPedidosConcluidos();
+      setPedidosConcluidos(concluidos);
+      // Recarregar dados da fila
+      await loadData();
+      alert('Pedido revertido com sucesso!');
+    } catch (error) {
+      console.error('Erro ao reverter pedido:', error);
+      alert('Erro ao reverter pedido');
+    }
   };
 
   // Calcular fila de produção - v2
@@ -837,6 +876,14 @@ export function FilaProducao() {
           >
             <Plus className="w-4 h-4" />
             Novo Pedido
+          </button>
+          <button
+            onClick={handleOpenHistorico}
+            className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+            title="Historico de pedidos"
+          >
+            <History className="w-4 h-4" />
+            Historico
           </button>
         </div>
       </div>
@@ -1875,6 +1922,116 @@ export function FilaProducao() {
                   Importar para Fila
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Historico de Pedidos Concluidos */}
+      {showHistoricoModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-green-100 rounded-lg">
+                  <History className="w-5 h-5 text-green-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Historico de Producao
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    {pedidosConcluidos.length} pedido(s) concluido(s)
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowHistoricoModal(false)}
+                className="p-1 text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4">
+              {loadingHistorico ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+                </div>
+              ) : pedidosConcluidos.length === 0 ? (
+                <div className="text-center py-8">
+                  <CheckCircle2 className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                  <p className="text-gray-500">Nenhum pedido concluido ainda.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {pedidosConcluidos.map((pedido) => (
+                    <div
+                      key={pedido.id}
+                      className="p-4 bg-gray-50 rounded-lg border border-gray-200"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0">
+                            {pedido.produto?.imagem_url ? (
+                              <img
+                                src={pedido.produto.imagem_url}
+                                alt={pedido.produto?.nome}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center">
+                                <ImageOff className="w-5 h-5 text-gray-400" />
+                              </div>
+                            )}
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-900">
+                              {pedido.produto?.nome || 'Produto'}
+                              {pedido.variacao?.nome_variacao && (
+                                <span className="text-gray-500 font-normal">
+                                  {' '}({pedido.variacao.nome_variacao})
+                                </span>
+                              )}
+                            </p>
+                            <div className="flex items-center gap-3 text-sm text-gray-500">
+                              <span className="font-semibold text-green-600">
+                                {pedido.quantidade} produzido(s)
+                              </span>
+                              <span>
+                                {pedido.updated_at && new Date(pedido.updated_at).toLocaleDateString('pt-BR', {
+                                  day: '2-digit',
+                                  month: '2-digit',
+                                  year: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleReverterPedido(pedido.id!)}
+                          className="flex items-center gap-2 px-3 py-2 text-sm text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+                          title="Reverter para pendente"
+                        >
+                          <Undo2 className="w-4 h-4" />
+                          Reverter
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="p-4 border-t bg-gray-50">
+              <button
+                onClick={() => setShowHistoricoModal(false)}
+                className="w-full px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                Fechar
+              </button>
             </div>
           </div>
         </div>

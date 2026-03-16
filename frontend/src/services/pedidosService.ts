@@ -189,3 +189,35 @@ export const marcarProduzido = async (
     status: novoStatus,
   });
 };
+
+// Buscar pedidos concluidos (historico)
+export const getPedidosConcluidos = async (): Promise<Pedido[]> => {
+  if (!isSupabaseConfigured() || !supabase) {
+    return getLocalPedidos().filter(p => p.status === 'concluido');
+  }
+
+  const { data, error } = await supabase
+    .from('pedidos')
+    .select(`
+      *,
+      produto:produtos_concorrentes(nome, imagem_url, peso_filamento, tempo_impressao),
+      variacao:variacoes_produto(nome_variacao, peso_filamento, tempo_impressao)
+    `)
+    .eq('status', 'concluido')
+    .order('updated_at', { ascending: false });
+
+  if (error) {
+    console.error('Erro ao buscar pedidos concluidos:', error);
+    return [];
+  }
+
+  return data || [];
+};
+
+// Reverter pedido para pendente
+export const reverterPedido = async (id: string): Promise<Pedido | null> => {
+  return updatePedido(id, {
+    quantidade_produzida: 0,
+    status: 'pendente',
+  });
+};
