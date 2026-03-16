@@ -267,9 +267,10 @@ export function FilaProducao() {
 
   // Verificar conexao ML ao carregar
   useEffect(() => {
-    console.log('[ML DEBUG] useEffect iniciado');
+    console.log('[ML DEBUG] useEffect iniciado - v2');
+    console.log('[ML DEBUG] checkMLConnection function:', typeof checkMLConnection);
     const checkML = async () => {
-      console.log('[ML DEBUG] checkML chamado');
+      console.log('[ML DEBUG] checkML chamado - v2');
       try {
         const status = await checkMLConnection();
         console.log('[ML DEBUG] status:', status);
