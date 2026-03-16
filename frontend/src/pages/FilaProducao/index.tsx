@@ -1799,6 +1799,11 @@ export function FilaProducao() {
                               Variacao: {order.variation}
                             </p>
                           )}
+                          {order.seller_sku && (
+                            <p className="text-sm text-blue-600 font-mono">
+                              SKU: {order.seller_sku}
+                            </p>
+                          )}
                           <div className="flex items-center gap-4 mt-1 text-sm">
                             <span className="font-semibold text-indigo-600">
                               {order.quantity}x

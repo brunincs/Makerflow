@@ -1,4 +1,4 @@
-import { Plus, Trash2, Package, Scale, Clock, Lock } from 'lucide-react';
+import { Plus, Trash2, Package, Scale, Clock, Lock, Barcode } from 'lucide-react';
 import { Input } from './Input';
 import { Button } from './Button';
 import { ShopeeIcon, MercadoLivreIcon } from './MarketplaceIcons';
@@ -7,6 +7,7 @@ import { VariacaoProduto } from '../../types';
 interface VariacaoItem {
   id?: string;
   nome_variacao: string;
+  sku: string;
   preco_shopee: string;
   preco_mercado_livre: string;
   peso_filamento: string;
@@ -36,6 +37,7 @@ export function VariacoesEditor({ value, onChange, produtoBase }: VariacoesEdito
         ...value,
         {
           nome_variacao: '',
+          sku: '',
           preco_shopee: '',
           preco_mercado_livre: '',
           peso_filamento: produtoBase.peso_filamento,
@@ -50,6 +52,7 @@ export function VariacoesEditor({ value, onChange, produtoBase }: VariacoesEdito
         ...value,
         {
           nome_variacao: '',
+          sku: '',
           preco_shopee: '',
           preco_mercado_livre: '',
           peso_filamento: '',
@@ -145,13 +148,29 @@ export function VariacoesEditor({ value, onChange, produtoBase }: VariacoesEdito
                 </div>
 
                 <div className="p-4 space-y-4">
-                  {/* Nome da Variacao */}
-                  <Input
-                    label="Nome da Variacao"
-                    placeholder="Ex: Pequeno, Medio, Grande..."
-                    value={variacao.nome_variacao}
-                    onChange={(e) => updateVariacao(index, 'nome_variacao', e.target.value)}
-                  />
+                  {/* Nome e SKU da Variacao */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <Input
+                      label="Nome da Variacao"
+                      placeholder="Ex: Pequeno, Medio, Grande..."
+                      value={variacao.nome_variacao}
+                      onChange={(e) => updateVariacao(index, 'nome_variacao', e.target.value)}
+                    />
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
+                        <Barcode className="w-4 h-4 text-blue-600" />
+                        SKU da Variacao
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Ex: GATO-P"
+                        value={variacao.sku}
+                        onChange={(e) => updateVariacao(index, 'sku', e.target.value.toUpperCase())}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm bg-white
+                          focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase text-sm"
+                      />
+                    </div>
+                  </div>
 
                   {/* Dados de Producao */}
                   <div className={`border rounded-lg p-3 ${
@@ -321,6 +340,7 @@ export function variacoesToDB(variacoes: VariacaoItem[]): Omit<VariacaoProduto, 
       const tempoImpressao = horasMinutosParaDecimal(v.tempo_horas || 0, v.tempo_minutos || 0);
       return {
         nome_variacao: v.nome_variacao.trim(),
+        sku: v.sku?.trim() || undefined,
         preco_shopee: v.preco_shopee ? parseFloat(v.preco_shopee) : undefined,
         preco_mercado_livre: v.preco_mercado_livre ? parseFloat(v.preco_mercado_livre) : undefined,
         peso_filamento: v.peso_filamento ? parseFloat(v.peso_filamento) : undefined,
@@ -337,6 +357,7 @@ export function variacoesFromDB(variacoes?: VariacaoProduto[]): VariacaoItem[] {
     return {
       id: v.id,
       nome_variacao: v.nome_variacao || '',
+      sku: v.sku || '',
       preco_shopee: v.preco_shopee?.toString() || '',
       preco_mercado_livre: v.preco_mercado_livre?.toString() || '',
       peso_filamento: v.peso_filamento?.toString() || '',

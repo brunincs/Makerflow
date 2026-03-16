@@ -10,6 +10,8 @@ interface MLOrderItem {
   item: {
     id: string
     title: string
+    seller_custom_field?: string
+    seller_sku?: string
     variation_attributes?: Array<{ name: string; value_name: string }>
   }
   quantity: number
@@ -145,12 +147,16 @@ serve(async (req) => {
               .join(', ')
           }
 
+          // Extrair SKU do vendedor (pode estar em seller_custom_field ou seller_sku)
+          const sellerSku = orderItem.item.seller_sku || orderItem.item.seller_custom_field || null
+
           const { data: inserted, error: insertError } = await supabase
             .from('ml_orders')
             .insert({
               ml_order_id: mlOrderId,
               product_title: orderItem.item.title,
               variation: variation || null,
+              seller_sku: sellerSku,
               quantity: orderItem.quantity,
               unit_price: orderItem.unit_price,
               status: order.status,

@@ -4,11 +4,12 @@ import { Modelo3DIcon } from '../ui/MarketplaceIcons';
 import { ProdutoConcorrente, StatusProduto } from '../../types';
 import { createProduto, updateProduto, uploadImagem, uploadModelo3D } from '../../services/produtosService';
 import { CATEGORIAS_MERCADO_LIVRE } from '../../constants/categorias';
-import { Printer, Scale, Tag } from 'lucide-react';
+import { Printer, Scale, Tag, Barcode } from 'lucide-react';
 
 interface VariacaoItem {
   id?: string;
   nome_variacao: string;
+  sku: string;
   preco_shopee: string;
   preco_mercado_livre: string;
   peso_filamento: string;
@@ -40,6 +41,7 @@ export function ProdutoForm({ onSuccess, onCancel, produto }: ProdutoFormProps) 
   const [tempoMinutos, setTempoMinutos] = useState(0);
   const [formData, setFormData] = useState({
     nome: '',
+    sku: '',
     link_modelo: '',
     link_shopee: '',
     preco_shopee: '',
@@ -56,6 +58,7 @@ export function ProdutoForm({ onSuccess, onCancel, produto }: ProdutoFormProps) 
     if (produto) {
       setFormData({
         nome: produto.nome || '',
+        sku: produto.sku || '',
         link_modelo: produto.link_modelo || '',
         link_shopee: produto.link_shopee || '',
         preco_shopee: produto.preco_shopee?.toString() || '',
@@ -144,6 +147,7 @@ export function ProdutoForm({ onSuccess, onCancel, produto }: ProdutoFormProps) 
 
       const produtoData = {
         nome: formData.nome,
+        sku: formData.sku || undefined,
         link_modelo: formData.link_modelo || undefined,
         link_shopee: formData.link_shopee || undefined,
         preco_shopee: formData.preco_shopee ? parseFloat(formData.preco_shopee) : undefined,
@@ -197,6 +201,30 @@ export function ProdutoForm({ onSuccess, onCancel, produto }: ProdutoFormProps) 
         required
         placeholder="Ex: Suporte para Celular"
       />
+
+      {/* SKU do Produto */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <div className="bg-blue-100 p-2 rounded-lg">
+            <Barcode className="w-5 h-5 text-blue-600" />
+          </div>
+          <h3 className="font-medium text-gray-900">SKU do Produto</h3>
+          <span className="text-xs text-gray-500 ml-auto">Opcional</span>
+        </div>
+        <input
+          type="text"
+          name="sku"
+          value={formData.sku}
+          onChange={handleChange}
+          placeholder="Ex: GATO-001"
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm bg-white
+            focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase"
+        />
+        <p className="text-xs text-gray-500 mt-2">
+          Use o mesmo SKU configurado no Mercado Livre para importar pedidos automaticamente.
+          Se o produto tiver variacoes, configure o SKU em cada variacao.
+        </p>
+      </div>
 
       {/* Categoria do Produto */}
       <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">

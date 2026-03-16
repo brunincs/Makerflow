@@ -91,14 +91,38 @@ export const getMLOrders = async (onlyPending: boolean = true): Promise<MLOrder[
   return data || [];
 };
 
-// Buscar produto correspondente pelo nome
-const findMatchingProduct = async (productTitle: string, variation?: string | null) => {
+// Buscar produto correspondente pelo SKU (prioridade) ou nome
+const findMatchingProduct = async (productTitle: string, variation?: string | null, sellerSku?: string | null) => {
   const produtos = await getProdutos();
 
-  // Normalizar titulo para busca
+  // 1. PRIORIDADE: Buscar por SKU se fornecido
+  if (sellerSku) {
+    const normalizedSku = sellerSku.toUpperCase().trim();
+
+    // Primeiro buscar nas variacoes
+    for (const produto of produtos) {
+      if (produto.variacoes && produto.variacoes.length > 0) {
+        const variacaoMatch = produto.variacoes.find(v =>
+          v.sku && v.sku.toUpperCase().trim() === normalizedSku
+        );
+
+        if (variacaoMatch) {
+          return { produto, variacao: variacaoMatch, matchedBy: 'sku' };
+        }
+      }
+    }
+
+    // Depois buscar no produto principal
+    for (const produto of produtos) {
+      if (produto.sku && produto.sku.toUpperCase().trim() === normalizedSku) {
+        return { produto, variacao: null, matchedBy: 'sku' };
+      }
+    }
+  }
+
+  // 2. FALLBACK: Buscar por nome (comportamento antigo)
   const normalizedTitle = productTitle.toLowerCase().trim();
 
-  // Buscar produto por nome similar
   for (const produto of produtos) {
     const nomeProduto = produto.nome.toLowerCase().trim();
 
@@ -112,11 +136,11 @@ const findMatchingProduct = async (productTitle: string, variation?: string | nu
         );
 
         if (variacaoMatch) {
-          return { produto, variacao: variacaoMatch };
+          return { produto, variacao: variacaoMatch, matchedBy: 'name' };
         }
       }
 
-      return { produto, variacao: null };
+      return { produto, variacao: null, matchedBy: 'name' };
     }
   }
 
@@ -132,15 +156,24 @@ export const importMLOrderToPedido = async (order: MLOrder, produtoId?: string, 
 
     // Se nao foi passado produto, tentar encontrar automaticamente
     if (!finalProdutoId) {
-      const match = await findMatchingProduct(order.product_title, order.variation);
+      // Usar SKU como prioridade para encontrar o produto
+      const match = await findMatchingProduct(order.product_title, order.variation, order.seller_sku);
       if (match) {
         finalProdutoId = match.produto.id;
         finalVariacaoId = match.variacao?.id || null;
+
+        // Adicionar info de como foi encontrado
+        if (match.matchedBy === 'sku') {
+          observacao += ` | Encontrado por SKU: ${order.seller_sku}`;
+        }
       } else {
         // Nao encontrou produto correspondente
         observacao += ` | Produto original: ${order.product_title}`;
         if (order.variation) {
           observacao += ` | Variacao: ${order.variation}`;
+        }
+        if (order.seller_sku) {
+          observacao += ` | SKU: ${order.seller_sku}`;
         }
       }
     }

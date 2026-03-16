@@ -2,6 +2,7 @@ export interface VariacaoProduto {
   id?: string;
   produto_id?: string;
   nome_variacao: string;
+  sku?: string;
   preco_shopee?: number;
   preco_mercado_livre?: number;
   peso_filamento?: number;
@@ -14,6 +15,7 @@ export interface ProdutoConcorrente {
   id?: string;
   imagem_url?: string;
   nome: string;
+  sku?: string;
   link_modelo?: string;
   link_shopee?: string;
   preco_shopee?: number;
@@ -348,6 +350,7 @@ export interface MLOrder {
   ml_order_id: string;
   product_title: string;
   variation?: string | null;
+  seller_sku?: string | null;
   quantity: number;
   unit_price?: number;
   status: string;

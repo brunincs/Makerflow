@@ -5,7 +5,7 @@ import { ShopeeIcon, MercadoLivreIcon, Modelo3DIcon } from '../../components/ui/
 import { ProdutoForm } from '../../components/forms';
 import { getProdutos, deleteProduto } from '../../services/produtosService';
 import { ProdutoConcorrente } from '../../types';
-import { Plus, Trash2, Pencil, Package, AlertTriangle, Layers, Scale, Clock, Tag, Eye, X, ExternalLink, Printer, Search } from 'lucide-react';
+import { Plus, Trash2, Pencil, Package, AlertTriangle, Layers, Scale, Clock, Tag, Eye, X, ExternalLink, Printer, Search, Barcode } from 'lucide-react';
 import { formatarTempoImpressao } from '../../components/ui';
 import { getCategoriaById } from '../../constants/categorias';
 
@@ -103,6 +103,12 @@ function ViewModal({
               <div className="flex-1">
                 <div className="mb-2"><Badge variant={produto.status}>{produto.status}</Badge></div>
                 <h2 className="text-xl font-bold text-gray-900 mb-2">{produto.nome}</h2>
+                {produto.sku && (
+                  <div className="flex items-center gap-2 text-blue-700 mb-2">
+                    <Barcode className="w-4 h-4" />
+                    <span className="font-mono text-sm bg-blue-50 px-2 py-0.5 rounded">{produto.sku}</span>
+                  </div>
+                )}
                 {categoria && (
                   <div className="flex items-center gap-2 text-yellow-700 mb-3">
                     <Tag className="w-4 h-4" />
@@ -365,9 +371,19 @@ function ProdutoCard({
 
       <CardBody className="p-4">
         {/* Nome */}
-        <h3 className="font-semibold text-gray-900 text-lg mb-2 line-clamp-2">
+        <h3 className="font-semibold text-gray-900 text-lg mb-1 line-clamp-2">
           {produto.nome}
         </h3>
+
+        {/* SKU */}
+        {produto.sku && (
+          <div className="flex items-center gap-1.5 mb-2">
+            <Barcode className="w-3.5 h-3.5 text-blue-600" />
+            <span className="text-xs font-mono text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded">
+              {produto.sku}
+            </span>
+          </div>
+        )}
 
         {/* Categoria */}
         {produto.categoria_id && (
