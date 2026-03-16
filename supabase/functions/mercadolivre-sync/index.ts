@@ -175,7 +175,14 @@ serve(async (req) => {
     }
 
     // Limpar ml_orders orfaos (pedido foi excluido)
-    // Buscar ml_orders marcados como imported mas cujo pedido nao existe mais
+    // 1. Resetar ml_orders que estao imported=true mas pedido_id=null (orfaos antigos)
+    await supabase
+      .from('ml_orders')
+      .update({ imported: false })
+      .eq('imported', true)
+      .is('pedido_id', null)
+
+    // 2. Buscar ml_orders marcados como imported mas cujo pedido nao existe mais
     const { data: orphanedOrders } = await supabase
       .from('ml_orders')
       .select('id, pedido_id')
