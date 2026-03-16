@@ -270,6 +270,7 @@ export function FilaProducao() {
   // Historico de pedidos concluidos
   const [showHistoricoModal, setShowHistoricoModal] = useState(false);
   const [pedidosConcluidos, setPedidosConcluidos] = useState<Pedido[]>([]);
+  const [selectedHistorico, setSelectedHistorico] = useState<string[]>([]);
   const [loadingHistorico, setLoadingHistorico] = useState(false);
 
   // Verificar conexao ML ao carregar
@@ -430,12 +431,51 @@ export function FilaProducao() {
       // Atualizar lista de concluidos
       const concluidos = await getPedidosConcluidos();
       setPedidosConcluidos(concluidos);
+      setSelectedHistorico([]);
       // Recarregar dados da fila
       await loadData();
       alert('Pedido revertido com sucesso!');
     } catch (error) {
       console.error('Erro ao reverter pedido:', error);
       alert('Erro ao reverter pedido');
+    }
+  };
+
+  // Reverter múltiplos pedidos selecionados
+  const handleReverterSelecionados = async () => {
+    if (selectedHistorico.length === 0) return;
+    if (!confirm(`Deseja reverter ${selectedHistorico.length} pedido(s) para pendente?`)) return;
+
+    try {
+      for (const id of selectedHistorico) {
+        await reverterPedido(id);
+      }
+      // Atualizar lista de concluidos
+      const concluidos = await getPedidosConcluidos();
+      setPedidosConcluidos(concluidos);
+      setSelectedHistorico([]);
+      // Recarregar dados da fila
+      await loadData();
+      alert(`${selectedHistorico.length} pedido(s) revertido(s) com sucesso!`);
+    } catch (error) {
+      console.error('Erro ao reverter pedidos:', error);
+      alert('Erro ao reverter pedidos');
+    }
+  };
+
+  // Toggle seleção de pedido no histórico
+  const toggleSelectHistorico = (id: string) => {
+    setSelectedHistorico(prev =>
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  // Selecionar/desselecionar todos
+  const toggleSelectAllHistorico = () => {
+    if (selectedHistorico.length === pedidosConcluidos.length) {
+      setSelectedHistorico([]);
+    } else {
+      setSelectedHistorico(pedidosConcluidos.map(p => p.id!));
     }
   };
 
@@ -1942,6 +1982,11 @@ export function FilaProducao() {
                   </h3>
                   <p className="text-sm text-gray-500">
                     {pedidosConcluidos.length} pedido(s) concluido(s)
+                    {selectedHistorico.length > 0 && (
+                      <span className="text-orange-600 ml-2">
+                        ({selectedHistorico.length} selecionado(s))
+                      </span>
+                    )}
                   </p>
                 </div>
               </div>
@@ -1952,6 +1997,36 @@ export function FilaProducao() {
                 <X className="w-5 h-5" />
               </button>
             </div>
+
+            {/* Barra de ações */}
+            {pedidosConcluidos.length > 0 && (
+              <div className="flex items-center justify-between px-4 py-2 bg-gray-100 border-b">
+                <button
+                  onClick={toggleSelectAllHistorico}
+                  className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900"
+                >
+                  <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
+                    selectedHistorico.length === pedidosConcluidos.length && pedidosConcluidos.length > 0
+                      ? 'bg-orange-500 border-orange-500'
+                      : 'border-gray-400'
+                  }`}>
+                    {selectedHistorico.length === pedidosConcluidos.length && pedidosConcluidos.length > 0 && (
+                      <Check className="w-3 h-3 text-white" />
+                    )}
+                  </div>
+                  Selecionar Todos
+                </button>
+                {selectedHistorico.length > 0 && (
+                  <button
+                    onClick={handleReverterSelecionados}
+                    className="flex items-center gap-2 px-3 py-1.5 text-sm text-white bg-orange-500 hover:bg-orange-600 rounded-lg transition-colors"
+                  >
+                    <Undo2 className="w-4 h-4" />
+                    Reverter {selectedHistorico.length} Selecionado(s)
+                  </button>
+                )}
+              </div>
+            )}
 
             <div className="flex-1 overflow-y-auto p-4">
               {loadingHistorico ? (
@@ -1968,10 +2043,24 @@ export function FilaProducao() {
                   {pedidosConcluidos.map((pedido) => (
                     <div
                       key={pedido.id}
-                      className="p-4 bg-gray-50 rounded-lg border border-gray-200"
+                      className={`p-4 rounded-lg border cursor-pointer transition-colors ${
+                        selectedHistorico.includes(pedido.id!)
+                          ? 'bg-orange-50 border-orange-300'
+                          : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                      }`}
+                      onClick={() => toggleSelectHistorico(pedido.id!)}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
+                          <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${
+                            selectedHistorico.includes(pedido.id!)
+                              ? 'bg-orange-500 border-orange-500'
+                              : 'border-gray-400'
+                          }`}>
+                            {selectedHistorico.includes(pedido.id!) && (
+                              <Check className="w-3 h-3 text-white" />
+                            )}
+                          </div>
                           <div className="w-12 h-12 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0">
                             {pedido.produto?.imagem_url ? (
                               <img
@@ -1994,25 +2083,17 @@ export function FilaProducao() {
                                 </span>
                               )}
                             </p>
-                            <div className="flex items-center gap-3 text-sm text-gray-500">
-                              <span className="font-semibold text-green-600">
-                                {pedido.quantidade} produzido(s)
-                              </span>
-                              <span>
-                                {pedido.updated_at && new Date(pedido.updated_at).toLocaleDateString('pt-BR', {
-                                  day: '2-digit',
-                                  month: '2-digit',
-                                  year: 'numeric',
-                                  hour: '2-digit',
-                                  minute: '2-digit',
-                                })}
-                              </span>
-                            </div>
+                            <span className="text-sm font-semibold text-green-600">
+                              {pedido.quantidade} produzido(s)
+                            </span>
                           </div>
                         </div>
                         <button
-                          onClick={() => handleReverterPedido(pedido.id!)}
-                          className="flex items-center gap-2 px-3 py-2 text-sm text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleReverterPedido(pedido.id!);
+                          }}
+                          className="flex items-center gap-2 px-3 py-2 text-sm text-orange-600 hover:bg-orange-100 rounded-lg transition-colors"
                           title="Reverter para pendente"
                         >
                           <Undo2 className="w-4 h-4" />
@@ -2027,7 +2108,10 @@ export function FilaProducao() {
 
             <div className="p-4 border-t bg-gray-50">
               <button
-                onClick={() => setShowHistoricoModal(false)}
+                onClick={() => {
+                  setShowHistoricoModal(false);
+                  setSelectedHistorico([]);
+                }}
                 className="w-full px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
               >
                 Fechar
