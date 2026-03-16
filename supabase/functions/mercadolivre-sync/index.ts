@@ -174,6 +174,37 @@ serve(async (req) => {
       }
     }
 
+    // Limpar ml_orders orfaos (pedido foi excluido)
+    // Buscar ml_orders marcados como imported mas cujo pedido nao existe mais
+    const { data: orphanedOrders } = await supabase
+      .from('ml_orders')
+      .select('id, pedido_id')
+      .eq('imported', true)
+      .not('pedido_id', 'is', null)
+
+    if (orphanedOrders && orphanedOrders.length > 0) {
+      // Verificar quais pedidos ainda existem
+      const pedidoIds = orphanedOrders.map(o => o.pedido_id)
+      const { data: existingPedidos } = await supabase
+        .from('pedidos')
+        .select('id')
+        .in('id', pedidoIds)
+
+      const existingIds = new Set(existingPedidos?.map(p => p.id) || [])
+
+      // Resetar os que nao tem mais pedido
+      const orphanedIds = orphanedOrders
+        .filter(o => !existingIds.has(o.pedido_id))
+        .map(o => o.id)
+
+      if (orphanedIds.length > 0) {
+        await supabase
+          .from('ml_orders')
+          .update({ imported: false, pedido_id: null })
+          .in('id', orphanedIds)
+      }
+    }
+
     // Buscar todos os pedidos nao importados
     const { data: pendingOrders } = await supabase
       .from('ml_orders')
