@@ -158,6 +158,13 @@ export const deletePedido = async (id: string): Promise<boolean> => {
     return true;
   }
 
+  // Primeiro, verificar se este pedido veio do Mercado Livre
+  // Se sim, resetar o ml_order para poder importar novamente
+  await supabase
+    .from('ml_orders')
+    .update({ imported: false, pedido_id: null })
+    .eq('pedido_id', id);
+
   const { error } = await supabase
     .from('pedidos')
     .delete()
