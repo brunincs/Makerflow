@@ -30,21 +30,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isAuthenticated = !!user && !!profile && !profile.suspended;
 
   // Buscar perfil do usuario
-  const fetchProfile = async (userId: string) => {
+  const fetchProfile = async (userId: string): Promise<Profile | null> => {
     if (!supabase) return null;
 
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single();
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
 
-    if (error) {
-      console.error('Erro ao buscar perfil:', error);
+      if (error) {
+        console.error('Erro ao buscar perfil:', error);
+        return null;
+      }
+
+      return data as Profile;
+    } catch (err) {
+      console.error('Erro inesperado ao buscar perfil:', err);
       return null;
     }
-
-    return data as Profile;
   };
 
   // Refresh profile
@@ -72,6 +77,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setProfile(profileData);
       }
 
+      setLoading(false);
+    }).catch((error) => {
+      console.error('Erro ao buscar sessao:', error);
       setLoading(false);
     });
 
