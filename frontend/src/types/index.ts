@@ -234,6 +234,7 @@ export interface VendaDiretaConfig {
   taxa_gateway: number;
   taxa_cartao: number;
   taxa_pix: number;
+  forma_pagamento?: FormaPagamento;
 }
 
 // Custos de Producao (compartilhado entre todos os marketplaces)

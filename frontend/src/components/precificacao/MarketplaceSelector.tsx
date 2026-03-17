@@ -184,6 +184,8 @@ export function MarketplaceSelector({ value, onChange, canSave = true, onSaveSuc
           <VendaDiretaConfigComponent
             value={value.venda_direta}
             onChange={(venda_direta) => onChange({ ...value, venda_direta })}
+            produtoSelecionado={value.produto_selecionado || null}
+            onProdutoChange={handleProdutoChange}
           />
         )}
       </div>
