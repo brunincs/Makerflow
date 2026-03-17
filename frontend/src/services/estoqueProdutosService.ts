@@ -104,7 +104,10 @@ export const adicionarEstoque = async (
   }
 
   const user_id = await getCurrentUserId();
-  const dadosComUserId = { ...dadosParaSalvar, user_id };
+  // Só inclui user_id se não for null (auth desabilitada temporariamente)
+  const dadosComUserId = user_id
+    ? { ...dadosParaSalvar, user_id }
+    : dadosParaSalvar;
 
   const { data, error } = await supabase
     .from('estoque_produtos')

@@ -110,7 +110,10 @@ export const createProduto = async (
 
   // Obter user_id do usuario logado
   const user_id = await getCurrentUserId();
-  const produtoComUserId = { ...produto, user_id };
+  // Só inclui user_id se não for null (auth desabilitada temporariamente)
+  const produtoComUserId = user_id
+    ? { ...produto, user_id }
+    : produto;
 
   console.log('Dados enviados para o Supabase:', produtoComUserId);
 
@@ -133,10 +136,11 @@ export const createProduto = async (
   // Criar variacoes no Supabase
   if (variacoes && variacoes.length > 0 && data) {
     const user_id = await getCurrentUserId();
+    // Só inclui user_id se não for null (auth desabilitada temporariamente)
     const variacoesComProdutoId = variacoes.map(v => ({
       ...v,
       produto_id: data.id,
-      user_id,
+      ...(user_id ? { user_id } : {}),
     }));
 
     const { data: variacoesData, error: variacoesError } = await supabase
@@ -268,10 +272,11 @@ export const updateProduto = async (
     // Adiciona novas
     if (variacoes.length > 0) {
       const user_id = await getCurrentUserId();
+      // Só inclui user_id se não for null (auth desabilitada temporariamente)
       const variacoesComProdutoId = variacoes.map(v => ({
         ...v,
         produto_id: id,
-        user_id,
+        ...(user_id ? { user_id } : {}),
       }));
 
       const { data: variacoesData, error: variacoesError } = await supabase
@@ -338,7 +343,10 @@ export const createVariacao = async (
   }
 
   const user_id = await getCurrentUserId();
-  const variacaoComUserId = { ...variacao, user_id };
+  // Só inclui user_id se não for null (auth desabilitada temporariamente)
+  const variacaoComUserId = user_id
+    ? { ...variacao, user_id }
+    : variacao;
 
   const { data, error } = await supabase
     .from('variacoes_produto')
