@@ -4,6 +4,7 @@ import { LogIn, Mail, Lock, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
 export function Login() {
+  console.log('[Login] Renderizando pagina de login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
