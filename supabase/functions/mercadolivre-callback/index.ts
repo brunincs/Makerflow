@@ -1,14 +1,28 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'GET, OPTIONS',
+}
+
 serve(async (req) => {
+  // Handle CORS preflight
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
+  }
+
   const url = new URL(req.url)
   const code = url.searchParams.get('code')
   const state = url.searchParams.get('state') // user_id enviado como state
   const frontendUrl = Deno.env.get('FRONTEND_URL') || 'https://frontend-lyart-ten-15.vercel.app'
 
   if (!code) {
-    return Response.redirect(`${frontendUrl}/fila-producao?ml=error&reason=no_code`, 302)
+    return new Response(null, {
+      status: 302,
+      headers: { ...corsHeaders, 'Location': `${frontendUrl}/fila-producao?ml=error&reason=no_code` },
+    })
   }
 
   const clientId = Deno.env.get('ML_CLIENT_ID')
@@ -18,12 +32,18 @@ serve(async (req) => {
   const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
   if (!clientId || !clientSecret || !redirectUri) {
-    return Response.redirect(`${frontendUrl}/fila-producao?ml=error&reason=missing_config`, 302)
+    return new Response(null, {
+      status: 302,
+      headers: { ...corsHeaders, 'Location': `${frontendUrl}/fila-producao?ml=error&reason=missing_config` },
+    })
   }
 
   // Validar que temos o user_id
   if (!state) {
-    return Response.redirect(`${frontendUrl}/fila-producao?ml=error&reason=no_user`, 302)
+    return new Response(null, {
+      status: 302,
+      headers: { ...corsHeaders, 'Location': `${frontendUrl}/fila-producao?ml=error&reason=no_user` },
+    })
   }
 
   const userId = state
@@ -47,7 +67,10 @@ serve(async (req) => {
 
     if (!tokenResponse.ok) {
       console.error('Token exchange failed:', await tokenResponse.text())
-      return Response.redirect(`${frontendUrl}/fila-producao?ml=error&reason=token_exchange_failed`, 302)
+      return new Response(null, {
+        status: 302,
+        headers: { ...corsHeaders, 'Location': `${frontendUrl}/fila-producao?ml=error&reason=token_exchange_failed` },
+      })
     }
 
     const tokenData = await tokenResponse.json()
@@ -76,12 +99,21 @@ serve(async (req) => {
 
     if (insertError) {
       console.error('Supabase insert error:', insertError)
-      return Response.redirect(`${frontendUrl}/fila-producao?ml=error&reason=db_error`, 302)
+      return new Response(null, {
+        status: 302,
+        headers: { ...corsHeaders, 'Location': `${frontendUrl}/fila-producao?ml=error&reason=db_error` },
+      })
     }
 
-    return Response.redirect(`${frontendUrl}/fila-producao?ml=connected`, 302)
+    return new Response(null, {
+      status: 302,
+      headers: { ...corsHeaders, 'Location': `${frontendUrl}/fila-producao?ml=connected` },
+    })
   } catch (error) {
     console.error('Callback error:', error)
-    return Response.redirect(`${frontendUrl}/fila-producao?ml=error&reason=unknown`, 302)
+    return new Response(null, {
+      status: 302,
+      headers: { ...corsHeaders, 'Location': `${frontendUrl}/fila-producao?ml=error&reason=unknown` },
+    })
   }
 })
