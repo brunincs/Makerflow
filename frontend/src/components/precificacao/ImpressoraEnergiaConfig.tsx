@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { ProdutoSelecionado, Impressora } from '../../types';
 import { Toggle } from '../ui/Toggle';
 import { DecimalInput } from '../ui/DecimalInput';
-import { Clock, Zap, Package, Printer, Layers, Info, AlertCircle } from 'lucide-react';
+import { Clock, Zap, Package, Printer, Layers, Info, AlertCircle, Settings } from 'lucide-react';
 import { getImpressorasAtivas } from '../../services/impressorasService';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface ImpressoraEnergiaConfigProps {
   tempoHoras: number;
@@ -53,8 +54,10 @@ export function ImpressoraEnergiaConfig({
   quantidadePecas,
   onQuantidadePecasChange,
 }: ImpressoraEnergiaConfigProps) {
+  const { profile } = useAuth();
   const [impressoras, setImpressoras] = useState<Impressora[]>([]);
   const [loading, setLoading] = useState(true);
+  const [valorKwhDoPerfil, setValorKwhDoPerfil] = useState<number | null>(null);
 
   // Carregar impressoras do usuário
   useEffect(() => {
@@ -66,6 +69,14 @@ export function ImpressoraEnergiaConfig({
     };
     carregarImpressoras();
   }, []);
+
+  // Carregar valor_kwh do perfil
+  useEffect(() => {
+    if (profile?.valor_kwh && !valorKwh) {
+      setValorKwhDoPerfil(profile.valor_kwh);
+      onValorKwhChange(profile.valor_kwh);
+    }
+  }, [profile]);
 
   // Handler para mudança de impressora (atualiza id e consumo juntos)
   const handleSelectChange = (value: string) => {
@@ -269,9 +280,17 @@ export function ImpressoraEnergiaConfig({
 
         {/* Valor do kWh */}
         <div className="border-t border-blue-200 pt-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Valor do kWh (R$)
-          </label>
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-sm font-medium text-gray-700">
+              Valor do kWh (R$)
+            </label>
+            {valorKwhDoPerfil && (
+              <span className="flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full">
+                <Settings className="w-3 h-3" />
+                Do perfil
+              </span>
+            )}
+          </div>
           <div className="relative max-w-xs">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">
               R$
@@ -287,7 +306,9 @@ export function ImpressoraEnergiaConfig({
           <div className="flex items-start gap-1.5 mt-2">
             <Info className="w-3.5 h-3.5 text-gray-400 flex-shrink-0 mt-0.5" />
             <p className="text-xs text-gray-500">
-              Media nacional ≈ R$0,85 · verifique sua conta
+              {valorKwhDoPerfil
+                ? 'Valor configurado no seu perfil. Pode alterar aqui se necessario.'
+                : 'Media nacional ≈ R$0,85 · Configure no seu perfil'}
             </p>
           </div>
         </div>

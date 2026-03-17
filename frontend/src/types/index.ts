@@ -20,6 +20,8 @@ export interface Profile {
   telefone?: string | null;
   whatsapp?: string | null;
   email_comercial?: string | null;
+  // Configuracoes de custo
+  valor_kwh?: number | null; // Custo da energia em R$/kWh
   created_at: string;
   updated_at: string;
 }

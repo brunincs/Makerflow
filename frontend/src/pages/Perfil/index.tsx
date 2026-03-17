@@ -59,6 +59,7 @@ export function Perfil() {
   const [whatsapp, setWhatsapp] = useState(profile?.whatsapp || '');
   const [emailComercial, setEmailComercial] = useState(profile?.email_comercial || '');
   const [logoUrl, setLogoUrl] = useState(profile?.logo_url || '');
+  const [valorKwh, setValorKwh] = useState(profile?.valor_kwh || 0.85);
 
   // Impressoras
   const [impressoras, setImpressoras] = useState<Impressora[]>([]);
@@ -86,6 +87,7 @@ export function Perfil() {
       setWhatsapp(profile.whatsapp || '');
       setEmailComercial(profile.email_comercial || '');
       setLogoUrl(profile.logo_url || '');
+      setValorKwh(profile.valor_kwh || 0.85);
     }
   }, [profile]);
 
@@ -115,6 +117,7 @@ export function Perfil() {
       whatsapp: whatsapp || null,
       email_comercial: emailComercial || null,
       logo_url: logoUrl || null,
+      valor_kwh: valorKwh || null,
     });
 
     setSaving(false);
@@ -519,8 +522,37 @@ export function Perfil() {
           </div>
         </div>
 
-        {/* Impressoras */}
+        {/* Configuracoes de Energia e Impressoras */}
         <div className="bg-gray-900 rounded-xl p-6 border border-gray-800">
+          {/* Valor do kWh */}
+          <div className="mb-6 pb-6 border-b border-gray-800">
+            <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+              <Zap className="w-5 h-5 text-yellow-500" />
+              Custo de Energia
+            </h2>
+            <div className="max-w-xs">
+              <label className="block text-sm font-medium text-gray-300 mb-1">
+                Valor do kWh (R$)
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">R$</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={valorKwh}
+                  onChange={(e) => setValorKwh(parseFloat(e.target.value) || 0)}
+                  placeholder="0.85"
+                  className="w-full pl-10 pr-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                />
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Media nacional: R$ 0.85 a R$ 0.90. Consulte sua conta de luz.
+              </p>
+            </div>
+          </div>
+
+          {/* Impressoras */}
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-white flex items-center gap-2">
               <Printer className="w-5 h-5 text-blue-500" />
