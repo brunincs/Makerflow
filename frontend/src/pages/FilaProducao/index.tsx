@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Card, CardBody } from '../../components/ui';
 import { Pedido, ProdutoConcorrente, ItemFilaProducao, EstoqueProduto, Filamento, ImpressoraModelo, MLOrder, MLConnectionStatus } from '../../types';
 import { getPedidosPendentes, createPedido, deletePedido, marcarProduzido, getPedidosConcluidos, reverterPedido } from '../../services/pedidosService';
-import { getEstoqueProdutos, adicionarEstoqueComMovimentacao, removerEstoqueComMovimentacao } from '../../services/estoqueProdutosService';
+import { getEstoqueProdutos, removerEstoqueComMovimentacao } from '../../services/estoqueProdutosService';
 import { getProdutos } from '../../services/produtosService';
 import { getFilamentos } from '../../services/filamentosService';
 import { createImpressao } from '../../services/impressoesService';
@@ -786,6 +786,7 @@ export function FilaProducao() {
       }
 
       // 2. Criar registro de impressao (se tem filamento selecionado)
+      // A impressao automaticamente adiciona ao estoque via impressoesService
       if (filamentoId && itemParaProduzir.peso_por_peca > 0) {
         await createImpressao({
           produto_id: itemParaProduzir.produto_id,
@@ -797,17 +798,9 @@ export function FilaProducao() {
         });
       }
 
-      // 3. Adicionar ao estoque de produtos (com registro de movimentacao)
-      await adicionarEstoqueComMovimentacao(
-        itemParaProduzir.produto_id,
-        itemParaProduzir.variacao_id || null,
-        qtdProduzida,
-        'producao',
-        `Producao de ${qtdProduzida} unidade(s)`
-      );
-
-      // 4. Usar estoque para atender pedidos (subtrair do estoque)
-      const qtdParaEntregar = Math.min(qtdProduzida, itemParaProduzir.quantidade_pedida);
+      // 3. Consumir estoque para atender os pedidos
+      // O estoque foi adicionado automaticamente pela impressao
+      const qtdParaEntregar = Math.min(qtdProduzida, itemParaProduzir.quantidade_produzir);
       if (qtdParaEntregar > 0) {
         await removerEstoqueComMovimentacao(
           itemParaProduzir.produto_id,

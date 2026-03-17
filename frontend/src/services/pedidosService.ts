@@ -1,5 +1,6 @@
 import { supabase, isSupabaseConfigured, getCurrentUserId } from './supabaseClient';
 import { Pedido } from '../types';
+import { getEstoquePorProduto, removerEstoqueComMovimentacao } from './estoqueProdutosService';
 
 const STORAGE_KEY = 'makerflow_pedidos';
 
@@ -59,14 +60,49 @@ export const getPedidosPendentes = async (): Promise<Pedido[]> => {
 };
 
 export const createPedido = async (
-  pedido: Omit<Pedido, 'id' | 'created_at' | 'updated_at' | 'produto' | 'variacao'>
+  pedido: Omit<Pedido, 'id' | 'created_at' | 'updated_at' | 'produto' | 'variacao'>,
+  consumirEstoque: boolean = true
 ): Promise<Pedido | null> => {
+  // Verificar estoque disponivel
+  let quantidadeDoEstoque = 0;
+  let quantidadeAProduzir = pedido.quantidade;
+
+  if (consumirEstoque) {
+    const estoqueAtual = await getEstoquePorProduto(pedido.produto_id, pedido.variacao_id);
+    const estoqueDisponivel = estoqueAtual?.quantidade || 0;
+
+    if (estoqueDisponivel > 0) {
+      // Consumir estoque (total ou parcial)
+      quantidadeDoEstoque = Math.min(estoqueDisponivel, pedido.quantidade);
+      quantidadeAProduzir = pedido.quantidade - quantidadeDoEstoque;
+
+      // Remover do estoque
+      await removerEstoqueComMovimentacao(
+        pedido.produto_id,
+        pedido.variacao_id || null,
+        quantidadeDoEstoque,
+        'venda',
+        `Pedido de ${pedido.quantidade} un (${quantidadeDoEstoque} do estoque)`
+      );
+    }
+  }
+
+  // Determinar status inicial
+  let statusInicial: Pedido['status'] = 'pendente';
+  if (quantidadeAProduzir === 0) {
+    // Tudo atendido pelo estoque
+    statusInicial = 'concluido';
+  } else if (quantidadeDoEstoque > 0) {
+    // Parcialmente atendido
+    statusInicial = 'em_producao';
+  }
+
   const dadosParaSalvar = {
     produto_id: pedido.produto_id,
     variacao_id: pedido.variacao_id || null,
     quantidade: pedido.quantidade,
-    quantidade_produzida: pedido.quantidade_produzida || 0,
-    status: pedido.status || 'pendente',
+    quantidade_produzida: quantidadeDoEstoque, // Ja contabiliza o que veio do estoque
+    status: statusInicial,
     observacao: pedido.observacao || null,
   };
 
@@ -91,7 +127,6 @@ export const createPedido = async (
   }
 
   const user_id = await getCurrentUserId();
-  // Só inclui user_id se não for null (auth desabilitada temporariamente)
   const dadosComUserId = user_id
     ? { ...dadosParaSalvar, user_id }
     : dadosParaSalvar;

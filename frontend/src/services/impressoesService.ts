@@ -1,6 +1,7 @@
 import { supabase, isSupabaseConfigured, getCurrentUserId } from './supabaseClient';
 import { Impressao } from '../types';
 import { descontarEstoqueFilamento, devolverEstoqueFilamento } from './filamentosService';
+import { adicionarEstoqueComMovimentacao, removerEstoqueComMovimentacao } from './estoqueProdutosService';
 
 const STORAGE_KEY = 'makerflow_impressoes';
 
@@ -57,6 +58,17 @@ export const createImpressao = async (
     // Descontar estoque do filamento
     await descontarEstoqueFilamento(impressao.filamento_id, pesoTotal);
 
+    // Adicionar ao estoque de produtos (se nao for impressao manual)
+    if (!isManual && impressao.produto_id) {
+      await adicionarEstoqueComMovimentacao(
+        impressao.produto_id,
+        impressao.variacao_id || null,
+        impressao.quantidade,
+        'producao',
+        `Impressao de ${impressao.quantidade} unidade(s)`
+      );
+    }
+
     return novo;
   }
 
@@ -83,6 +95,17 @@ export const createImpressao = async (
 
   // Descontar estoque do filamento
   await descontarEstoqueFilamento(impressao.filamento_id, pesoTotal);
+
+  // Adicionar ao estoque de produtos (se nao for impressao manual)
+  if (!isManual && impressao.produto_id) {
+    await adicionarEstoqueComMovimentacao(
+      impressao.produto_id,
+      impressao.variacao_id || null,
+      impressao.quantidade,
+      'producao',
+      `Impressao de ${impressao.quantidade} unidade(s)`
+    );
+  }
 
   return data;
 };
@@ -118,6 +141,17 @@ export const deleteImpressao = async (id: string): Promise<boolean> => {
     // Devolver filamento ao estoque
     if (impressao) {
       await devolverEstoqueFilamento(impressao.filamento_id, impressao.peso_total_g);
+
+      // Remover do estoque de produtos (se nao for impressao manual)
+      if (impressao.produto_id && impressao.produto_id !== '__MANUAL__') {
+        await removerEstoqueComMovimentacao(
+          impressao.produto_id,
+          impressao.variacao_id || null,
+          impressao.quantidade,
+          'ajuste',
+          'Impressao excluida'
+        );
+      }
     }
 
     const filtered = impressoes.filter(i => i.id !== id);
@@ -128,7 +162,7 @@ export const deleteImpressao = async (id: string): Promise<boolean> => {
   // Primeiro buscar a impressão para saber quanto devolver
   const { data: impressao, error: fetchError } = await supabase
     .from('impressoes')
-    .select('filamento_id, peso_total_g')
+    .select('filamento_id, peso_total_g, produto_id, variacao_id, quantidade')
     .eq('id', id)
     .single();
 
@@ -151,6 +185,17 @@ export const deleteImpressao = async (id: string): Promise<boolean> => {
   // Devolver filamento ao estoque
   if (impressao) {
     await devolverEstoqueFilamento(impressao.filamento_id, impressao.peso_total_g);
+
+    // Remover do estoque de produtos (se nao for impressao manual)
+    if (impressao.produto_id) {
+      await removerEstoqueComMovimentacao(
+        impressao.produto_id,
+        impressao.variacao_id || null,
+        impressao.quantidade,
+        'ajuste',
+        'Impressao excluida'
+      );
+    }
   }
 
   return true;
