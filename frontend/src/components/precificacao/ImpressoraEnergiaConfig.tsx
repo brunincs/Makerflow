@@ -1,7 +1,9 @@
-import { ProdutoSelecionado, ImpressoraModelo } from '../../types';
+import { useState, useEffect } from 'react';
+import { ProdutoSelecionado, Impressora } from '../../types';
 import { Toggle } from '../ui/Toggle';
 import { DecimalInput } from '../ui/DecimalInput';
-import { Clock, Zap, Package, Printer, Layers, Info } from 'lucide-react';
+import { Clock, Zap, Package, Printer, Layers, Info, AlertCircle } from 'lucide-react';
+import { getImpressorasAtivas } from '../../services/impressorasService';
 
 interface ImpressoraEnergiaConfigProps {
   tempoHoras: number;
@@ -9,10 +11,9 @@ interface ImpressoraEnergiaConfigProps {
   onTempoHorasChange: (value: number) => void;
   onTempoMinutosChange: (value: number) => void;
   produtoSelecionado: ProdutoSelecionado | null;
-  impressoraModelo?: ImpressoraModelo;
-  onImpressoraChange: (modelo: ImpressoraModelo | undefined, consumo: number) => void;
+  impressoraId?: string;
+  onImpressoraChange: (id: string | undefined, consumo: number) => void;
   consumoKwh?: number;
-  onConsumoKwhChange: (value: number) => void;
   valorKwh?: number;
   onValorKwhChange: (value: number) => void;
   multiplasPecas?: boolean;
@@ -20,17 +21,6 @@ interface ImpressoraEnergiaConfigProps {
   quantidadePecas?: number;
   onQuantidadePecasChange: (value: number) => void;
 }
-
-// Modelos de impressoras com consumo energetico
-const IMPRESSORAS = [
-  { id: 'a1_mini' as ImpressoraModelo, nome: 'A1 Mini', consumo: 0.08 },
-  { id: 'a1' as ImpressoraModelo, nome: 'A1', consumo: 0.10 },
-  { id: 'p1p' as ImpressoraModelo, nome: 'P1P', consumo: 0.10 },
-  { id: 'p1s' as ImpressoraModelo, nome: 'P1S', consumo: 0.10 },
-  { id: 'x1_carbon' as ImpressoraModelo, nome: 'X1 Carbon', consumo: 0.11 },
-  { id: 'h2d' as ImpressoraModelo, nome: 'H2D', consumo: 0.20 },
-  { id: 'outra' as ImpressoraModelo, nome: 'Outra impressora (digitar kWh)', consumo: 0 },
-];
 
 // Converte tempo decimal (ex: 1.4166) para horas e minutos
 function tempoDecimalParaHorasMinutos(decimal: number): { horas: number; minutos: number } {
@@ -53,10 +43,9 @@ export function ImpressoraEnergiaConfig({
   onTempoHorasChange,
   onTempoMinutosChange,
   produtoSelecionado,
-  impressoraModelo,
+  impressoraId,
   onImpressoraChange,
   consumoKwh,
-  onConsumoKwhChange,
   valorKwh,
   onValorKwhChange,
   multiplasPecas,
@@ -64,14 +53,28 @@ export function ImpressoraEnergiaConfig({
   quantidadePecas,
   onQuantidadePecasChange,
 }: ImpressoraEnergiaConfigProps) {
-  // Handler para mudança de impressora (atualiza modelo e consumo juntos)
+  const [impressoras, setImpressoras] = useState<Impressora[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Carregar impressoras do usuário
+  useEffect(() => {
+    const carregarImpressoras = async () => {
+      setLoading(true);
+      const data = await getImpressorasAtivas();
+      setImpressoras(data);
+      setLoading(false);
+    };
+    carregarImpressoras();
+  }, []);
+
+  // Handler para mudança de impressora (atualiza id e consumo juntos)
   const handleSelectChange = (value: string) => {
     if (value) {
-      const modelo = value as ImpressoraModelo;
-      const imp = IMPRESSORAS.find(i => i.id === modelo);
-      // Atualizar modelo e consumo de uma vez só
-      const novoConsumo = (imp && modelo !== 'outra') ? imp.consumo : (consumoKwh || 0);
-      onImpressoraChange(modelo, novoConsumo);
+      const imp = impressoras.find(i => i.id === value);
+      const novoConsumo = imp?.consumo_kwh || 0;
+      onImpressoraChange(value, novoConsumo);
+    } else {
+      onImpressoraChange(undefined, 0);
     }
   };
 
@@ -98,45 +101,50 @@ export function ImpressoraEnergiaConfig({
       </h4>
 
       <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-5">
-        {/* Modelo da Impressora */}
+        {/* Impressora */}
         <div>
           <label className="text-sm font-medium text-gray-700 flex items-center gap-2 mb-2">
             <Printer className="w-4 h-4" />
-            Modelo da impressora
+            Impressora
           </label>
-          <div className="flex flex-wrap items-center gap-3">
-            <select
-              value={impressoraModelo || ''}
-              onChange={(e) => handleSelectChange(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm
-                focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-                min-w-[220px]"
-            >
-              <option value="">Selecione...</option>
-              <option value="a1_mini">A1 Mini — 0.08 kWh/h</option>
-              <option value="a1">A1 — 0.10 kWh/h</option>
-              <option value="p1p">P1P — 0.10 kWh/h</option>
-              <option value="p1s">P1S — 0.10 kWh/h</option>
-              <option value="x1_carbon">X1 Carbon — 0.11 kWh/h</option>
-              <option value="h2d">H2D — 0.20 kWh/h</option>
-              <option value="outra">Outra impressora (digitar kWh)</option>
-            </select>
 
-            {/* Consumo manual (se "Outra impressora") */}
-            {impressoraModelo === 'outra' && (
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-600">Consumo:</span>
-                <DecimalInput
-                  value={consumoKwh}
-                  onChange={onConsumoKwhChange}
-                  placeholder="0.10"
-                  className="w-20 px-2 py-2 border border-gray-300 rounded-lg bg-white text-center text-sm
-                    focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-                <span className="text-sm text-gray-500">kWh/h</span>
-              </div>
-            )}
-          </div>
+          {loading ? (
+            <div className="text-sm text-gray-500">Carregando impressoras...</div>
+          ) : impressoras.length === 0 ? (
+            <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <AlertCircle className="w-4 h-4 text-amber-600" />
+              <span className="text-sm text-amber-700">
+                Nenhuma impressora cadastrada. Cadastre suas impressoras no <a href="/perfil" className="underline font-medium">Perfil</a>.
+              </span>
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center gap-3">
+              <select
+                value={impressoraId || ''}
+                onChange={(e) => handleSelectChange(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm
+                  focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+                  min-w-[280px]"
+              >
+                <option value="">Selecione...</option>
+                {impressoras.map((imp) => (
+                  <option key={imp.id} value={imp.id}>
+                    {imp.apelido || imp.modelo} {imp.marca ? `(${imp.marca})` : ''} — {imp.consumo_kwh} kWh/h
+                  </option>
+                ))}
+              </select>
+
+              {/* Mostrar consumo da impressora selecionada */}
+              {impressoraId && consumoKwh !== undefined && consumoKwh > 0 && (
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-100 rounded-full">
+                  <Zap className="w-3.5 h-3.5 text-blue-600" />
+                  <span className="text-xs font-medium text-blue-700">
+                    Consumo: {consumoKwh} kWh/h
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Tempo de Impressao */}

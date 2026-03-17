@@ -239,7 +239,8 @@ export interface CustosProducaoConfig {
   // Impressora & Energia
   tempo_impressao_horas?: number;
   tempo_impressao_minutos?: number;
-  impressora_modelo?: ImpressoraModelo;
+  impressora_id?: string; // ID da impressora do usuário
+  impressora_modelo?: ImpressoraModelo; // Legado - manter para compatibilidade
   consumo_kwh?: number;
   valor_kwh?: number;
   multiplas_pecas?: boolean;
