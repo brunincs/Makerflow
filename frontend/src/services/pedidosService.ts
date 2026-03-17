@@ -65,7 +65,6 @@ export const createPedido = async (
 ): Promise<Pedido | null> => {
   // Verificar estoque disponivel
   let quantidadeDoEstoque = 0;
-  let quantidadeAProduzir = pedido.quantidade;
 
   if (consumirEstoque) {
     const estoqueAtual = await getEstoquePorProduto(pedido.produto_id, pedido.variacao_id);
@@ -74,7 +73,6 @@ export const createPedido = async (
     if (estoqueDisponivel > 0) {
       // Consumir estoque (total ou parcial)
       quantidadeDoEstoque = Math.min(estoqueDisponivel, pedido.quantidade);
-      quantidadeAProduzir = pedido.quantidade - quantidadeDoEstoque;
 
       // Remover do estoque
       await removerEstoqueComMovimentacao(
@@ -87,15 +85,9 @@ export const createPedido = async (
     }
   }
 
-  // Determinar status inicial
-  let statusInicial: Pedido['status'] = 'pendente';
-  if (quantidadeAProduzir === 0) {
-    // Tudo atendido pelo estoque
-    statusInicial = 'concluido';
-  } else if (quantidadeDoEstoque > 0) {
-    // Parcialmente atendido
-    statusInicial = 'em_producao';
-  }
+  // Status inicial sempre pendente - usuario decide quando concluir
+  // quantidade_produzida registra o que ja foi atendido (do estoque)
+  const statusInicial: Pedido['status'] = 'pendente';
 
   const dadosParaSalvar = {
     produto_id: pedido.produto_id,
@@ -235,6 +227,13 @@ export const marcarProduzido = async (
   return updatePedido(id, {
     quantidade_produzida: novaQuantidadeProduzida,
     status: novoStatus,
+  });
+};
+
+// Concluir pedido diretamente (para pedidos ja atendidos pelo estoque)
+export const concluirPedido = async (id: string): Promise<Pedido | null> => {
+  return updatePedido(id, {
+    status: 'concluido',
   });
 };
 

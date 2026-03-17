@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Card, CardBody } from '../../components/ui';
 import { Pedido, ProdutoConcorrente, ItemFilaProducao, EstoqueProduto, Filamento, ImpressoraModelo, MLOrder, MLConnectionStatus } from '../../types';
-import { getPedidosPendentes, createPedido, deletePedido, marcarProduzido, getPedidosConcluidos, reverterPedido } from '../../services/pedidosService';
+import { getPedidosPendentes, createPedido, deletePedido, marcarProduzido, concluirPedido, getPedidosConcluidos, reverterPedido } from '../../services/pedidosService';
 import { getEstoqueProdutos, removerEstoqueComMovimentacao } from '../../services/estoqueProdutosService';
 import { getProdutos } from '../../services/produtosService';
 import { getFilamentos } from '../../services/filamentosService';
@@ -485,8 +485,8 @@ export function FilaProducao() {
     }
   };
 
-  // Calcular fila de produção - v2
-  const filaProducao = useMemo(() => {
+  // Calcular fila de produção - v3
+  const filaProducao = useMemo((): ItemFilaProducao[] => {
     const mapa = new Map<string, ItemFilaProducao & { quantidade_restante: number }>();
 
     // Agrupar pedidos por produto/variação
@@ -495,8 +495,10 @@ export function FilaProducao() {
 
       // Quantidade total do pedido (para exibicao de "vendidos")
       const qtdPedido = pedido.quantidade;
-      // Quantidade que ainda falta entregar (considera o que ja foi produzido/retirado do estoque)
-      const qtdRestante = pedido.quantidade - (pedido.quantidade_produzida || 0);
+      // Quantidade ja atendida (do estoque ou producao anterior)
+      const qtdJaAtendida = pedido.quantidade_produzida || 0;
+      // Quantidade que ainda falta entregar
+      const qtdRestante = pedido.quantidade - qtdJaAtendida;
 
       // Pular pedidos completamente concluídos
       if (pedido.status === 'concluido') return;
@@ -504,6 +506,7 @@ export function FilaProducao() {
       if (mapa.has(key)) {
         const item = mapa.get(key)!;
         item.quantidade_pedida += qtdPedido;
+        item.quantidade_do_estoque += qtdJaAtendida;
         item.quantidade_restante += qtdRestante;
         item.pedidos.push(pedido);
       } else {
@@ -518,9 +521,11 @@ export function FilaProducao() {
           nome_variacao: pedido.variacao?.nome_variacao,
           imagem_url: pedido.produto?.imagem_url,
           quantidade_pedida: qtdPedido,
+          quantidade_do_estoque: qtdJaAtendida,
           quantidade_restante: qtdRestante,
-          quantidade_estoque: 0,
-          quantidade_produzir: 0, // Será calculado depois
+          quantidade_estoque_disponivel: 0,
+          quantidade_produzir: 0,
+          status_fila: 'producao',
           peso_por_peca: peso,
           tempo_por_peca: tempo,
           peso_total: 0,
@@ -530,28 +535,51 @@ export function FilaProducao() {
       }
     });
 
-    // Calcular producao considerando estoque
+    // Calcular producao considerando estoque disponivel
     mapa.forEach((item) => {
       const estoqueItem = estoque.find(e =>
         e.produto_id === item.produto_id &&
         (item.variacao_id ? e.variacao_id === item.variacao_id : !e.variacao_id)
       );
 
-      // Atualizar estoque (0 se não encontrar)
-      item.quantidade_estoque = estoqueItem?.quantidade || 0;
+      // Estoque disponivel atual
+      item.quantidade_estoque_disponivel = estoqueItem?.quantidade || 0;
 
-      // Calcular quantidade a produzir: restante - estoque (mínimo 0)
-      // quantidade_restante = o que ainda falta entregar (ja descontado o que foi do estoque/produzido)
-      item.quantidade_produzir = Math.max(0, item.quantidade_restante - item.quantidade_estoque);
+      // Calcular quantidade a produzir: restante - estoque disponivel (mínimo 0)
+      item.quantidade_produzir = Math.max(0, item.quantidade_restante - item.quantidade_estoque_disponivel);
 
-      // Calcular totais
+      // Determinar status do item
+      if (item.quantidade_restante === 0) {
+        // Tudo ja foi atendido pelo estoque
+        item.status_fila = 'estoque_total';
+      } else if (item.quantidade_do_estoque > 0 && item.quantidade_produzir > 0) {
+        // Parcialmente atendido
+        item.status_fila = 'estoque_parcial';
+      } else if (item.quantidade_produzir === 0 && item.quantidade_estoque_disponivel >= item.quantidade_restante) {
+        // Pode ser atendido pelo estoque disponivel
+        item.status_fila = 'estoque_total';
+      } else {
+        // Precisa producao
+        item.status_fila = 'producao';
+      }
+
+      // Calcular totais (apenas para o que precisa produzir)
       item.peso_total = item.quantidade_produzir * item.peso_por_peca;
       item.tempo_total = item.quantidade_produzir * item.tempo_por_peca;
     });
 
-    // Ordenar por tempo total (menor primeiro) para otimizar produção
-    const itens = Array.from(mapa.values()).filter(item => item.quantidade_produzir > 0);
-    return itens.sort((a, b) => a.tempo_total - b.tempo_total);
+    // Retornar TODOS os itens (nao filtrar mais)
+    // Ordenar: primeiro os que precisam producao, depois os atendidos pelo estoque
+    const itens = Array.from(mapa.values());
+    return itens.sort((a, b) => {
+      // Prioridade: producao > parcial > estoque_total
+      const prioridade = { producao: 0, estoque_parcial: 1, estoque_total: 2 };
+      const prioridadeA = prioridade[a.status_fila];
+      const prioridadeB = prioridade[b.status_fila];
+      if (prioridadeA !== prioridadeB) return prioridadeA - prioridadeB;
+      // Dentro da mesma prioridade, ordenar por tempo
+      return a.tempo_total - b.tempo_total;
+    });
   }, [pedidos, estoque]);
 
   // Totais
@@ -826,9 +854,37 @@ export function FilaProducao() {
     setProduzindo(false);
   };
 
-  // Concluir pedido usando estoque existente (sem produzir)
+  // Concluir pedido que ja foi atendido pelo estoque (apenas mover para historico)
+  const handleConcluirPedido = async (item: ItemFilaProducao) => {
+    setProduzindo(true);
+
+    try {
+      // Marcar todos os pedidos como concluidos
+      for (const pedido of item.pedidos) {
+        const qtdPedidoRestante = pedido.quantidade - (pedido.quantidade_produzida || 0);
+        if (qtdPedidoRestante > 0) {
+          // Ainda tem quantidade restante - marcar como produzido
+          await marcarProduzido(pedido.id!, qtdPedidoRestante);
+        } else {
+          // Ja foi totalmente atendido - apenas concluir
+          await concluirPedido(pedido.id!);
+        }
+      }
+
+      await loadData();
+    } catch (error) {
+      console.error('Erro ao concluir pedido:', error);
+      alert('Erro ao processar. Tente novamente.');
+    }
+
+    setProduzindo(false);
+  };
+
+  // Concluir pedido usando estoque disponivel (consome estoque agora)
   const handleConcluirComEstoque = async (item: ItemFilaProducao) => {
-    if (item.quantidade_estoque < item.quantidade_pedida) {
+    // Verificar se tem estoque disponivel suficiente para o que falta
+    const qtdRestante = item.quantidade_pedida - item.quantidade_do_estoque;
+    if (item.quantidade_estoque_disponivel < qtdRestante) {
       alert('Estoque insuficiente para concluir todos os pedidos.');
       return;
     }
@@ -844,14 +900,16 @@ export function FilaProducao() {
         }
       }
 
-      // 2. Remover do estoque (com registro de movimentacao)
-      await removerEstoqueComMovimentacao(
-        item.produto_id,
-        item.variacao_id || null,
-        item.quantidade_pedida,
-        'venda',
-        `Entrega de ${item.quantidade_pedida} unidade(s) do estoque`
-      );
+      // 2. Remover do estoque (apenas o que falta, nao o total)
+      if (qtdRestante > 0) {
+        await removerEstoqueComMovimentacao(
+          item.produto_id,
+          item.variacao_id || null,
+          qtdRestante,
+          'venda',
+          `Entrega de ${qtdRestante} unidade(s) do estoque`
+        );
+      }
 
       await loadData();
     } catch (error) {
@@ -1237,89 +1295,135 @@ export function FilaProducao() {
 
                     {/* Info principal */}
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <h4 className="font-semibold text-gray-900 truncate">
                           {item.nome_produto}
                         </h4>
                         {item.nome_variacao && (
                           <span className="text-sm text-indigo-600 font-medium">({item.nome_variacao})</span>
                         )}
+                        {/* Badge de status */}
+                        {item.status_fila === 'estoque_total' && (
+                          <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded-full">
+                            Atendido pelo estoque
+                          </span>
+                        )}
+                        {item.status_fila === 'estoque_parcial' && (
+                          <span className="px-2 py-0.5 text-xs font-medium bg-yellow-100 text-yellow-700 rounded-full">
+                            Parcial
+                          </span>
+                        )}
                       </div>
 
-                      {/* Resumo: Vendidos | A entregar | Estoque | Produzir */}
-                      <div className="flex items-center gap-3 mt-1 text-sm">
+                      {/* Resumo: Vendidos | Do estoque | Estoque disponivel | Produzir */}
+                      <div className="flex items-center gap-3 mt-1 text-sm flex-wrap">
                         <span className="flex items-center gap-1 text-gray-600">
                           <ShoppingCart className="w-3.5 h-3.5" />
                           <span className="font-medium">{item.quantidade_pedida}</span>
                           <span className="text-gray-400">vendidos</span>
                         </span>
-                        <span className="text-gray-300">|</span>
-                        <span className="flex items-center gap-1 text-green-600">
-                          <Archive className="w-3.5 h-3.5" />
-                          <span className="font-medium">{item.quantidade_estoque}</span>
-                          <span className="text-green-500">estoque</span>
-                        </span>
-                        <span className="text-gray-300">|</span>
-                        <span className="flex items-center gap-1 text-indigo-600 font-bold">
-                          <span className="bg-indigo-100 px-2 py-0.5 rounded">
-                            {item.quantidade_produzir} a produzir
+                        {item.quantidade_do_estoque > 0 && (
+                          <>
+                            <span className="text-gray-300">|</span>
+                            <span className="flex items-center gap-1 text-green-600">
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              <span className="font-medium">{item.quantidade_do_estoque}</span>
+                              <span className="text-green-500">do estoque</span>
+                            </span>
+                          </>
+                        )}
+                        {item.quantidade_estoque_disponivel > 0 && (
+                          <>
+                            <span className="text-gray-300">|</span>
+                            <span className="flex items-center gap-1 text-emerald-600">
+                              <Archive className="w-3.5 h-3.5" />
+                              <span className="font-medium">{item.quantidade_estoque_disponivel}</span>
+                              <span className="text-emerald-500">disponivel</span>
+                            </span>
+                          </>
+                        )}
+                        {item.quantidade_produzir > 0 && (
+                          <>
+                            <span className="text-gray-300">|</span>
+                            <span className="flex items-center gap-1 text-indigo-600 font-bold">
+                              <span className="bg-indigo-100 px-2 py-0.5 rounded">
+                                {item.quantidade_produzir} a produzir
+                              </span>
+                            </span>
+                          </>
+                        )}
+                      </div>
+
+                      {/* Detalhes de tempo e filamento (so se precisar produzir) */}
+                      {item.quantidade_produzir > 0 && (
+                        <div className="flex items-center gap-4 mt-1 text-xs text-gray-500">
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            {formatarTempo(item.tempo_por_peca)}/peca × {item.quantidade_produzir} = <strong className="text-blue-600">{formatarTempo(item.tempo_total)}</strong>
                           </span>
-                        </span>
-                      </div>
-
-                      {/* Detalhes de tempo e filamento */}
-                      <div className="flex items-center gap-4 mt-1 text-xs text-gray-500">
-                        <span className="flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          {formatarTempo(item.tempo_por_peca)}/peca × {item.quantidade_produzir} = <strong className="text-blue-600">{formatarTempo(item.tempo_total)}</strong>
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Cylinder className="w-3 h-3" />
-                          {item.peso_por_peca}g × {item.quantidade_produzir} = <strong className="text-purple-600">{item.peso_total.toFixed(0)}g</strong>
-                        </span>
-                      </div>
+                          <span className="flex items-center gap-1">
+                            <Cylinder className="w-3 h-3" />
+                            {item.peso_por_peca}g × {item.quantidade_produzir} = <strong className="text-purple-600">{item.peso_total.toFixed(0)}g</strong>
+                          </span>
+                        </div>
+                      )}
                     </div>
 
-                    {/* Previsão de término */}
-                    <div className="hidden md:flex flex-col items-end gap-1 min-w-[120px]">
-                      <div className="text-right">
-                        <p className="text-xs text-gray-400">Termina as</p>
-                        <p className="text-lg font-bold text-orange-600">{formatarHorario(item.horarioTermino)}</p>
+                    {/* Previsão de término (so se precisar produzir) */}
+                    {item.quantidade_produzir > 0 && (
+                      <div className="hidden md:flex flex-col items-end gap-1 min-w-[120px]">
+                        <div className="text-right">
+                          <p className="text-xs text-gray-400">Termina as</p>
+                          <p className="text-lg font-bold text-orange-600">{formatarHorario(item.horarioTermino)}</p>
+                        </div>
                       </div>
-                    </div>
+                    )}
 
-                    {/* Ação */}
-                    {item.quantidade_estoque >= item.quantidade_pedida ? (
-                      // Tem estoque suficiente - apenas concluir
+                    {/* Ação baseada no status */}
+                    {item.status_fila === 'estoque_total' ? (
+                      // Ja atendido pelo estoque - apenas concluir
+                      <button
+                        onClick={() => handleConcluirPedido(item)}
+                        disabled={produzindo}
+                        className="flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50"
+                      >
+                        <CheckCircle2 className="w-4 h-4" />
+                        Concluir
+                      </button>
+                    ) : item.quantidade_estoque_disponivel >= item.quantidade_produzir && item.quantidade_produzir > 0 ? (
+                      // Pode usar estoque disponivel para concluir
                       <button
                         onClick={() => handleConcluirComEstoque(item)}
                         disabled={produzindo}
                         className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50"
                       >
-                        <CheckCircle2 className="w-4 h-4" />
-                        Concluir
+                        <Archive className="w-4 h-4" />
+                        Usar Estoque
                       </button>
                     ) : (
                       // Precisa produzir
                       <button
                         onClick={() => handleAbrirProduzir(item)}
-                        className="flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+                        disabled={produzindo}
+                        className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium disabled:opacity-50"
                       >
-                        <Check className="w-4 h-4" />
+                        <Printer className="w-4 h-4" />
                         Produzir
                       </button>
                     )}
                   </div>
 
-                  {/* Mobile: detalhes extras */}
-                  <div className="md:hidden flex items-center justify-between mt-3 pt-3 border-t border-gray-100 text-sm">
-                    <span className="text-purple-600 font-medium">{item.peso_total.toFixed(0)}g</span>
-                    <span className="text-blue-600 font-medium">{formatarTempo(item.tempo_total)}</span>
-                    <span className="text-orange-600 font-medium flex items-center gap-1">
-                      <CalendarClock className="w-3 h-3" />
-                      {formatarHorario(item.horarioTermino)}
-                    </span>
-                  </div>
+                  {/* Mobile: detalhes extras (so se precisar produzir) */}
+                  {item.quantidade_produzir > 0 && (
+                    <div className="md:hidden flex items-center justify-between mt-3 pt-3 border-t border-gray-100 text-sm">
+                      <span className="text-purple-600 font-medium">{item.peso_total.toFixed(0)}g</span>
+                      <span className="text-blue-600 font-medium">{formatarTempo(item.tempo_total)}</span>
+                      <span className="text-orange-600 font-medium flex items-center gap-1">
+                        <CalendarClock className="w-3 h-3" />
+                        {formatarHorario(item.horarioTermino)}
+                      </span>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

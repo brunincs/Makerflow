@@ -415,6 +415,9 @@ export interface EstoqueMovimentacao {
   };
 }
 
+// Status do item na fila de producao
+export type StatusFilaProducao = 'estoque_total' | 'estoque_parcial' | 'producao';
+
 // Item da fila de produção (calculado)
 export interface ItemFilaProducao {
   produto_id: string;
@@ -423,8 +426,10 @@ export interface ItemFilaProducao {
   nome_variacao?: string;
   imagem_url?: string;
   quantidade_pedida: number;
-  quantidade_estoque: number;
+  quantidade_do_estoque: number; // quanto ja foi atendido do estoque
+  quantidade_estoque_disponivel: number; // estoque disponivel atual
   quantidade_produzir: number;
+  status_fila: StatusFilaProducao;
   peso_por_peca: number;
   tempo_por_peca: number;
   peso_total: number;
