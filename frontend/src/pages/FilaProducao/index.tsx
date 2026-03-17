@@ -487,22 +487,24 @@ export function FilaProducao() {
 
   // Calcular fila de produção - v2
   const filaProducao = useMemo(() => {
-    const mapa = new Map<string, ItemFilaProducao>();
+    const mapa = new Map<string, ItemFilaProducao & { quantidade_restante: number }>();
 
     // Agrupar pedidos por produto/variação
-    // Usar quantidade total do pedido, não qtdRestante
     pedidos.forEach(pedido => {
       const key = `${pedido.produto_id}-${pedido.variacao_id || 'sem_variacao'}`;
 
-      // Quantidade total do pedido (ignorar quantidade_produzida para cálculo de vendidos)
+      // Quantidade total do pedido (para exibicao de "vendidos")
       const qtdPedido = pedido.quantidade;
+      // Quantidade que ainda falta entregar (considera o que ja foi produzido/retirado do estoque)
+      const qtdRestante = pedido.quantidade - (pedido.quantidade_produzida || 0);
 
-      // Só pular se o pedido estiver completamente concluído
+      // Pular pedidos completamente concluídos
       if (pedido.status === 'concluido') return;
 
       if (mapa.has(key)) {
         const item = mapa.get(key)!;
         item.quantidade_pedida += qtdPedido;
+        item.quantidade_restante += qtdRestante;
         item.pedidos.push(pedido);
       } else {
         // Obter dados do produto/variação
@@ -516,6 +518,7 @@ export function FilaProducao() {
           nome_variacao: pedido.variacao?.nome_variacao,
           imagem_url: pedido.produto?.imagem_url,
           quantidade_pedida: qtdPedido,
+          quantidade_restante: qtdRestante,
           quantidade_estoque: 0,
           quantidade_produzir: 0, // Será calculado depois
           peso_por_peca: peso,
@@ -537,8 +540,9 @@ export function FilaProducao() {
       // Atualizar estoque (0 se não encontrar)
       item.quantidade_estoque = estoqueItem?.quantidade || 0;
 
-      // Calcular quantidade a produzir: vendidos - estoque (mínimo 0)
-      item.quantidade_produzir = Math.max(0, item.quantidade_pedida - item.quantidade_estoque);
+      // Calcular quantidade a produzir: restante - estoque (mínimo 0)
+      // quantidade_restante = o que ainda falta entregar (ja descontado o que foi do estoque/produzido)
+      item.quantidade_produzir = Math.max(0, item.quantidade_restante - item.quantidade_estoque);
 
       // Calcular totais
       item.peso_total = item.quantidade_produzir * item.peso_por_peca;
@@ -1242,22 +1246,24 @@ export function FilaProducao() {
                         )}
                       </div>
 
-                      {/* Cálculo: Vendidos - Estoque = Produzir */}
-                      <div className="flex items-center gap-2 mt-1 text-sm">
+                      {/* Resumo: Vendidos | A entregar | Estoque | Produzir */}
+                      <div className="flex items-center gap-3 mt-1 text-sm">
                         <span className="flex items-center gap-1 text-gray-600">
                           <ShoppingCart className="w-3.5 h-3.5" />
                           <span className="font-medium">{item.quantidade_pedida}</span>
                           <span className="text-gray-400">vendidos</span>
                         </span>
-                        <span className="text-gray-400">-</span>
+                        <span className="text-gray-300">|</span>
                         <span className="flex items-center gap-1 text-green-600">
                           <Archive className="w-3.5 h-3.5" />
                           <span className="font-medium">{item.quantidade_estoque}</span>
                           <span className="text-green-500">estoque</span>
                         </span>
-                        <span className="text-gray-400">=</span>
+                        <span className="text-gray-300">|</span>
                         <span className="flex items-center gap-1 text-indigo-600 font-bold">
-                          {item.quantidade_produzir} produzir
+                          <span className="bg-indigo-100 px-2 py-0.5 rounded">
+                            {item.quantidade_produzir} a produzir
+                          </span>
                         </span>
                       </div>
 
