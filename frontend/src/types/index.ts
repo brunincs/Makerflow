@@ -78,7 +78,7 @@ export interface ProdutoConcorrente {
   preco_shopee?: number;
   link_mercado_livre?: string;
   preco_mercado_livre?: number;
-  status: 'ideia' | 'testando' | 'validado';
+  status: 'teste' | 'validado' | 'rejeitado';
   peso_filamento?: number;
   tempo_impressao?: number;
   arquivo_stl?: string;
@@ -88,7 +88,7 @@ export interface ProdutoConcorrente {
   variacoes?: VariacaoProduto[];
 }
 
-export type StatusProduto = 'ideia' | 'testando' | 'validado';
+export type StatusProduto = 'teste' | 'validado' | 'rejeitado';
 
 // ============ PRECIFICACAO ============
 

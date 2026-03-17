@@ -755,23 +755,23 @@ export function Dashboard() {
                 <p className="text-2xl font-bold text-gray-900">{produtos.length}</p>
                 <p className="text-xs text-gray-500">Total</p>
               </div>
-              <div className="p-3 bg-yellow-50 rounded-lg text-center">
-                <p className="text-2xl font-bold text-yellow-600">
-                  {produtos.filter(p => p.status === 'ideia').length}
-                </p>
-                <p className="text-xs text-yellow-600">Ideias</p>
-              </div>
               <div className="p-3 bg-blue-50 rounded-lg text-center">
                 <p className="text-2xl font-bold text-blue-600">
-                  {produtos.filter(p => p.status === 'testando').length}
+                  {produtos.filter(p => p.status === 'teste').length}
                 </p>
-                <p className="text-xs text-blue-600">Testando</p>
+                <p className="text-xs text-blue-600">Em Teste</p>
               </div>
               <div className="p-3 bg-green-50 rounded-lg text-center">
                 <p className="text-2xl font-bold text-green-600">
                   {produtos.filter(p => p.status === 'validado').length}
                 </p>
                 <p className="text-xs text-green-600">Validados</p>
+              </div>
+              <div className="p-3 bg-red-50 rounded-lg text-center">
+                <p className="text-2xl font-bold text-red-600">
+                  {produtos.filter(p => p.status === 'rejeitado').length}
+                </p>
+                <p className="text-xs text-red-600">Rejeitados</p>
               </div>
             </div>
 

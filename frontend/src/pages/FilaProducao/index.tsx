@@ -5,7 +5,8 @@ import { Pedido, ProdutoConcorrente, ItemFilaProducao, EstoqueProduto, Filamento
 import { getPedidosPendentes, createPedido, deletePedido, marcarProduzido, getPedidosConcluidos, reverterPedido } from '../../services/pedidosService';
 import { getEstoqueProdutos, adicionarEstoque, removerDoEstoque } from '../../services/estoqueProdutosService';
 import { getProdutos } from '../../services/produtosService';
-import { consumirFilamento, getFilamentos } from '../../services/filamentosService';
+import { getFilamentos } from '../../services/filamentosService';
+import { createImpressao } from '../../services/impressoesService';
 import {
   checkMLConnection,
   syncMLOrders,
@@ -784,18 +785,24 @@ export function FilaProducao() {
         }
       }
 
-      // 2. Adicionar ao estoque de produtos
+      // 2. Criar registro de impressao (se tem filamento selecionado)
+      if (filamentoId && itemParaProduzir.peso_por_peca > 0) {
+        await createImpressao({
+          produto_id: itemParaProduzir.produto_id,
+          variacao_id: itemParaProduzir.variacao_id || undefined,
+          filamento_id: filamentoId,
+          quantidade: qtdProduzida,
+          peso_peca_g: itemParaProduzir.peso_por_peca,
+          tempo_peca_min: itemParaProduzir.tempo_por_peca ? itemParaProduzir.tempo_por_peca * 60 : undefined,
+        });
+      }
+
+      // 3. Adicionar ao estoque de produtos
       await adicionarEstoque(
         itemParaProduzir.produto_id,
         itemParaProduzir.variacao_id || null,
         qtdProduzida
       );
-
-      // 3. Consumir filamento (se selecionado)
-      if (filamentoId && itemParaProduzir.peso_por_peca > 0) {
-        const pesoTotal = qtdProduzida * itemParaProduzir.peso_por_peca;
-        await consumirFilamento(filamentoId, pesoTotal);
-      }
 
       // 4. Usar estoque para atender pedidos (subtrair do estoque)
       const qtdParaEntregar = Math.min(qtdProduzida, itemParaProduzir.quantidade_pedida);
@@ -813,6 +820,40 @@ export function FilaProducao() {
     } catch (error) {
       console.error('Erro ao marcar produzido:', error);
       alert('Erro ao processar produção. Tente novamente.');
+    }
+
+    setProduzindo(false);
+  };
+
+  // Concluir pedido usando estoque existente (sem produzir)
+  const handleConcluirComEstoque = async (item: ItemFilaProducao) => {
+    if (item.quantidade_estoque < item.quantidade_pedida) {
+      alert('Estoque insuficiente para concluir todos os pedidos.');
+      return;
+    }
+
+    setProduzindo(true);
+
+    try {
+      // 1. Marcar todos os pedidos como produzidos
+      for (const pedido of item.pedidos) {
+        const qtdPedidoRestante = pedido.quantidade - (pedido.quantidade_produzida || 0);
+        if (qtdPedidoRestante > 0) {
+          await marcarProduzido(pedido.id!, qtdPedidoRestante);
+        }
+      }
+
+      // 2. Remover do estoque
+      await removerDoEstoque(
+        item.produto_id,
+        item.variacao_id || null,
+        item.quantidade_pedida
+      );
+
+      await loadData();
+    } catch (error) {
+      console.error('Erro ao concluir com estoque:', error);
+      alert('Erro ao processar. Tente novamente.');
     }
 
     setProduzindo(false);
@@ -1243,13 +1284,26 @@ export function FilaProducao() {
                     </div>
 
                     {/* Ação */}
-                    <button
-                      onClick={() => handleAbrirProduzir(item)}
-                      className="flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
-                    >
-                      <Check className="w-4 h-4" />
-                      Produzido
-                    </button>
+                    {item.quantidade_estoque >= item.quantidade_pedida ? (
+                      // Tem estoque suficiente - apenas concluir
+                      <button
+                        onClick={() => handleConcluirComEstoque(item)}
+                        disabled={produzindo}
+                        className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50"
+                      >
+                        <CheckCircle2 className="w-4 h-4" />
+                        Concluir
+                      </button>
+                    ) : (
+                      // Precisa produzir
+                      <button
+                        onClick={() => handleAbrirProduzir(item)}
+                        className="flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+                      >
+                        <Check className="w-4 h-4" />
+                        Produzir
+                      </button>
+                    )}
                   </div>
 
                   {/* Mobile: detalhes extras */}

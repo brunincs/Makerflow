@@ -25,9 +25,9 @@ interface ProdutoFormProps {
 }
 
 const statusOptions = [
-  { value: 'ideia', label: 'Ideia' },
-  { value: 'testando', label: 'Testando' },
+  { value: 'teste', label: 'Teste' },
   { value: 'validado', label: 'Validado' },
+  { value: 'rejeitado', label: 'Rejeitado' },
 ];
 
 export function ProdutoForm({ onSuccess, onCancel, produto }: ProdutoFormProps) {
@@ -49,7 +49,7 @@ export function ProdutoForm({ onSuccess, onCancel, produto }: ProdutoFormProps) 
     preco_mercado_livre: '',
     peso_filamento: '',
     categoria_id: '',
-    status: 'ideia' as StatusProduto,
+    status: 'teste' as StatusProduto,
   });
 
   const isEditing = !!produto;
@@ -66,7 +66,7 @@ export function ProdutoForm({ onSuccess, onCancel, produto }: ProdutoFormProps) 
         preco_mercado_livre: produto.preco_mercado_livre?.toString() || '',
         peso_filamento: produto.peso_filamento?.toString() || '',
         categoria_id: produto.categoria_id || '',
-        status: produto.status || 'ideia',
+        status: produto.status || 'teste',
       });
       if (produto.imagem_url) {
         setImagePreview(produto.imagem_url);
