@@ -26,28 +26,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Carregar perfil do usuario
+  // Carregar perfil do usuario com timeout
   const loadProfile = async (userId: string): Promise<Profile | null> => {
     if (!supabase) return null;
 
     try {
-      const { data, error } = await supabase
+      // Timeout de 5 segundos para evitar travamento
+      const timeoutPromise = new Promise<null>((resolve) => {
+        setTimeout(() => {
+          console.log('[Auth] Timeout ao carregar perfil');
+          resolve(null);
+        }, 5000);
+      });
+
+      const profilePromise = supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .single();
+        .single()
+        .then(({ data, error }) => {
+          if (error) {
+            console.error('[Auth] Erro ao carregar perfil:', error);
+            return null;
+          }
+          return data;
+        });
 
-      if (error) {
-        console.error('[Auth] Erro ao carregar perfil:', error);
-        // Se o perfil nao existe, criar um basico
-        if (error.code === 'PGRST116') {
-          console.log('[Auth] Perfil nao encontrado, usando dados do user');
-          return null;
-        }
-        return null;
-      }
-
-      return data;
+      return await Promise.race([profilePromise, timeoutPromise]);
     } catch (err) {
       console.error('[Auth] Erro inesperado ao carregar perfil:', err);
       return null;
