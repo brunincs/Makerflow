@@ -25,7 +25,7 @@ const menuItems = [
   { to: '/impressoes', icon: Printer, label: 'Impressoes' },
   { to: '/filamentos', icon: Cylinder, label: 'Filamentos' },
   { to: '/embalagens', icon: Package, label: 'Embalagens' },
-  { to: '#', icon: BoxIcon, label: 'Estoque', disabled: true },
+  { to: '/estoque', icon: BoxIcon, label: 'Estoque' },
 ];
 
 export function Sidebar() {
@@ -51,29 +51,19 @@ export function Sidebar() {
         <ul className="space-y-1">
           {menuItems.map((item) => (
             <li key={item.label}>
-              {item.disabled ? (
-                <div className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-500 cursor-not-allowed">
-                  <item.icon className="w-5 h-5" />
-                  <span>{item.label}</span>
-                  <span className="ml-auto text-xs bg-gray-800 px-2 py-0.5 rounded">
-                    em breve
-                  </span>
-                </div>
-              ) : (
-                <NavLink
-                  to={item.to}
-                  className={({ isActive }) =>
-                    `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                      isActive
-                        ? 'bg-blue-600 text-white'
-                        : 'text-gray-300 hover:bg-gray-800 hover:text-white'
-                    }`
-                  }
-                >
-                  <item.icon className="w-5 h-5" />
-                  <span>{item.label}</span>
-                </NavLink>
-              )}
+              <NavLink
+                to={item.to}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                    isActive
+                      ? 'bg-blue-600 text-white'
+                      : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                  }`
+                }
+              >
+                <item.icon className="w-5 h-5" />
+                <span>{item.label}</span>
+              </NavLink>
             </li>
           ))}
 

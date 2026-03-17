@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Card, CardBody } from '../../components/ui';
 import { Pedido, ProdutoConcorrente, ItemFilaProducao, EstoqueProduto, Filamento, ImpressoraModelo, MLOrder, MLConnectionStatus } from '../../types';
 import { getPedidosPendentes, createPedido, deletePedido, marcarProduzido, getPedidosConcluidos, reverterPedido } from '../../services/pedidosService';
-import { getEstoqueProdutos, adicionarEstoque, removerDoEstoque } from '../../services/estoqueProdutosService';
+import { getEstoqueProdutos, adicionarEstoqueComMovimentacao, removerEstoqueComMovimentacao } from '../../services/estoqueProdutosService';
 import { getProdutos } from '../../services/produtosService';
 import { getFilamentos } from '../../services/filamentosService';
 import { createImpressao } from '../../services/impressoesService';
@@ -797,20 +797,24 @@ export function FilaProducao() {
         });
       }
 
-      // 3. Adicionar ao estoque de produtos
-      await adicionarEstoque(
+      // 3. Adicionar ao estoque de produtos (com registro de movimentacao)
+      await adicionarEstoqueComMovimentacao(
         itemParaProduzir.produto_id,
         itemParaProduzir.variacao_id || null,
-        qtdProduzida
+        qtdProduzida,
+        'producao',
+        `Producao de ${qtdProduzida} unidade(s)`
       );
 
       // 4. Usar estoque para atender pedidos (subtrair do estoque)
       const qtdParaEntregar = Math.min(qtdProduzida, itemParaProduzir.quantidade_pedida);
       if (qtdParaEntregar > 0) {
-        await removerDoEstoque(
+        await removerEstoqueComMovimentacao(
           itemParaProduzir.produto_id,
           itemParaProduzir.variacao_id || null,
-          qtdParaEntregar
+          qtdParaEntregar,
+          'venda',
+          `Entrega de ${qtdParaEntregar} unidade(s) para pedido`
         );
       }
 
@@ -843,11 +847,13 @@ export function FilaProducao() {
         }
       }
 
-      // 2. Remover do estoque
-      await removerDoEstoque(
+      // 2. Remover do estoque (com registro de movimentacao)
+      await removerEstoqueComMovimentacao(
         item.produto_id,
         item.variacao_id || null,
-        item.quantidade_pedida
+        item.quantidade_pedida,
+        'venda',
+        `Entrega de ${item.quantidade_pedida} unidade(s) do estoque`
       );
 
       await loadData();

@@ -1,5 +1,5 @@
 import { supabase, isSupabaseConfigured, getCurrentUserId } from './supabaseClient';
-import { EstoqueProduto } from '../types';
+import { EstoqueProduto, EstoqueMovimentacao, OrigemMovimentacao } from '../types';
 
 const STORAGE_KEY = 'makerflow_estoque_produtos';
 
@@ -192,4 +192,146 @@ export const deleteEstoque = async (id: string): Promise<boolean> => {
   }
 
   return true;
+};
+
+// ============ MOVIMENTACOES ============
+
+const MOVIMENTACOES_KEY = 'makerflow_estoque_movimentacoes';
+
+const getLocalMovimentacoes = (): EstoqueMovimentacao[] => {
+  const data = localStorage.getItem(MOVIMENTACOES_KEY);
+  return data ? JSON.parse(data) : [];
+};
+
+const setLocalMovimentacoes = (movimentacoes: EstoqueMovimentacao[]): void => {
+  localStorage.setItem(MOVIMENTACOES_KEY, JSON.stringify(movimentacoes));
+};
+
+// Registrar movimentacao de estoque
+export const registrarMovimentacao = async (
+  produtoId: string,
+  variacaoId: string | null,
+  tipo: 'entrada' | 'saida',
+  quantidade: number,
+  origem: OrigemMovimentacao,
+  observacao?: string
+): Promise<EstoqueMovimentacao | null> => {
+  const dadosParaSalvar = {
+    produto_id: produtoId,
+    variacao_id: variacaoId,
+    tipo,
+    quantidade,
+    origem,
+    observacao: observacao || null,
+  };
+
+  if (!isSupabaseConfigured() || !supabase) {
+    const nova: EstoqueMovimentacao = {
+      ...dadosParaSalvar,
+      observacao: observacao || undefined,
+      id: crypto.randomUUID(),
+      created_at: new Date().toISOString(),
+    };
+
+    const movimentacoes = getLocalMovimentacoes();
+    movimentacoes.unshift(nova);
+    setLocalMovimentacoes(movimentacoes);
+
+    return nova;
+  }
+
+  const user_id = await getCurrentUserId();
+  const dadosComUserId = user_id
+    ? { ...dadosParaSalvar, user_id }
+    : dadosParaSalvar;
+
+  const { data, error } = await supabase
+    .from('estoque_movimentacoes')
+    .insert([dadosComUserId])
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Erro ao registrar movimentacao:', error);
+    return null;
+  }
+
+  return data;
+};
+
+// Buscar movimentacoes
+export const getMovimentacoes = async (limite: number = 50): Promise<EstoqueMovimentacao[]> => {
+  if (!isSupabaseConfigured() || !supabase) {
+    return getLocalMovimentacoes().slice(0, limite);
+  }
+
+  const { data, error } = await supabase
+    .from('estoque_movimentacoes')
+    .select(`
+      *,
+      produto:produtos_concorrentes(nome, imagem_url),
+      variacao:variacoes_produto(nome_variacao)
+    `)
+    .order('created_at', { ascending: false })
+    .limit(limite);
+
+  if (error) {
+    console.error('Erro ao buscar movimentacoes:', error);
+    return [];
+  }
+
+  return data || [];
+};
+
+// Adicionar estoque COM movimentacao
+export const adicionarEstoqueComMovimentacao = async (
+  produtoId: string,
+  variacaoId: string | null,
+  quantidade: number,
+  origem: OrigemMovimentacao,
+  observacao?: string
+): Promise<EstoqueProduto | null> => {
+  // Registrar movimentacao
+  await registrarMovimentacao(produtoId, variacaoId, 'entrada', quantidade, origem, observacao);
+
+  // Adicionar ao estoque
+  return adicionarEstoque(produtoId, variacaoId, quantidade);
+};
+
+// Remover estoque COM movimentacao
+export const removerEstoqueComMovimentacao = async (
+  produtoId: string,
+  variacaoId: string | null,
+  quantidade: number,
+  origem: OrigemMovimentacao,
+  observacao?: string
+): Promise<EstoqueProduto | null> => {
+  // Verificar se tem estoque suficiente
+  const existente = await getEstoquePorProduto(produtoId, variacaoId);
+  if (!existente || existente.quantidade < quantidade) {
+    console.error('Estoque insuficiente');
+    return null;
+  }
+
+  // Registrar movimentacao
+  await registrarMovimentacao(produtoId, variacaoId, 'saida', quantidade, origem, observacao);
+
+  // Remover do estoque
+  return removerDoEstoque(produtoId, variacaoId, quantidade);
+};
+
+// Buscar estoque agrupado por produto
+export const getEstoqueAgrupado = async (): Promise<Map<string, EstoqueProduto[]>> => {
+  const estoque = await getEstoqueProdutos();
+  const agrupado = new Map<string, EstoqueProduto[]>();
+
+  estoque.forEach(item => {
+    const key = item.produto_id;
+    if (!agrupado.has(key)) {
+      agrupado.set(key, []);
+    }
+    agrupado.get(key)!.push(item);
+  });
+
+  return agrupado;
 };

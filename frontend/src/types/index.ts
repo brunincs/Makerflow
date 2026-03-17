@@ -391,6 +391,30 @@ export interface EstoqueProduto {
   };
 }
 
+// Movimentacao de estoque
+export type TipoMovimentacaoEstoque = 'entrada' | 'saida';
+export type OrigemMovimentacao = 'producao' | 'venda' | 'manual' | 'ajuste';
+
+export interface EstoqueMovimentacao {
+  id?: string;
+  user_id?: string;
+  produto_id: string;
+  variacao_id?: string | null;
+  tipo: TipoMovimentacaoEstoque;
+  quantidade: number;
+  origem: OrigemMovimentacao;
+  observacao?: string;
+  created_at?: string;
+  // Dados via join
+  produto?: {
+    nome: string;
+    imagem_url?: string;
+  };
+  variacao?: {
+    nome_variacao: string;
+  };
+}
+
 // Item da fila de produção (calculado)
 export interface ItemFilaProducao {
   produto_id: string;
