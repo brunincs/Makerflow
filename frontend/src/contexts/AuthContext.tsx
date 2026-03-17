@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useRef, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '../services/supabaseClient';
 import { Profile } from '../types';
@@ -25,6 +25,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const loadingRef = useRef(true);
 
   const isAdmin = profile?.role === 'admin' && !profile?.suspended;
   const isAuthenticated = !!user && !!profile && !profile.suspended;
@@ -63,44 +64,71 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Inicializar autenticacao
   useEffect(() => {
     if (!isSupabaseConfigured() || !supabase) {
+      loadingRef.current = false;
       setLoading(false);
       return;
     }
 
+    let isMounted = true;
+
+    // Timeout de seguranca - 5 segundos
+    const timeout = setTimeout(() => {
+      if (isMounted && loadingRef.current) {
+        console.warn('Timeout ao carregar autenticacao');
+        loadingRef.current = false;
+        setLoading(false);
+      }
+    }, 5000);
+
     // Buscar sessao atual
     supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!isMounted) return;
+
       setSession(session);
       setUser(session?.user ?? null);
 
       if (session?.user) {
         const profileData = await fetchProfile(session.user.id);
-        setProfile(profileData);
+        if (isMounted) setProfile(profileData);
       }
 
-      setLoading(false);
+      if (isMounted) {
+        loadingRef.current = false;
+        setLoading(false);
+      }
     }).catch((error) => {
       console.error('Erro ao buscar sessao:', error);
-      setLoading(false);
+      if (isMounted) {
+        loadingRef.current = false;
+        setLoading(false);
+      }
     });
 
     // Escutar mudancas de autenticacao
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
+        if (!isMounted) return;
+
         setSession(session);
         setUser(session?.user ?? null);
 
         if (session?.user) {
           const profileData = await fetchProfile(session.user.id);
-          setProfile(profileData);
+          if (isMounted) setProfile(profileData);
         } else {
           setProfile(null);
         }
 
-        setLoading(false);
+        if (isMounted) {
+          loadingRef.current = false;
+          setLoading(false);
+        }
       }
     );
 
     return () => {
+      isMounted = false;
+      clearTimeout(timeout);
       subscription.unsubscribe();
     };
   }, []);
