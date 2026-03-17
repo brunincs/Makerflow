@@ -13,18 +13,16 @@ export const isSupabaseConfigured = (): boolean => {
 };
 
 // Funcao para obter o user_id do usuario logado
-// TEMPORARIO: Retorna null enquanto auth esta desabilitada
-// Isso permite inserir registros sem user_id valido
 export const getCurrentUserId = async (): Promise<string | null> => {
-  // TODO: Restaurar depois de corrigir auth
-  // Quando auth for reativada, usar:
-  // const { data: { user } } = await supabase?.auth.getUser() ?? { data: { user: null } };
-  // return user?.id ?? null;
-  return null; // Auth desabilitada temporariamente
+  if (!supabase) return null;
+
+  const { data: { user } } = await supabase.auth.getUser();
+  return user?.id ?? null;
 };
 
 // Funcao sincrona para obter user_id da sessao atual (cache)
-// TEMPORARIO: Retorna null enquanto auth esta desabilitada
+// Nota: Esta funcao retorna null pois getSession() e async
+// Use getCurrentUserId() para obter o user_id corretamente
 export const getCurrentUserIdSync = (): string | null => {
-  return null; // Auth desabilitada temporariamente
+  return null;
 };
