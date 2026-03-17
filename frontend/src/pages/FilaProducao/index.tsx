@@ -2257,10 +2257,10 @@ export function FilaProducao() {
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900">
-                    Historico de Producao
+                    Historico de Pedidos
                   </h3>
                   <p className="text-sm text-gray-500">
-                    {pedidosConcluidos.length} pedido(s) concluido(s)
+                    {pedidosConcluidos.length} pedido(s) finalizado(s)
                     {selectedHistorico.length > 0 && (
                       <span className="text-orange-600 ml-2">
                         ({selectedHistorico.length} selecionado(s))
@@ -2363,7 +2363,7 @@ export function FilaProducao() {
                               )}
                             </p>
                             <span className="text-sm font-semibold text-green-600">
-                              {pedido.quantidade} produzido(s)
+                              {pedido.quantidade} unidade(s) entregue(s)
                             </span>
                           </div>
                         </div>
