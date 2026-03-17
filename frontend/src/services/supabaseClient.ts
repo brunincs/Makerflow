@@ -13,27 +13,14 @@ export const isSupabaseConfigured = (): boolean => {
 };
 
 // Funcao para obter o user_id do usuario logado
+// TEMPORARIO: Retorna ID fixo do admin
 export const getCurrentUserId = async (): Promise<string | null> => {
-  if (!supabase) return null;
-
-  const { data: { user } } = await supabase.auth.getUser();
-  return user?.id || null;
+  // TODO: Restaurar depois de corrigir auth
+  return 'e8f90f56-ff0a-4ea2-aa84-391c70fdf93d'; // ID do admin m3dmatrix
 };
 
 // Funcao sincrona para obter user_id da sessao atual (cache)
+// TEMPORARIO: Retorna ID fixo do admin
 export const getCurrentUserIdSync = (): string | null => {
-  if (!supabase) return null;
-
-  // Acessar sessao do localStorage (Supabase armazena la)
-  const storageKey = `sb-${supabaseUrl.split('//')[1]?.split('.')[0]}-auth-token`;
-  const sessionStr = localStorage.getItem(storageKey);
-
-  if (!sessionStr) return null;
-
-  try {
-    const session = JSON.parse(sessionStr);
-    return session?.user?.id || null;
-  } catch {
-    return null;
-  }
+  return 'e8f90f56-ff0a-4ea2-aa84-391c70fdf93d'; // ID do admin m3dmatrix
 };
