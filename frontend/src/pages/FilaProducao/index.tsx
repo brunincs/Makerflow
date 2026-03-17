@@ -1,12 +1,13 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Card, CardBody } from '../../components/ui';
-import { Pedido, ProdutoConcorrente, ItemFilaProducao, EstoqueProduto, Filamento, ImpressoraModelo, MLOrder, MLConnectionStatus } from '../../types';
+import { Pedido, ProdutoConcorrente, ItemFilaProducao, EstoqueProduto, Filamento, Impressora, MLOrder, MLConnectionStatus } from '../../types';
 import { getPedidosPendentes, createPedido, deletePedido, marcarProduzido, concluirPedido, getPedidosConcluidos, reverterPedido } from '../../services/pedidosService';
 import { getEstoqueProdutos, removerEstoqueComMovimentacao } from '../../services/estoqueProdutosService';
 import { getProdutos } from '../../services/produtosService';
 import { getFilamentos } from '../../services/filamentosService';
 import { createImpressao } from '../../services/impressoesService';
+import { getImpressorasAtivas } from '../../services/impressorasService';
 import {
   checkMLConnection,
   syncMLOrders,
@@ -106,16 +107,6 @@ function parsePedidosTexto(texto: string): { nome: string; variacao?: string; qu
   return pedidos;
 }
 
-// Impressoras disponíveis
-const IMPRESSORAS: { id: ImpressoraModelo; nome: string }[] = [
-  { id: 'a1_mini', nome: 'Bambu A1 Mini' },
-  { id: 'a1', nome: 'Bambu A1' },
-  { id: 'p1p', nome: 'Bambu P1P' },
-  { id: 'p1s', nome: 'Bambu P1S' },
-  { id: 'x1_carbon', nome: 'Bambu X1 Carbon' },
-  { id: 'h2d', nome: 'Creality H2D' },
-  { id: 'outra', nome: 'Outra' },
-];
 
 // Indicador de carga de produção
 type CargaProducao = 'tranquila' | 'cheia' | 'critica';
@@ -156,16 +147,16 @@ interface ItemPlanejado extends ItemFilaProducao {
   ordem: number;
   horarioInicio: Date;
   horarioTermino: Date;
-  impressoraId?: ImpressoraModelo;
+  impressoraId?: string;
 }
 
 // Distribuir itens entre impressoras de forma inteligente (balanceada por tempo)
 function distribuirEntreImpressoras(
   itens: ItemFilaProducao[],
-  impressoras: ImpressoraModelo[]
-): Map<ImpressoraModelo, ItemPlanejado[]> {
-  const distribuicao = new Map<ImpressoraModelo, ItemPlanejado[]>();
-  const temposPorImpressora = new Map<ImpressoraModelo, number>();
+  impressoras: string[]
+): Map<string, ItemPlanejado[]> {
+  const distribuicao = new Map<string, ItemPlanejado[]>();
+  const temposPorImpressora = new Map<string, number>();
 
   // Inicializar
   impressoras.forEach(imp => {
@@ -229,9 +220,10 @@ export function FilaProducao() {
   const [filamentos, setFilamentos] = useState<Filamento[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Impressoras do usuário (salvas no localStorage)
-  const [impressorasUsuario, setImpressorasUsuario] = useState<ImpressoraModelo[]>(() => {
-    const saved = localStorage.getItem('makerflow_impressoras_usuario');
+  // Impressoras do usuário (do banco de dados)
+  const [impressorasDisponiveis, setImpressorasDisponiveis] = useState<Impressora[]>([]);
+  const [impressorasSelecionadasIds, setImpressorasSelecionadasIds] = useState<string[]>(() => {
+    const saved = localStorage.getItem('makerflow_impressoras_selecionadas');
     return saved ? JSON.parse(saved) : [];
   });
   const [showImpressorasConfig, setShowImpressorasConfig] = useState(false);
@@ -323,16 +315,28 @@ export function FilaProducao() {
 
   const loadData = async () => {
     setLoading(true);
-    const [pedidosData, estoqueData, produtosData, filamentosData] = await Promise.all([
+    const [pedidosData, estoqueData, produtosData, filamentosData, impressorasData] = await Promise.all([
       getPedidosPendentes(),
       getEstoqueProdutos(),
       getProdutos(),
       getFilamentos(),
+      getImpressorasAtivas(),
     ]);
     setPedidos(pedidosData);
     setEstoque(estoqueData);
     setProdutos(produtosData);
     setFilamentos(filamentosData);
+    setImpressorasDisponiveis(impressorasData);
+
+    // Atualizar IDs selecionados para remover impressoras que nao existem mais
+    setImpressorasSelecionadasIds(prev => {
+      const idsValidos = prev.filter(id => impressorasData.some(imp => imp.id === id));
+      if (idsValidos.length !== prev.length) {
+        localStorage.setItem('makerflow_impressoras_selecionadas', JSON.stringify(idsValidos));
+      }
+      return idsValidos;
+    });
+
     setLoading(false);
   };
 
@@ -406,10 +410,10 @@ export function FilaProducao() {
     }
   };
 
-  // Salvar impressoras do usuário no localStorage
-  const handleSaveImpressoras = (impressoras: ImpressoraModelo[]) => {
-    setImpressorasUsuario(impressoras);
-    localStorage.setItem('makerflow_impressoras_usuario', JSON.stringify(impressoras));
+  // Salvar impressoras selecionadas no localStorage
+  const handleSaveImpressoras = (impressorasIds: string[]) => {
+    setImpressorasSelecionadasIds(impressorasIds);
+    localStorage.setItem('makerflow_impressoras_selecionadas', JSON.stringify(impressorasIds));
     setShowImpressorasConfig(false);
   };
 
@@ -654,13 +658,13 @@ export function FilaProducao() {
     };
   }, [filaProducao]);
 
-  // Distribuição por impressoras (se houver mais de 1)
+  // Distribuição por impressoras (se houver mais de 1 selecionada)
   const distribuicaoPorImpressora = useMemo(() => {
-    if (impressorasUsuario.length <= 1 || filaProducao.length === 0) {
+    if (impressorasSelecionadasIds.length <= 1 || filaProducao.length === 0) {
       return null;
     }
-    return distribuirEntreImpressoras(filaProducao, impressorasUsuario);
-  }, [filaProducao, impressorasUsuario]);
+    return distribuirEntreImpressoras(filaProducao, impressorasSelecionadasIds);
+  }, [filaProducao, impressorasSelecionadasIds]);
 
   // Calcular tempo máximo entre impressoras (para previsão com múltiplas)
   const previsaoComMultiplasImpressoras = useMemo(() => {
@@ -1056,9 +1060,9 @@ export function FilaProducao() {
                   className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
                 >
                   <Printer className="w-4 h-4" />
-                  {impressorasUsuario.length > 0
-                    ? `${impressorasUsuario.length} impressora${impressorasUsuario.length > 1 ? 's' : ''}`
-                    : 'Configurar impressoras'}
+                  {impressorasSelecionadasIds.length > 0
+                    ? `${impressorasSelecionadasIds.length} impressora${impressorasSelecionadasIds.length > 1 ? 's' : ''}`
+                    : 'Selecionar impressoras'}
                 </button>
               </div>
             </CardBody>
@@ -1172,8 +1176,8 @@ export function FilaProducao() {
                         ? formatarHorario(planejamento.previsaoFinal)
                         : '-'}
                     </p>
-                    {impressorasUsuario.length > 1 && (
-                      <p className="text-xs text-gray-400">com {impressorasUsuario.length} impressoras</p>
+                    {impressorasSelecionadasIds.length > 1 && (
+                      <p className="text-xs text-gray-400">com {impressorasSelecionadasIds.length} impressoras</p>
                     )}
                   </div>
                 </div>
@@ -1182,7 +1186,7 @@ export function FilaProducao() {
           </div>
 
           {/* Distribuição por Impressora (se tiver mais de 1) */}
-          {impressorasUsuario.length > 1 && distribuicaoPorImpressora && (
+          {impressorasSelecionadasIds.length > 1 && distribuicaoPorImpressora && (
             <Card className="mb-6">
               <CardBody className="p-4">
                 <h3 className="font-semibold text-gray-900 flex items-center gap-2 mb-4">
@@ -1191,7 +1195,7 @@ export function FilaProducao() {
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {Array.from(distribuicaoPorImpressora.entries()).map(([impId, itensImpressora]) => {
-                    const impressora = IMPRESSORAS.find(i => i.id === impId);
+                    const impressora = impressorasDisponiveis.find(i => i.id === impId);
                     const tempoImpressora = itensImpressora.reduce((acc, item) => acc + item.tempo_total, 0);
                     const pesoImpressora = itensImpressora.reduce((acc, item) => acc + item.peso_total, 0);
                     const previsaoTerminoImpressora = itensImpressora.length > 0
@@ -1206,7 +1210,7 @@ export function FilaProducao() {
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center gap-2">
                             <Printer className="w-4 h-4 text-indigo-600" />
-                            <span className="font-medium text-gray-900">{impressora?.nome || impId}</span>
+                            <span className="font-medium text-gray-900">{impressora?.apelido || impressora?.modelo || 'Impressora'}</span>
                           </div>
                           {previsaoTerminoImpressora && (
                             <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded">
@@ -2071,7 +2075,8 @@ export function FilaProducao() {
       {/* Modal Configurar Impressoras */}
       {showImpressorasConfig && (
         <ModalImpressoras
-          impressorasSelecionadas={impressorasUsuario}
+          impressorasDisponiveis={impressorasDisponiveis}
+          impressorasSelecionadasIds={impressorasSelecionadasIds}
           onSave={handleSaveImpressoras}
           onClose={() => setShowImpressorasConfig(false)}
         />
@@ -2405,17 +2410,19 @@ export function FilaProducao() {
 
 // Componente Modal de Impressoras
 function ModalImpressoras({
-  impressorasSelecionadas,
+  impressorasDisponiveis,
+  impressorasSelecionadasIds,
   onSave,
   onClose,
 }: {
-  impressorasSelecionadas: ImpressoraModelo[];
-  onSave: (impressoras: ImpressoraModelo[]) => void;
+  impressorasDisponiveis: Impressora[];
+  impressorasSelecionadasIds: string[];
+  onSave: (impressorasIds: string[]) => void;
   onClose: () => void;
 }) {
-  const [selecionadas, setSelecionadas] = useState<ImpressoraModelo[]>(impressorasSelecionadas);
+  const [selecionadas, setSelecionadas] = useState<string[]>(impressorasSelecionadasIds);
 
-  const toggleImpressora = (id: ImpressoraModelo) => {
+  const toggleImpressora = (id: string) => {
     if (selecionadas.includes(id)) {
       setSelecionadas(selecionadas.filter(i => i !== id));
     } else {
@@ -2427,7 +2434,7 @@ function ModalImpressoras({
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4">
         <div className="flex items-center justify-between p-4 border-b">
-          <h3 className="text-lg font-semibold text-gray-900">Minhas Impressoras</h3>
+          <h3 className="text-lg font-semibold text-gray-900">Selecionar Impressoras</h3>
           <button
             onClick={onClose}
             className="p-1 text-gray-400 hover:text-gray-600"
@@ -2437,37 +2444,54 @@ function ModalImpressoras({
         </div>
 
         <div className="p-4">
-          <p className="text-sm text-gray-500 mb-4">
-            Selecione as impressoras que voce possui para organizar sua producao:
-          </p>
+          {impressorasDisponiveis.length === 0 ? (
+            <div className="text-center py-6">
+              <Printer className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+              <p className="text-gray-500 mb-2">Nenhuma impressora cadastrada</p>
+              <p className="text-sm text-gray-400">
+                Cadastre suas impressoras em Configuracoes &gt; Impressoras
+              </p>
+            </div>
+          ) : (
+            <>
+              <p className="text-sm text-gray-500 mb-4">
+                Selecione as impressoras para distribuir a producao:
+              </p>
 
-          <div className="space-y-2">
-            {IMPRESSORAS.map((imp) => (
-              <label
-                key={imp.id}
-                className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                  selecionadas.includes(imp.id)
-                    ? 'border-indigo-500 bg-indigo-50'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  checked={selecionadas.includes(imp.id)}
-                  onChange={() => toggleImpressora(imp.id)}
-                  className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
-                />
-                <Printer className={`w-5 h-5 ${
-                  selecionadas.includes(imp.id) ? 'text-indigo-600' : 'text-gray-400'
-                }`} />
-                <span className={`font-medium ${
-                  selecionadas.includes(imp.id) ? 'text-indigo-900' : 'text-gray-700'
-                }`}>
-                  {imp.nome}
-                </span>
-              </label>
-            ))}
-          </div>
+              <div className="space-y-2 max-h-80 overflow-y-auto">
+                {impressorasDisponiveis.map((imp) => (
+                  <label
+                    key={imp.id}
+                    className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                      selecionadas.includes(imp.id!)
+                        ? 'border-indigo-500 bg-indigo-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selecionadas.includes(imp.id!)}
+                      onChange={() => toggleImpressora(imp.id!)}
+                      className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
+                    />
+                    <Printer className={`w-5 h-5 ${
+                      selecionadas.includes(imp.id!) ? 'text-indigo-600' : 'text-gray-400'
+                    }`} />
+                    <div className="flex-1">
+                      <span className={`font-medium ${
+                        selecionadas.includes(imp.id!) ? 'text-indigo-900' : 'text-gray-700'
+                      }`}>
+                        {imp.apelido || imp.modelo}
+                      </span>
+                      {imp.apelido && (
+                        <span className="text-xs text-gray-400 ml-2">({imp.modelo})</span>
+                      )}
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </>
+          )}
         </div>
 
         <div className="flex justify-end gap-3 p-4 border-t">
@@ -2479,7 +2503,8 @@ function ModalImpressoras({
           </button>
           <button
             onClick={() => onSave(selecionadas)}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+            disabled={impressorasDisponiveis.length === 0}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Salvar
           </button>

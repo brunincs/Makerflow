@@ -26,12 +26,13 @@ export const createImpressao = async (
     produto_id: isManual ? null : impressao.produto_id,
     variacao_id: impressao.variacao_id || null,
     filamento_id: impressao.filamento_id,
+    impressora_id: impressao.impressora_id || null,
     quantidade: impressao.quantidade,
     peso_peca_g: impressao.peso_peca_g,
     peso_total_g: pesoTotal,
     tempo_peca_min: impressao.tempo_peca_min || null,
     tempo_total_min: tempoTotal || null,
-    impressora: impressao.impressora || null,
+    impressora: impressao.impressora || null, // Legado
     nome_peca_manual: isManual ? impressao.nome_peca_manual : null,
   };
 
@@ -40,6 +41,7 @@ export const createImpressao = async (
       produto_id: isManual ? '__MANUAL__' : impressao.produto_id,
       variacao_id: impressao.variacao_id,
       filamento_id: impressao.filamento_id,
+      impressora_id: impressao.impressora_id,
       quantidade: impressao.quantidade,
       peso_peca_g: impressao.peso_peca_g,
       peso_total_g: pesoTotal,
@@ -121,7 +123,8 @@ export const getImpressoes = async (): Promise<Impressao[]> => {
       *,
       produto:produtos_concorrentes!left(nome, imagem_url),
       variacao:variacoes_produto(nome_variacao),
-      filamento:filamentos(nome_filamento, cor, material)
+      filamento:filamentos(nome_filamento, cor, material),
+      impressora_info:impressoras(modelo, apelido)
     `)
     .order('created_at', { ascending: false });
 

@@ -170,12 +170,13 @@ export interface Impressao {
   produto_id: string; // '__MANUAL__' para impressoes manuais
   variacao_id?: string;
   filamento_id: string;
+  impressora_id?: string; // Referencia a impressora utilizada
   quantidade: number;
   peso_peca_g: number;
   peso_total_g: number; // = peso_peca_g * quantidade
   tempo_peca_min?: number; // tempo por peca em minutos
   tempo_total_min?: number; // = tempo_peca_min * quantidade
-  impressora?: ImpressoraModelo;
+  impressora?: ImpressoraModelo; // Legado - manter para compatibilidade
   nome_peca_manual?: string; // nome da peca para impressoes manuais
   created_at?: string;
   // Dados via join
@@ -190,6 +191,10 @@ export interface Impressao {
     nome_filamento: string;
     cor: string;
     material: string;
+  };
+  impressora_info?: {
+    modelo: string;
+    apelido?: string;
   };
 }
 

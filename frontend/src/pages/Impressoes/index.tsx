@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Card, CardBody } from '../../components/ui';
-import { Impressao, ProdutoConcorrente, VariacaoProduto, Filamento, ImpressoraModelo } from '../../types';
+import { Impressao, ProdutoConcorrente, VariacaoProduto, Filamento, Impressora } from '../../types';
 import { getImpressoes, createImpressao, deleteImpressao } from '../../services/impressoesService';
 import { getProdutos } from '../../services/produtosService';
 import { getFilamentos } from '../../services/filamentosService';
+import { getImpressorasAtivas } from '../../services/impressorasService';
 import {
   Printer,
   Plus,
@@ -27,16 +28,6 @@ import {
 } from 'lucide-react';
 import { DecimalInput } from '../../components/ui/DecimalInput';
 
-const IMPRESSORAS: { value: ImpressoraModelo; label: string }[] = [
-  { value: 'a1_mini', label: 'A1 Mini' },
-  { value: 'a1', label: 'A1' },
-  { value: 'p1p', label: 'P1P' },
-  { value: 'p1s', label: 'P1S' },
-  { value: 'x1_carbon', label: 'X1 Carbon' },
-  { value: 'h2d', label: 'H2D' },
-  { value: 'outra', label: 'Outra' },
-];
-
 type FiltroHistorico = 'hoje' | '7dias' | '30dias' | 'todos';
 type ModoImpressao = 'radar' | 'manual';
 
@@ -45,10 +36,10 @@ interface ImpressaoForm {
   produto_id: string;
   variacao_id: string;
   filamento_id: string;
+  impressora_id: string;
   quantidade: number;
   peso_peca_g: number;
   tempo_peca_min: number;
-  impressora: ImpressoraModelo | '';
   // Campos para modo manual
   nome_peca_manual: string;
   tempo_horas: number;
@@ -60,10 +51,10 @@ const initialForm: ImpressaoForm = {
   produto_id: '',
   variacao_id: '',
   filamento_id: '',
+  impressora_id: '',
   quantidade: 1,
   peso_peca_g: 0,
   tempo_peca_min: 0,
-  impressora: '',
   nome_peca_manual: '',
   tempo_horas: 0,
   tempo_minutos: 0,
@@ -88,6 +79,7 @@ export function Impressoes() {
   const [impressoes, setImpressoes] = useState<Impressao[]>([]);
   const [produtos, setProdutos] = useState<ProdutoConcorrente[]>([]);
   const [filamentos, setFilamentos] = useState<Filamento[]>([]);
+  const [impressoras, setImpressoras] = useState<Impressora[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -120,14 +112,16 @@ export function Impressoes() {
 
   const loadData = async () => {
     setLoading(true);
-    const [impressoesData, produtosData, filamentosData] = await Promise.all([
+    const [impressoesData, produtosData, filamentosData, impressorasData] = await Promise.all([
       getImpressoes(),
       getProdutos(),
       getFilamentos(),
+      getImpressorasAtivas(),
     ]);
     setImpressoes(impressoesData);
     setProdutos(produtosData);
     setFilamentos(filamentosData);
+    setImpressoras(impressorasData);
     setLoading(false);
   };
 
@@ -244,6 +238,12 @@ export function Impressoes() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Validação - impressora é obrigatória
+    if (!form.impressora_id) {
+      alert('Selecione uma impressora.');
+      return;
+    }
+
     // Validação depende do modo
     if (form.modo === 'radar') {
       if (!form.produto_id || !form.filamento_id || form.quantidade <= 0 || form.peso_peca_g <= 0) {
@@ -280,7 +280,7 @@ export function Impressoes() {
         quantidade: form.quantidade,
         peso_peca_g: form.peso_peca_g,
         tempo_peca_min: tempoEmMinutos,
-        impressora: form.impressora || undefined,
+        impressora_id: form.impressora_id,
         nome_peca_manual: form.modo === 'manual' ? form.nome_peca_manual : undefined,
       };
 
@@ -821,19 +821,26 @@ export function Impressoes() {
                 {/* Impressora */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Impressora
+                    Impressora *
                   </label>
                   <select
-                    value={form.impressora}
-                    onChange={(e) => setForm(prev => ({ ...prev, impressora: e.target.value as ImpressoraModelo | '' }))}
+                    value={form.impressora_id}
+                    onChange={(e) => setForm(prev => ({ ...prev, impressora_id: e.target.value }))}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white
                       focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="">Selecione...</option>
-                    {IMPRESSORAS.map(imp => (
-                      <option key={imp.value} value={imp.value}>{imp.label}</option>
+                    {impressoras.map(imp => (
+                      <option key={imp.id} value={imp.id}>
+                        {imp.apelido || imp.modelo}
+                      </option>
                     ))}
                   </select>
+                  {impressoras.length === 0 && (
+                    <p className="text-xs mt-1 text-amber-600">
+                      Nenhuma impressora ativa. Cadastre em Configuracoes.
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -1046,6 +1053,18 @@ export function Impressoes() {
                             </p>
                           </div>
                         </div>
+
+                        {impressao.impressora_info && (
+                          <div className="flex items-center gap-2">
+                            <Printer className="w-4 h-4 text-gray-500" />
+                            <div>
+                              <p className="text-xs text-gray-500">Impressora</p>
+                              <p className="font-semibold text-gray-700 truncate">
+                                {impressao.impressora_info.apelido || impressao.impressora_info.modelo}
+                              </p>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
