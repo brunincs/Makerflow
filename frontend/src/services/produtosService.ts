@@ -214,6 +214,163 @@ export const getProdutos = async (): Promise<ProdutoConcorrente[]> => {
   return data || [];
 };
 
+// Buscar produtos por nome ou SKU
+export const searchProdutos = async (termo: string): Promise<ProdutoConcorrente[]> => {
+  if (!termo || termo.trim().length < 2) return [];
+
+  const termoLower = termo.toLowerCase().trim();
+
+  if (!isSupabaseConfigured() || !supabase) {
+    const produtos = getLocalProdutos();
+    const variacoes = getLocalVariacoes();
+
+    return produtos
+      .filter(p => {
+        // Busca no nome do produto
+        if (p.nome?.toLowerCase().includes(termoLower)) return true;
+        // Busca no SKU do produto
+        if (p.sku?.toLowerCase().includes(termoLower)) return true;
+        // Busca no SKU das variações
+        const variacoesProduto = variacoes.filter(v => v.produto_id === p.id);
+        if (variacoesProduto.some(v => v.sku?.toLowerCase().includes(termoLower))) return true;
+        return false;
+      })
+      .map(p => ({
+        ...p,
+        variacoes: variacoes.filter(v => v.produto_id === p.id),
+      }));
+  }
+
+  // Buscar produtos pelo nome ou SKU
+  const { data: produtosPorNome, error: erroPorNome } = await supabase
+    .from('produtos_concorrentes')
+    .select(`
+      *,
+      variacoes:variacoes_produto(*)
+    `)
+    .or(`nome.ilike.%${termoLower}%,sku.ilike.%${termoLower}%`)
+    .order('nome')
+    .limit(20);
+
+  if (erroPorNome) {
+    console.error('Erro ao buscar produtos por nome:', erroPorNome);
+  }
+
+  // Buscar variações pelo SKU
+  const { data: variacoesPorSku, error: erroPorSku } = await supabase
+    .from('variacoes_produto')
+    .select('produto_id')
+    .ilike('sku', `%${termoLower}%`)
+    .limit(20);
+
+  if (erroPorSku) {
+    console.error('Erro ao buscar variações por SKU:', erroPorSku);
+  }
+
+  // IDs únicos de produtos encontrados via variação
+  const produtoIdsViaVariacao = [...new Set(variacoesPorSku?.map(v => v.produto_id) || [])];
+
+  // Buscar produtos que não vieram na primeira busca
+  const idsJaEncontrados = produtosPorNome?.map(p => p.id) || [];
+  const idsNovos = produtoIdsViaVariacao.filter(id => !idsJaEncontrados.includes(id));
+
+  let produtosViaVariacao: ProdutoConcorrente[] = [];
+  if (idsNovos.length > 0) {
+    const { data, error } = await supabase
+      .from('produtos_concorrentes')
+      .select(`
+        *,
+        variacoes:variacoes_produto(*)
+      `)
+      .in('id', idsNovos);
+
+    if (!error && data) {
+      produtosViaVariacao = data;
+    }
+  }
+
+  // Combinar resultados
+  return [...(produtosPorNome || []), ...produtosViaVariacao];
+};
+
+// Buscar produto por SKU exato
+export const getProdutoBySku = async (sku: string): Promise<{ produto: ProdutoConcorrente; variacao?: ProdutoConcorrente['variacoes'] extends (infer T)[] | undefined ? T : never } | null> => {
+  if (!sku || sku.trim().length === 0) return null;
+
+  const skuUpper = sku.toUpperCase().trim();
+
+  if (!isSupabaseConfigured() || !supabase) {
+    const produtos = getLocalProdutos();
+    const variacoes = getLocalVariacoes();
+
+    // Buscar no SKU do produto
+    const produtoPorSku = produtos.find(p => p.sku?.toUpperCase() === skuUpper);
+    if (produtoPorSku) {
+      return {
+        produto: {
+          ...produtoPorSku,
+          variacoes: variacoes.filter(v => v.produto_id === produtoPorSku.id),
+        },
+      };
+    }
+
+    // Buscar no SKU das variações
+    const variacaoPorSku = variacoes.find(v => v.sku?.toUpperCase() === skuUpper);
+    if (variacaoPorSku) {
+      const produto = produtos.find(p => p.id === variacaoPorSku.produto_id);
+      if (produto) {
+        return {
+          produto: {
+            ...produto,
+            variacoes: variacoes.filter(v => v.produto_id === produto.id),
+          },
+          variacao: variacaoPorSku,
+        };
+      }
+    }
+
+    return null;
+  }
+
+  // Buscar no SKU do produto
+  const { data: produtoPorSku, error: erroProduto } = await supabase
+    .from('produtos_concorrentes')
+    .select(`
+      *,
+      variacoes:variacoes_produto(*)
+    `)
+    .ilike('sku', skuUpper)
+    .single();
+
+  if (!erroProduto && produtoPorSku) {
+    return { produto: produtoPorSku };
+  }
+
+  // Buscar no SKU das variações
+  const { data: variacaoPorSku, error: erroVariacao } = await supabase
+    .from('variacoes_produto')
+    .select('*')
+    .ilike('sku', skuUpper)
+    .single();
+
+  if (!erroVariacao && variacaoPorSku) {
+    const { data: produto } = await supabase
+      .from('produtos_concorrentes')
+      .select(`
+        *,
+        variacoes:variacoes_produto(*)
+      `)
+      .eq('id', variacaoPorSku.produto_id)
+      .single();
+
+    if (produto) {
+      return { produto, variacao: variacaoPorSku };
+    }
+  }
+
+  return null;
+};
+
 export const updateProduto = async (
   id: string,
   produto: Partial<Omit<ProdutoConcorrente, 'id' | 'created_at' | 'variacoes'>>,

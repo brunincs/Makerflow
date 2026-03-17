@@ -407,6 +407,38 @@ export interface ItemFilaProducao {
   pedidos: Pedido[];
 }
 
+// ============ VENDAS MANUAIS ============
+
+export type FormaPagamento = 'dinheiro' | 'pix' | 'cartao_credito' | 'cartao_debito' | 'outro';
+
+export interface VendaManual {
+  id?: string;
+  user_id?: string;
+  produto_id?: string | null;
+  variacao_id?: string | null;
+  quantidade: number;
+  preco_unitario: number;
+  preco_total: number;
+  forma_pagamento: FormaPagamento;
+  observacao?: string;
+  enviado_producao: boolean;
+  pedido_id?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  // Dados via join
+  produto?: {
+    nome: string;
+    imagem_url?: string;
+    peso_filamento?: number;
+    tempo_impressao?: number;
+  };
+  variacao?: {
+    nome_variacao: string;
+    peso_filamento?: number;
+    tempo_impressao?: number;
+  };
+}
+
 // ============ MERCADO LIVRE ============
 
 export interface MLOrder {

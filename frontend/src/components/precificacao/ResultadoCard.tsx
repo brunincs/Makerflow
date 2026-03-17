@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { MarketplaceState, PrecificacaoSalva, Embalagem } from '../../types';
 import { CATEGORIAS } from './MercadoLivreConfig';
 import { createPrecificacao, updatePrecificacao } from '../../services/precificacoesService';
 import { getEmbalagens } from '../../services/embalagensService';
+import { createPedido } from '../../services/pedidosService';
 import {
   TrendingUp,
   Clock,
@@ -19,7 +21,9 @@ import {
   Star,
   Save,
   Check,
-  Loader2
+  Loader2,
+  Send,
+  Layers
 } from 'lucide-react';
 
 // ========== TABELAS DE FRETE MERCADO LIVRE ==========
@@ -136,14 +140,18 @@ interface CustoItem {
 }
 
 export function ResultadoCard({ state, canSave = true, onSaveSuccess, nomeProdutoCarregado, simulacaoId, produtoIdOriginal }: ResultadoCardProps) {
+  const navigate = useNavigate();
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [isSendingProduction, setIsSendingProduction] = useState(false);
+  const [sendProductionSuccess, setSendProductionSuccess] = useState(false);
   const [nomeManual, setNomeManual] = useState('');
   const [embalagens, setEmbalagens] = useState<Embalagem[]>([]);
 
   const custos = state.custos_producao || {};
   const temProdutoSelecionado = !!state.produto_selecionado;
   const precoVenda = state.preco_venda || 0;
+  const quantidadePecas = custos.quantidade_pecas || 1;
 
   // Carregar embalagens para calcular o custo
   useEffect(() => {
@@ -600,6 +608,81 @@ export function ResultadoCard({ state, canSave = true, onSaveSuccess, nomeProdut
       </div>
       */}
 
+      {/* Resumo de Multiplas Pecas */}
+      {quantidadePecas > 1 && (
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4">
+          <div className="flex items-center gap-2 mb-4">
+            <Layers className="w-4 h-4 text-blue-600" />
+            <h5 className="text-sm font-medium text-gray-700">
+              Calculo para {quantidadePecas} pecas
+            </h5>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            {/* Por Peca */}
+            <div className="bg-white rounded-lg p-3 border border-blue-100">
+              <p className="text-xs text-gray-500 mb-2">Por peca</p>
+              <div className="space-y-1.5">
+                {pesoFilamento > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Filamento:</span>
+                    <span className="font-medium">{pesoFilamento}g</span>
+                  </div>
+                )}
+                {tempoHoras > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Tempo:</span>
+                    <span className="font-medium">
+                      {Math.floor(tempoHoras)}h {Math.round((tempoHoras % 1) * 60)}min
+                    </span>
+                  </div>
+                )}
+                <div className="flex justify-between text-sm pt-1.5 border-t border-gray-100">
+                  <span className="text-gray-600">Lucro:</span>
+                  <span className="font-semibold text-green-600">R$ {formatCurrency(lucroLiquido)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Total */}
+            <div className="bg-blue-100 rounded-lg p-3 border border-blue-200">
+              <p className="text-xs text-blue-700 mb-2 font-medium">Total ({quantidadePecas} pecas)</p>
+              <div className="space-y-1.5">
+                {pesoFilamento > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-blue-700">Filamento:</span>
+                    <span className="font-bold text-blue-800">{pesoFilamento * quantidadePecas}g</span>
+                  </div>
+                )}
+                {tempoHoras > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-blue-700">Tempo:</span>
+                    <span className="font-bold text-blue-800">
+                      {(() => {
+                        const totalHoras = custos.multiplas_pecas ? tempoHoras : tempoHoras * quantidadePecas;
+                        const h = Math.floor(totalHoras);
+                        const m = Math.round((totalHoras - h) * 60);
+                        return `${h}h ${m}min`;
+                      })()}
+                    </span>
+                  </div>
+                )}
+                <div className="flex justify-between text-sm pt-1.5 border-t border-blue-200">
+                  <span className="text-blue-700">Lucro:</span>
+                  <span className="font-bold text-blue-800">R$ {formatCurrency(lucroLiquido * quantidadePecas)}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {custos.multiplas_pecas && (
+            <p className="text-xs text-blue-600 text-center">
+              Pecas impressas de uma vez (mesa cheia) - energia dividida
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Nome Manual (quando não tem produto selecionado) */}
       {!temProdutoSelecionado && (
         <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
@@ -620,35 +703,94 @@ export function ResultadoCard({ state, canSave = true, onSaveSuccess, nomeProdut
         </div>
       )}
 
-      {/* Botão Salvar */}
-      <button
-        onClick={handleSalvar}
-        disabled={isSaving || !canSave || !temNomeValido}
-        className={`w-full py-3 px-4 rounded-xl font-medium transition-all flex items-center justify-center gap-2 ${
-          saveSuccess
-            ? 'bg-green-500 text-white'
-            : canSave && temNomeValido
-              ? 'bg-blue-600 hover:bg-blue-700 text-white'
-              : 'bg-gray-300 text-gray-500'
-        } disabled:opacity-50 disabled:cursor-not-allowed`}
-      >
-        {isSaving ? (
-          <>
-            <Loader2 className="w-5 h-5 animate-spin" />
-            Salvando...
-          </>
-        ) : saveSuccess ? (
-          <>
-            <Check className="w-5 h-5" />
-            Salvo com sucesso!
-          </>
-        ) : (
-          <>
-            <Save className="w-5 h-5" />
-            {simulacaoId ? 'Atualizar calculo' : 'Salvar calculo'}
-          </>
+      {/* Botoes de Acao */}
+      <div className="space-y-3">
+        {/* Botao Enviar para Producao (apenas se tem produto selecionado) */}
+        {temProdutoSelecionado && state.produto_selecionado?.produto.id && (
+          <button
+            onClick={async () => {
+              if (!state.produto_selecionado?.produto.id) return;
+
+              setIsSendingProduction(true);
+              setSendProductionSuccess(false);
+
+              const pedido = await createPedido({
+                produto_id: state.produto_selecionado.produto.id,
+                variacao_id: state.produto_selecionado.variacao?.id || null,
+                quantidade: quantidadePecas,
+                quantidade_produzida: 0,
+                status: 'pendente',
+                observacao: `Via calculadora - Preco: R$ ${formatCurrency(precoVenda)}`,
+              });
+
+              setIsSendingProduction(false);
+
+              if (pedido) {
+                setSendProductionSuccess(true);
+                setTimeout(() => {
+                  setSendProductionSuccess(false);
+                  navigate('/fila-producao');
+                }, 1500);
+              } else {
+                alert('Erro ao enviar para producao. Tente novamente.');
+              }
+            }}
+            disabled={isSendingProduction}
+            className={`w-full py-3 px-4 rounded-xl font-medium transition-all flex items-center justify-center gap-2 ${
+              sendProductionSuccess
+                ? 'bg-green-500 text-white'
+                : 'bg-purple-600 hover:bg-purple-700 text-white'
+            } disabled:opacity-50 disabled:cursor-not-allowed`}
+          >
+            {isSendingProduction ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                Enviando...
+              </>
+            ) : sendProductionSuccess ? (
+              <>
+                <Check className="w-5 h-5" />
+                Enviado! Redirecionando...
+              </>
+            ) : (
+              <>
+                <Send className="w-5 h-5" />
+                Enviar {quantidadePecas > 1 ? `${quantidadePecas} pecas` : ''} para producao
+              </>
+            )}
+          </button>
         )}
-      </button>
+
+        {/* Botão Salvar */}
+        <button
+          onClick={handleSalvar}
+          disabled={isSaving || !canSave || !temNomeValido}
+          className={`w-full py-3 px-4 rounded-xl font-medium transition-all flex items-center justify-center gap-2 ${
+            saveSuccess
+              ? 'bg-green-500 text-white'
+              : canSave && temNomeValido
+                ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                : 'bg-gray-300 text-gray-500'
+          } disabled:opacity-50 disabled:cursor-not-allowed`}
+        >
+          {isSaving ? (
+            <>
+              <Loader2 className="w-5 h-5 animate-spin" />
+              Salvando...
+            </>
+          ) : saveSuccess ? (
+            <>
+              <Check className="w-5 h-5" />
+              Salvo com sucesso!
+            </>
+          ) : (
+            <>
+              <Save className="w-5 h-5" />
+              {simulacaoId ? 'Atualizar calculo' : 'Salvar calculo'}
+            </>
+          )}
+        </button>
+      </div>
     </div>
   );
 }

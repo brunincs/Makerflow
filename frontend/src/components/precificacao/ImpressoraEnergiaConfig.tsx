@@ -246,33 +246,84 @@ export function ImpressoraEnergiaConfig({
           )}
         </div>
 
-        {/* Multiplas Pecas */}
+        {/* Quantidade de Pecas / Multiplas Pecas */}
         <div className="border-t border-blue-200 pt-4">
-          <Toggle
-            checked={multiplasPecas || false}
-            onChange={onMultiplasPecasChange}
-            label="Multiplas pecas na mesa"
-            description="Dividir o custo de energia entre as pecas"
-          />
+          <div className="flex items-center gap-2 mb-3">
+            <Layers className="w-4 h-4 text-blue-600" />
+            <span className="text-sm font-medium text-gray-700">Quantidade de pecas</span>
+          </div>
 
-          {multiplasPecas && (
-            <div className="mt-3 ml-14">
-              <label className="block text-xs font-medium text-gray-600 mb-1 flex items-center gap-1">
-                <Layers className="w-3 h-3" />
-                Quantidade de pecas
-              </label>
-              <div className="relative max-w-[120px]">
-                <input
-                  type="number"
-                  min="1"
-                  max="99"
-                  value={quantidadePecas || ''}
-                  onChange={(e) => onQuantidadePecasChange(parseInt(e.target.value) || 1)}
-                  placeholder="1"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white
-                    focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-                    [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                />
+          <div className="flex items-center gap-4">
+            <div className="relative max-w-[140px]">
+              <input
+                type="number"
+                min="1"
+                max="999"
+                value={quantidadePecas || 1}
+                onChange={(e) => onQuantidadePecasChange(parseInt(e.target.value) || 1)}
+                placeholder="1"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-center text-lg font-semibold
+                  focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+                  [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">
+                un
+              </span>
+            </div>
+
+            <div className="flex gap-1">
+              {[1, 2, 5, 10].map((qtd) => (
+                <button
+                  key={qtd}
+                  type="button"
+                  onClick={() => onQuantidadePecasChange(qtd)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                    quantidadePecas === qtd
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-white border border-gray-300 text-gray-600 hover:border-blue-400'
+                  }`}
+                >
+                  {qtd}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Toggle para dividir energia (multiplas na mesa) */}
+          <div className="mt-4">
+            <Toggle
+              checked={multiplasPecas || false}
+              onChange={onMultiplasPecasChange}
+              label="Imprimir todas de uma vez"
+              description="Dividir o custo de energia entre as pecas (mesa cheia)"
+            />
+          </div>
+
+          {/* Resumo visual */}
+          {(quantidadePecas || 1) > 1 && tempoProduto && (
+            <div className="mt-4 p-3 bg-white border border-blue-200 rounded-lg">
+              <p className="text-xs font-medium text-gray-500 uppercase mb-2">Resumo</p>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="text-gray-500">1 peca:</p>
+                  <p className="font-medium text-gray-900">
+                    {formatarTempo(tempoProduto.horas, tempoProduto.minutos)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-gray-500">{quantidadePecas} pecas:</p>
+                  <p className="font-bold text-blue-700">
+                    {multiplasPecas
+                      ? formatarTempo(tempoProduto.horas, tempoProduto.minutos) + ' (mesa)'
+                      : (() => {
+                          const totalHoras = (tempoProduto.horas + tempoProduto.minutos / 60) * (quantidadePecas || 1);
+                          const h = Math.floor(totalHoras);
+                          const m = Math.round((totalHoras - h) * 60);
+                          return formatarTempo(h, m);
+                        })()
+                    }
+                  </p>
+                </div>
               </div>
             </div>
           )}

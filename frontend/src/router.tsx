@@ -11,6 +11,7 @@ import { Filamentos } from './pages/Filamentos';
 import { Embalagens } from './pages/Embalagens';
 import { Impressoes } from './pages/Impressoes';
 import { FilaProducao } from './pages/FilaProducao';
+import { VendaDireta } from './pages/VendaDireta';
 import { Login, Register, ForgotPassword } from './pages/Auth';
 import { Admin } from './pages/Admin';
 import { Perfil } from './pages/Perfil';
@@ -109,6 +110,16 @@ export const router = createBrowserRouter([
           <ProtectedRoute>
             <MainLayout>
               <FilaProducao />
+            </MainLayout>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: '/venda-direta',
+        element: (
+          <ProtectedRoute>
+            <MainLayout>
+              <VendaDireta />
             </MainLayout>
           </ProtectedRoute>
         ),
