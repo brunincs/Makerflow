@@ -21,6 +21,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  console.log('[AuthProvider] Iniciando...');
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -63,7 +64,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Inicializar autenticacao
   useEffect(() => {
+    console.log('[AuthProvider] useEffect rodando, supabase configurado:', isSupabaseConfigured());
+
     if (!isSupabaseConfigured() || !supabase) {
+      console.log('[AuthProvider] Supabase nao configurado, liberando loading');
       loadingRef.current = false;
       setLoading(false);
       return;
@@ -74,14 +78,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Timeout de seguranca - 5 segundos
     const timeout = setTimeout(() => {
       if (isMounted && loadingRef.current) {
-        console.warn('Timeout ao carregar autenticacao');
+        console.warn('[AuthProvider] Timeout ao carregar autenticacao');
         loadingRef.current = false;
         setLoading(false);
       }
     }, 5000);
 
+    console.log('[AuthProvider] Buscando sessao...');
     // Buscar sessao atual
     supabase.auth.getSession().then(async ({ data: { session } }) => {
+      console.log('[AuthProvider] Sessao recebida:', !!session);
       if (!isMounted) return;
 
       setSession(session);
@@ -92,12 +98,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (isMounted) setProfile(profileData);
       }
 
+      console.log('[AuthProvider] Finalizando loading');
       if (isMounted) {
         loadingRef.current = false;
         setLoading(false);
       }
     }).catch((error) => {
-      console.error('Erro ao buscar sessao:', error);
+      console.error('[AuthProvider] Erro ao buscar sessao:', error);
       if (isMounted) {
         loadingRef.current = false;
         setLoading(false);
