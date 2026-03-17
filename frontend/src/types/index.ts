@@ -1,13 +1,40 @@
 // ============ AUTH / PROFILE ============
 
+export type TipoDocumento = 'cpf' | 'cnpj';
+export type RegimeTributario = 'mei' | 'simples' | 'lucro_presumido' | 'lucro_real';
+export type StatusImpressora = 'ativa' | 'manutencao' | 'inativa';
+
 export interface Profile {
   id: string;
   name: string | null;
   email: string | null;
   role: 'user' | 'admin';
   suspended: boolean;
+  // Dados da empresa
+  nome_empresa?: string | null;
+  nome_fantasia?: string | null;
+  documento?: string | null;
+  tipo_documento?: TipoDocumento | null;
+  regime_tributario?: RegimeTributario | null;
+  logo_url?: string | null;
+  telefone?: string | null;
+  whatsapp?: string | null;
+  email_comercial?: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface Impressora {
+  id?: string;
+  user_id?: string;
+  modelo: string;
+  apelido?: string | null;
+  marca?: string | null;
+  status: StatusImpressora;
+  consumo_kwh: number;
+  notas?: string | null;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface Integration {

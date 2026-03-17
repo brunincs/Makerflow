@@ -1,4 +1,4 @@
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, Link } from 'react-router-dom';
 import {
   LayoutDashboard,
   Radar,
@@ -101,13 +101,24 @@ export function Sidebar() {
       {/* User Profile Section */}
       {showAuth && isAuthenticated && (
         <div className="p-4 border-t border-gray-800">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center">
-              <User className="w-5 h-5 text-gray-400" />
+          <Link
+            to="/perfil"
+            className="flex items-center gap-3 mb-3 p-2 -m-2 rounded-lg hover:bg-gray-800 transition-colors cursor-pointer"
+          >
+            <div className="w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center overflow-hidden">
+              {profile?.logo_url ? (
+                <img
+                  src={profile.logo_url}
+                  alt="Logo"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <User className="w-5 h-5 text-gray-400" />
+              )}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-white truncate">
-                {profile?.name || 'Usuario'}
+                {profile?.nome_fantasia || profile?.name || 'Usuario'}
               </p>
               <p className="text-xs text-gray-500 truncate">
                 {profile?.email}
@@ -118,7 +129,7 @@ export function Sidebar() {
                 Admin
               </span>
             )}
-          </div>
+          </Link>
           <button
             onClick={handleLogout}
             className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg transition-colors"

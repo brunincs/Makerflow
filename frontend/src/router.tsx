@@ -13,6 +13,7 @@ import { Impressoes } from './pages/Impressoes';
 import { FilaProducao } from './pages/FilaProducao';
 import { Login, Register, ForgotPassword } from './pages/Auth';
 import { Admin } from './pages/Admin';
+import { Perfil } from './pages/Perfil';
 
 export const router = createBrowserRouter([
   {
@@ -108,6 +109,17 @@ export const router = createBrowserRouter([
           <ProtectedRoute>
             <MainLayout>
               <FilaProducao />
+            </MainLayout>
+          </ProtectedRoute>
+        ),
+      },
+      // Perfil do Usuario
+      {
+        path: '/perfil',
+        element: (
+          <ProtectedRoute>
+            <MainLayout>
+              <Perfil />
             </MainLayout>
           </ProtectedRoute>
         ),
