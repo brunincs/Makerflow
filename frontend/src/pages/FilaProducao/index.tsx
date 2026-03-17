@@ -38,7 +38,6 @@ import {
   FileText,
   AlertCircle,
   CalendarClock,
-  ListOrdered,
   Timer,
   Link2,
   RefreshCw,
@@ -903,46 +902,6 @@ export function FilaProducao() {
       await loadData();
     } catch (error) {
       console.error('Erro ao concluir pedido:', error);
-      alert('Erro ao processar. Tente novamente.');
-    }
-
-    setProduzindo(false);
-  };
-
-  // Concluir pedido usando estoque disponivel (consome estoque agora)
-  const handleConcluirComEstoque = async (item: ItemFilaProducao) => {
-    // Verificar se tem estoque disponivel suficiente para o que falta
-    const qtdRestante = item.quantidade_pedida - item.quantidade_do_estoque;
-    if (item.quantidade_estoque_disponivel < qtdRestante) {
-      alert('Estoque insuficiente para concluir todos os pedidos.');
-      return;
-    }
-
-    setProduzindo(true);
-
-    try {
-      // 1. Marcar todos os pedidos como produzidos
-      for (const pedido of item.pedidos) {
-        const qtdPedidoRestante = pedido.quantidade - (pedido.quantidade_produzida || 0);
-        if (qtdPedidoRestante > 0) {
-          await marcarProduzido(pedido.id!, qtdPedidoRestante);
-        }
-      }
-
-      // 2. Remover do estoque (apenas o que falta, nao o total)
-      if (qtdRestante > 0) {
-        await removerEstoqueComMovimentacao(
-          item.produto_id,
-          item.variacao_id || null,
-          qtdRestante,
-          'venda',
-          `Entrega de ${qtdRestante} unidade(s) do estoque`
-        );
-      }
-
-      await loadData();
-    } catch (error) {
-      console.error('Erro ao concluir com estoque:', error);
       alert('Erro ao processar. Tente novamente.');
     }
 
