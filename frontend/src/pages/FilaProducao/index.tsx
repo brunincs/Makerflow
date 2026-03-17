@@ -353,9 +353,10 @@ export function FilaProducao() {
           alert('Nenhum pedido pendente no Mercado Livre.');
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao sincronizar ML:', error);
-      alert('Erro ao sincronizar com Mercado Livre');
+      const message = error?.message || 'Erro ao sincronizar com Mercado Livre';
+      alert(message);
     } finally {
       setMlSyncing(false);
     }

@@ -7,7 +7,6 @@ const STORAGE_KEY = 'makerflow_ml_orders';
 
 // URL base das Edge Functions do Supabase
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 const FUNCTIONS_URL = SUPABASE_URL ? `${SUPABASE_URL}/functions/v1` : '';
 
 // Local storage fallback
@@ -22,31 +21,68 @@ const setLocalMLOrders = (orders: MLOrder[]): void => {
 
 // Funcao helper para obter o token JWT do usuario logado
 const getAuthToken = async (): Promise<string | null> => {
-  if (!supabase) return null;
-  const { data: { session } } = await supabase.auth.getSession();
-  return session?.access_token || null;
+  if (!supabase) {
+    console.log('[ML] Supabase not configured');
+    return null;
+  }
+
+  // Tentar obter sessao
+  const { data: { session }, error } = await supabase.auth.getSession();
+
+  if (error) {
+    console.error('[ML] Error getting session:', error);
+    return null;
+  }
+
+  if (!session) {
+    console.log('[ML] No session found, trying to refresh...');
+    // Tentar refresh da sessao
+    const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+    if (refreshError || !refreshData.session) {
+      console.error('[ML] Could not refresh session:', refreshError);
+      return null;
+    }
+    console.log('[ML] Session refreshed successfully');
+    return refreshData.session.access_token;
+  }
+
+  console.log('[ML] Session found, token exists:', !!session.access_token);
+  return session.access_token;
 };
 
 // Verificar status da conexao com Mercado Livre
 export const checkMLConnection = async (): Promise<MLConnectionStatus> => {
   if (!FUNCTIONS_URL) {
+    console.log('[ML Status] FUNCTIONS_URL not configured');
     return { connected: false, reason: 'no_supabase' };
   }
 
   try {
     const token = await getAuthToken();
+
+    if (!token) {
+      console.log('[ML Status] No auth token - user not logged in');
+      return { connected: false, reason: 'no_user' };
+    }
+
+    console.log('[ML Status] Checking connection with token');
     const response = await fetch(`${FUNCTIONS_URL}/mercadolivre-status`, {
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token || SUPABASE_ANON_KEY}`,
+        'Authorization': `Bearer ${token}`,
       },
     });
+
     if (!response.ok) {
+      console.error('[ML Status] Error response:', response.status);
       return { connected: false };
     }
-    return await response.json();
+
+    const status = await response.json();
+    console.log('[ML Status] Connection status:', status);
+    return status;
   } catch (error) {
-    console.error('Erro ao verificar conexao ML:', error);
+    console.error('[ML Status] Error:', error);
     return { connected: false };
   }
 };
@@ -54,26 +90,36 @@ export const checkMLConnection = async (): Promise<MLConnectionStatus> => {
 // Sincronizar pedidos do Mercado Livre
 export const syncMLOrders = async (): Promise<MLSyncResponse | null> => {
   if (!FUNCTIONS_URL) {
+    console.error('[ML Sync] FUNCTIONS_URL not configured');
     return null;
   }
 
   try {
     const token = await getAuthToken();
+
+    if (!token) {
+      console.error('[ML Sync] No auth token available - user may not be logged in');
+      throw new Error('Voce precisa estar logado para sincronizar com o Mercado Livre');
+    }
+
+    console.log('[ML Sync] Calling sync with token');
     const response = await fetch(`${FUNCTIONS_URL}/mercadolivre-sync`, {
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token || SUPABASE_ANON_KEY}`,
+        'Authorization': `Bearer ${token}`,
       },
     });
+
     if (!response.ok) {
       const error = await response.json();
-      console.error('Erro ao sincronizar ML:', error);
-      return null;
+      console.error('[ML Sync] Error response:', error);
+      throw new Error(error.error || 'Erro ao sincronizar');
     }
+
     return await response.json();
   } catch (error) {
-    console.error('Erro ao sincronizar ML:', error);
-    return null;
+    console.error('[ML Sync] Error:', error);
+    throw error;
   }
 };
 
@@ -259,16 +305,22 @@ export const disconnectML = async (): Promise<boolean> => {
 
   try {
     const token = await getAuthToken();
+
+    if (!token) {
+      console.error('[ML Disconnect] No auth token');
+      return false;
+    }
+
     const response = await fetch(`${FUNCTIONS_URL}/mercadolivre-disconnect`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token || SUPABASE_ANON_KEY}`,
+        'Authorization': `Bearer ${token}`,
       },
     });
     return response.ok;
   } catch (error) {
-    console.error('Erro ao desconectar ML:', error);
+    console.error('[ML Disconnect] Error:', error);
     return false;
   }
 };
