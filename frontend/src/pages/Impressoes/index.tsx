@@ -259,9 +259,16 @@ export function Impressoes() {
     }
 
     // Verificar estoque
-    const filamentoSelecionado = filamentos.find(f => f.id === form.filamento_id);
-    if (filamentoSelecionado && pesoTotal > (filamentoSelecionado.estoque_gramas || 0)) {
-      alert('Estoque de filamento insuficiente!');
+    const filamentoParaUsar = filamentos.find(f => f.id === form.filamento_id);
+    const estoqueDisponivel = filamentoParaUsar?.estoque_gramas || 0;
+
+    if (estoqueDisponivel <= 0) {
+      alert('Este filamento esta sem estoque! Adicione estoque antes de imprimir.');
+      return;
+    }
+
+    if (pesoTotal > estoqueDisponivel) {
+      alert(`Estoque insuficiente! Disponivel: ${(estoqueDisponivel / 1000).toFixed(2)}kg, Necessario: ${(pesoTotal / 1000).toFixed(2)}kg`);
       return;
     }
 
@@ -338,7 +345,9 @@ export function Impressoes() {
 
   // Verificar se tem estoque suficiente
   const filamentoSelecionado = filamentos.find(f => f.id === form.filamento_id);
-  const estoqueInsuficiente = filamentoSelecionado && pesoTotal > (filamentoSelecionado.estoque_gramas || 0);
+  const estoqueAtual = filamentoSelecionado?.estoque_gramas || 0;
+  const semEstoque = filamentoSelecionado && estoqueAtual <= 0;
+  const estoqueInsuficiente = filamentoSelecionado && pesoTotal > estoqueAtual;
 
   const resumoHoje = getResumoHoje();
   const impressoesFiltradas = getImpressoesFiltradas();
@@ -773,15 +782,25 @@ export function Impressoes() {
                       focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="">Selecione...</option>
-                    {filamentos.map(f => (
-                      <option key={f.id} value={f.id}>
-                        {f.marca} - {f.nome_filamento}
-                      </option>
-                    ))}
+                    {filamentos.map(f => {
+                      const estoque = f.estoque_gramas || 0;
+                      const temEstoque = estoque > 0;
+                      return (
+                        <option
+                          key={f.id}
+                          value={f.id}
+                          disabled={!temEstoque}
+                        >
+                          {f.marca} - {f.nome_filamento} ({temEstoque ? `${(estoque / 1000).toFixed(2)}kg` : 'SEM ESTOQUE'})
+                        </option>
+                      );
+                    })}
                   </select>
                   {filamentoSelecionado && (
-                    <p className={`text-xs mt-1 ${(filamentoSelecionado.estoque_gramas || 0) < 1000 ? 'text-red-600' : 'text-gray-500'}`}>
-                      Estoque: {((filamentoSelecionado.estoque_gramas || 0) / 1000).toFixed(2)} kg
+                    <p className={`text-xs mt-1 ${semEstoque ? 'text-red-600 font-medium' : estoqueAtual < 1000 ? 'text-amber-600' : 'text-gray-500'}`}>
+                      {semEstoque
+                        ? 'Sem estoque! Adicione filamento primeiro.'
+                        : `Estoque: ${(estoqueAtual / 1000).toFixed(2)} kg`}
                     </p>
                   )}
                 </div>
@@ -846,11 +865,17 @@ export function Impressoes() {
 
               {/* Resumo do consumo */}
               {pesoTotal > 0 && (
-                <div className={`p-4 rounded-lg border ${estoqueInsuficiente ? 'bg-red-50 border-red-200' : 'bg-blue-50 border-blue-200'}`}>
-                  {estoqueInsuficiente && (
+                <div className={`p-4 rounded-lg border ${(semEstoque || estoqueInsuficiente) ? 'bg-red-50 border-red-200' : 'bg-blue-50 border-blue-200'}`}>
+                  {semEstoque && (
                     <div className="flex items-center gap-2 text-red-700 mb-3">
                       <AlertTriangle className="w-5 h-5" />
-                      <span className="font-medium">Filamento insuficiente!</span>
+                      <span className="font-medium">Filamento sem estoque! Adicione estoque antes de imprimir.</span>
+                    </div>
+                  )}
+                  {!semEstoque && estoqueInsuficiente && (
+                    <div className="flex items-center gap-2 text-red-700 mb-3">
+                      <AlertTriangle className="w-5 h-5" />
+                      <span className="font-medium">Filamento insuficiente! Faltam {((pesoTotal - estoqueAtual) / 1000).toFixed(2)}kg</span>
                     </div>
                   )}
 
@@ -886,7 +911,7 @@ export function Impressoes() {
               <div className="flex items-center gap-3 pt-4 border-t border-gray-200">
                 <button
                   type="submit"
-                  disabled={saving || estoqueInsuficiente}
+                  disabled={saving || semEstoque || estoqueInsuficiente}
                   className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {saving ? (
