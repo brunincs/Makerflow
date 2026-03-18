@@ -1,6 +1,33 @@
 import { supabase, isSupabaseConfigured, getCurrentUserId } from './supabaseClient';
-import { Pedido } from '../types';
+import { Pedido, PrioridadePedido } from '../types';
 import { getEstoquePorProduto, removerEstoqueComMovimentacao, adicionarEstoqueComMovimentacao } from './estoqueProdutosService';
+
+// Calcular prioridade automatica baseada na data de entrega
+export const calcularPrioridade = (dataEntrega?: string): PrioridadePedido => {
+  if (!dataEntrega) return 'normal';
+
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+
+  const entrega = new Date(dataEntrega);
+  entrega.setHours(0, 0, 0, 0);
+
+  const diffDias = Math.ceil((entrega.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
+
+  if (diffDias <= 1) return 'urgente';
+  if (diffDias <= 3) return 'alta';
+  return 'normal';
+};
+
+// Obter valor numerico da prioridade para ordenacao
+export const getPrioridadeValor = (prioridade?: PrioridadePedido): number => {
+  switch (prioridade) {
+    case 'urgente': return 0;
+    case 'alta': return 1;
+    case 'normal': return 2;
+    default: return 2;
+  }
+};
 
 const STORAGE_KEY = 'makerflow_pedidos';
 
@@ -89,12 +116,17 @@ export const createPedido = async (
   // quantidade_produzida registra o que ja foi atendido (do estoque)
   const statusInicial: Pedido['status'] = 'pendente';
 
+  // Calcular prioridade automatica se nao for informada
+  const prioridadeCalculada = pedido.prioridade || calcularPrioridade(pedido.data_entrega);
+
   const dadosParaSalvar = {
     produto_id: pedido.produto_id,
     variacao_id: pedido.variacao_id || null,
     quantidade: pedido.quantidade,
     quantidade_produzida: quantidadeDoEstoque, // Ja contabiliza o que veio do estoque
     status: statusInicial,
+    prioridade: prioridadeCalculada,
+    data_entrega: pedido.data_entrega || null,
     observacao: pedido.observacao || null,
   };
 
@@ -105,6 +137,8 @@ export const createPedido = async (
       quantidade: dadosParaSalvar.quantidade,
       quantidade_produzida: dadosParaSalvar.quantidade_produzida,
       status: dadosParaSalvar.status as Pedido['status'],
+      prioridade: dadosParaSalvar.prioridade,
+      data_entrega: dadosParaSalvar.data_entrega || undefined,
       observacao: dadosParaSalvar.observacao || undefined,
       id: crypto.randomUUID(),
       created_at: new Date().toISOString(),
@@ -149,6 +183,8 @@ export const updatePedido = async (
     ...(updates.quantidade !== undefined && { quantidade: updates.quantidade }),
     ...(updates.quantidade_produzida !== undefined && { quantidade_produzida: updates.quantidade_produzida }),
     ...(updates.status !== undefined && { status: updates.status }),
+    ...(updates.prioridade !== undefined && { prioridade: updates.prioridade }),
+    ...(updates.data_entrega !== undefined && { data_entrega: updates.data_entrega }),
     ...(updates.observacao !== undefined && { observacao: updates.observacao }),
     updated_at: new Date().toISOString(),
   };

@@ -353,6 +353,9 @@ export interface PrecificacaoSalva {
 
 // ============ FILA DE PRODUCAO ============
 
+// Prioridade de pedido
+export type PrioridadePedido = 'urgente' | 'alta' | 'normal';
+
 // Pedido de venda
 export interface Pedido {
   id?: string;
@@ -362,6 +365,8 @@ export interface Pedido {
   quantidade: number;
   quantidade_produzida: number;
   status: 'pendente' | 'em_producao' | 'concluido';
+  prioridade?: PrioridadePedido;
+  data_entrega?: string;
   observacao?: string;
   created_at?: string;
   updated_at?: string;
@@ -441,6 +446,8 @@ export interface ItemFilaProducao {
   tempo_por_peca: number;
   peso_total: number;
   tempo_total: number;
+  prioridade?: PrioridadePedido; // Prioridade mais alta dos pedidos
+  data_entrega?: string; // Data de entrega mais proxima
   pedidos: Pedido[];
 }
 

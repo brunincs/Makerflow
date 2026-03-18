@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Card, CardBody } from '../../components/ui';
-import { Pedido, ProdutoConcorrente, ItemFilaProducao, EstoqueProduto, Filamento, Impressora, MLOrder, MLConnectionStatus } from '../../types';
-import { getPedidosPendentes, createPedido, deletePedido, marcarProduzido, concluirPedido, getPedidosConcluidos, reverterPedido } from '../../services/pedidosService';
+import { Pedido, ProdutoConcorrente, ItemFilaProducao, EstoqueProduto, Filamento, Impressora, MLOrder, MLConnectionStatus, PrioridadePedido } from '../../types';
+import { getPedidosPendentes, createPedido, deletePedido, marcarProduzido, concluirPedido, getPedidosConcluidos, reverterPedido, calcularPrioridade, getPrioridadeValor } from '../../services/pedidosService';
 import { getEstoqueProdutos, removerEstoqueComMovimentacao } from '../../services/estoqueProdutosService';
 import { getProdutos } from '../../services/produtosService';
 import { getFilamentos } from '../../services/filamentosService';
@@ -45,6 +45,9 @@ import {
   Unlink,
   History,
   Undo2,
+  Calendar,
+  Flame,
+  Circle,
 } from 'lucide-react';
 
 // Interface para pedido importado/analisado
@@ -128,6 +131,18 @@ function formatarTempo(horas: number): string {
   if (h === 0) return `${m}min`;
   if (m === 0) return `${h}h`;
   return `${h}h ${m}min`;
+}
+
+// Obter configuracao visual da prioridade
+function getPrioridadeConfig(prioridade?: PrioridadePedido): { cor: string; bgCor: string; texto: string; icone: 'flame' | 'alert' | 'circle' } {
+  switch (prioridade) {
+    case 'urgente':
+      return { cor: 'text-red-600', bgCor: 'bg-red-100', texto: 'Urgente', icone: 'flame' };
+    case 'alta':
+      return { cor: 'text-orange-600', bgCor: 'bg-orange-100', texto: 'Alta', icone: 'alert' };
+    default:
+      return { cor: 'text-gray-500', bgCor: 'bg-gray-100', texto: 'Normal', icone: 'circle' };
+  }
 }
 
 // Formatar horário (ex: 14:30)
@@ -244,6 +259,8 @@ export function FilaProducao() {
   const [produtoSelecionado, setProdutoSelecionado] = useState<string>('');
   const [variacaoSelecionada, setVariacaoSelecionada] = useState<string>('');
   const [quantidade, setQuantidade] = useState<number>(1);
+  const [prioridade, setPrioridade] = useState<PrioridadePedido>('normal');
+  const [dataEntrega, setDataEntrega] = useState<string>('');
   const [saving, setSaving] = useState(false);
 
   // Modal de marcar produzido
@@ -504,7 +521,7 @@ export function FilaProducao() {
     }
   };
 
-  // Calcular fila de produção - v3
+  // Calcular fila de produção - v4 (com prioridade)
   const filaProducao = useMemo((): ItemFilaProducao[] => {
     const mapa = new Map<string, ItemFilaProducao & { quantidade_restante: number }>();
 
@@ -528,10 +545,26 @@ export function FilaProducao() {
         item.quantidade_do_estoque += qtdJaAtendida;
         item.quantidade_restante += qtdRestante;
         item.pedidos.push(pedido);
+
+        // Atualizar prioridade para a mais alta
+        const prioridadePedido = pedido.prioridade || calcularPrioridade(pedido.data_entrega);
+        if (getPrioridadeValor(prioridadePedido) < getPrioridadeValor(item.prioridade)) {
+          item.prioridade = prioridadePedido;
+        }
+
+        // Atualizar data de entrega para a mais proxima
+        if (pedido.data_entrega) {
+          if (!item.data_entrega || pedido.data_entrega < item.data_entrega) {
+            item.data_entrega = pedido.data_entrega;
+          }
+        }
       } else {
         // Obter dados do produto/variação
         const peso = pedido.variacao?.peso_filamento || pedido.produto?.peso_filamento || 0;
         const tempo = pedido.variacao?.tempo_impressao || pedido.produto?.tempo_impressao || 0;
+
+        // Calcular prioridade do pedido
+        const prioridadePedido = pedido.prioridade || calcularPrioridade(pedido.data_entrega);
 
         mapa.set(key, {
           produto_id: pedido.produto_id,
@@ -549,6 +582,8 @@ export function FilaProducao() {
           tempo_por_peca: tempo,
           peso_total: 0,
           tempo_total: 0,
+          prioridade: prioridadePedido,
+          data_entrega: pedido.data_entrega,
           pedidos: [pedido],
         });
       }
@@ -587,16 +622,28 @@ export function FilaProducao() {
       item.tempo_total = item.quantidade_produzir * item.tempo_por_peca;
     });
 
-    // Retornar TODOS os itens (nao filtrar mais)
-    // Ordenar: primeiro os que precisam producao, depois os atendidos pelo estoque
+    // Ordenar por: 1. Prioridade (urgente > alta > normal), 2. Status, 3. Data criacao
     const itens = Array.from(mapa.values());
     return itens.sort((a, b) => {
-      // Prioridade: producao > parcial > estoque_total
-      const prioridade = { producao: 0, estoque_parcial: 1, estoque_total: 2 };
-      const prioridadeA = prioridade[a.status_fila];
-      const prioridadeB = prioridade[b.status_fila];
+      // 1. Ordenar por prioridade do pedido (urgente primeiro)
+      const prioridadeA = getPrioridadeValor(a.prioridade);
+      const prioridadeB = getPrioridadeValor(b.prioridade);
       if (prioridadeA !== prioridadeB) return prioridadeA - prioridadeB;
-      // Dentro da mesma prioridade, ordenar por tempo
+
+      // 2. Ordenar por status da fila (producao > parcial > estoque)
+      const statusPrioridade = { producao: 0, estoque_parcial: 1, estoque_total: 2 };
+      const statusA = statusPrioridade[a.status_fila];
+      const statusB = statusPrioridade[b.status_fila];
+      if (statusA !== statusB) return statusA - statusB;
+
+      // 3. Ordenar por data de entrega (mais proxima primeiro)
+      if (a.data_entrega && b.data_entrega) {
+        return a.data_entrega.localeCompare(b.data_entrega);
+      }
+      if (a.data_entrega) return -1;
+      if (b.data_entrega) return 1;
+
+      // 4. Ordenar por tempo total
       return a.tempo_total - b.tempo_total;
     });
   }, [pedidos, estoque]);
@@ -715,6 +762,8 @@ export function FilaProducao() {
       quantidade,
       quantidade_produzida: 0,
       status: 'pendente',
+      prioridade: prioridade,
+      data_entrega: dataEntrega || undefined,
     });
 
     if (resultado) {
@@ -723,6 +772,8 @@ export function FilaProducao() {
       setProdutoSelecionado('');
       setVariacaoSelecionada('');
       setQuantidade(1);
+      setPrioridade('normal');
+      setDataEntrega('');
     }
 
     setSaving(false);
@@ -1276,12 +1327,18 @@ export function FilaProducao() {
                           <>
                             <div className="space-y-2 mb-3">
                               {itensImpressora.map((item, idx) => (
-                                <div key={`${item.produto_id}-${item.variacao_id}`} className="flex items-start gap-2">
+                                <div key={`${item.produto_id}-${item.variacao_id}-${idx}`} className="flex items-start gap-2">
                                   <span className="text-xs bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded font-medium">
                                     {idx + 1}
                                   </span>
                                   <div className="flex-1 min-w-0">
-                                    <div className="text-sm">
+                                    <div className="text-sm flex items-center gap-1 flex-wrap">
+                                      {item.prioridade === 'urgente' && (
+                                        <Flame className="w-3 h-3 text-red-500" />
+                                      )}
+                                      {item.prioridade === 'alta' && (
+                                        <AlertTriangle className="w-3 h-3 text-orange-500" />
+                                      )}
                                       <span className="text-gray-700 font-medium">{item.nome_produto}</span>
                                       {item.nome_variacao && (
                                         <span className="text-gray-400"> ({item.nome_variacao})</span>
@@ -1379,12 +1436,28 @@ export function FilaProducao() {
 
                         {/* Info */}
                         <div className="flex-1 min-w-0">
-                          <h4 className="font-semibold text-gray-900">
-                            {item.nome_produto}
-                            {item.nome_variacao && (
-                              <span className="text-blue-600 font-medium"> ({item.nome_variacao})</span>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className="font-semibold text-gray-900">
+                              {item.nome_produto}
+                              {item.nome_variacao && (
+                                <span className="text-blue-600 font-medium"> ({item.nome_variacao})</span>
+                              )}
+                            </h4>
+                            {/* Badge de prioridade */}
+                            {item.prioridade && item.prioridade !== 'normal' && (
+                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${getPrioridadeConfig(item.prioridade).bgCor} ${getPrioridadeConfig(item.prioridade).cor}`}>
+                                {item.prioridade === 'urgente' ? <Flame className="w-3 h-3" /> : <AlertTriangle className="w-3 h-3" />}
+                                {getPrioridadeConfig(item.prioridade).texto}
+                              </span>
                             )}
-                          </h4>
+                            {/* Data de entrega */}
+                            {item.data_entrega && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-xs">
+                                <Calendar className="w-3 h-3" />
+                                {new Date(item.data_entrega + 'T00:00:00').toLocaleDateString('pt-BR')}
+                              </span>
+                            )}
+                          </div>
 
                           {/* Quantidades em cards */}
                           <div className="flex flex-wrap gap-2 mt-2">
@@ -1467,12 +1540,28 @@ export function FilaProducao() {
 
                         {/* Info */}
                         <div className="flex-1 min-w-0">
-                          <h4 className="font-semibold text-gray-900">
-                            {item.nome_produto}
-                            {item.nome_variacao && (
-                              <span className="text-yellow-600 font-medium"> ({item.nome_variacao})</span>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className="font-semibold text-gray-900">
+                              {item.nome_produto}
+                              {item.nome_variacao && (
+                                <span className="text-yellow-600 font-medium"> ({item.nome_variacao})</span>
+                              )}
+                            </h4>
+                            {/* Badge de prioridade */}
+                            {item.prioridade && item.prioridade !== 'normal' && (
+                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${getPrioridadeConfig(item.prioridade).bgCor} ${getPrioridadeConfig(item.prioridade).cor}`}>
+                                {item.prioridade === 'urgente' ? <Flame className="w-3 h-3" /> : <AlertTriangle className="w-3 h-3" />}
+                                {getPrioridadeConfig(item.prioridade).texto}
+                              </span>
                             )}
-                          </h4>
+                            {/* Data de entrega */}
+                            {item.data_entrega && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-xs">
+                                <Calendar className="w-3 h-3" />
+                                {new Date(item.data_entrega + 'T00:00:00').toLocaleDateString('pt-BR')}
+                              </span>
+                            )}
+                          </div>
 
                           {/* Quantidades em cards */}
                           <div className="flex flex-wrap gap-2 mt-2">
@@ -1555,12 +1644,28 @@ export function FilaProducao() {
 
                         {/* Info */}
                         <div className="flex-1 min-w-0">
-                          <h4 className="font-semibold text-gray-900">
-                            {item.nome_produto}
-                            {item.nome_variacao && (
-                              <span className="text-green-600 font-medium"> ({item.nome_variacao})</span>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className="font-semibold text-gray-900">
+                              {item.nome_produto}
+                              {item.nome_variacao && (
+                                <span className="text-green-600 font-medium"> ({item.nome_variacao})</span>
+                              )}
+                            </h4>
+                            {/* Badge de prioridade */}
+                            {item.prioridade && item.prioridade !== 'normal' && (
+                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${getPrioridadeConfig(item.prioridade).bgCor} ${getPrioridadeConfig(item.prioridade).cor}`}>
+                                {item.prioridade === 'urgente' ? <Flame className="w-3 h-3" /> : <AlertTriangle className="w-3 h-3" />}
+                                {getPrioridadeConfig(item.prioridade).texto}
+                              </span>
                             )}
-                          </h4>
+                            {/* Data de entrega */}
+                            {item.data_entrega && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-xs">
+                                <Calendar className="w-3 h-3" />
+                                {new Date(item.data_entrega + 'T00:00:00').toLocaleDateString('pt-BR')}
+                              </span>
+                            )}
+                          </div>
 
                           {/* Quantidades em cards */}
                           <div className="flex flex-wrap gap-2 mt-2">
@@ -1758,6 +1863,76 @@ export function FilaProducao() {
                       hover:bg-gray-100 transition-colors text-gray-600"
                   >
                     <Plus className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Data de Entrega */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Data de entrega (opcional)
+                </label>
+                <div className="relative">
+                  <input
+                    type="date"
+                    value={dataEntrega}
+                    onChange={(e) => {
+                      setDataEntrega(e.target.value);
+                      // Calcular prioridade automatica
+                      if (e.target.value) {
+                        setPrioridade(calcularPrioridade(e.target.value));
+                      }
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg
+                      focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  A prioridade sera calculada automaticamente
+                </p>
+              </div>
+
+              {/* Prioridade */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Prioridade
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPrioridade('normal')}
+                    className={`flex-1 px-3 py-2 rounded-lg border flex items-center justify-center gap-2 transition-colors ${
+                      prioridade === 'normal'
+                        ? 'border-gray-500 bg-gray-100 text-gray-700'
+                        : 'border-gray-300 text-gray-500 hover:bg-gray-50'
+                    }`}
+                  >
+                    <Circle className="w-3 h-3" />
+                    Normal
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPrioridade('alta')}
+                    className={`flex-1 px-3 py-2 rounded-lg border flex items-center justify-center gap-2 transition-colors ${
+                      prioridade === 'alta'
+                        ? 'border-orange-500 bg-orange-100 text-orange-700'
+                        : 'border-gray-300 text-gray-500 hover:bg-orange-50'
+                    }`}
+                  >
+                    <AlertTriangle className="w-3 h-3" />
+                    Alta
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPrioridade('urgente')}
+                    className={`flex-1 px-3 py-2 rounded-lg border flex items-center justify-center gap-2 transition-colors ${
+                      prioridade === 'urgente'
+                        ? 'border-red-500 bg-red-100 text-red-700'
+                        : 'border-gray-300 text-gray-500 hover:bg-red-50'
+                    }`}
+                  >
+                    <Flame className="w-3 h-3" />
+                    Urgente
                   </button>
                 </div>
               </div>
