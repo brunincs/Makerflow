@@ -613,13 +613,6 @@ export function FilaProducao() {
     ));
   };
 
-  // Atualizar quantidade de pedido ML
-  const updateMLOrderQuantity = (orderId: string, quantidade: number) => {
-    setMlOrdersWithMatch(prev => prev.map(item =>
-      item.order.id === orderId ? { ...item, quantidade: Math.max(1, quantidade) } : item
-    ));
-  };
-
   // Selecionar produto manualmente para pedido ML
   const setMLOrderManualProduct = (orderId: string, produtoId: string, variacaoId?: string) => {
     const produto = produtos.find(p => p.id === produtoId);
@@ -663,9 +656,9 @@ export function FilaProducao() {
       const variacaoId = item.variacaoManual?.id || item.variacaoMatch?.id;
 
       if (produtoId) {
-        // Criar pedido com quantidade customizada
+        // Criar pedido com quantidade original do marketplace (nao editavel)
         const success = await importMLOrderToPedido(
-          { ...item.order, quantity: item.quantidade },
+          item.order,
           produtoId,
           variacaoId
         );
@@ -773,13 +766,6 @@ export function FilaProducao() {
     ));
   };
 
-  // Atualizar quantidade de pedido TikTok
-  const updateTikTokOrderQuantity = (orderId: string, quantidade: number) => {
-    setTiktokOrdersWithMatch(prev => prev.map(item =>
-      item.order.id === orderId ? { ...item, quantidade: Math.max(1, quantidade) } : item
-    ));
-  };
-
   // Selecionar produto manualmente para pedido TikTok
   const setTikTokOrderManualProduct = (orderId: string, produtoId: string, variacaoId?: string) => {
     const produto = produtos.find(p => p.id === produtoId);
@@ -823,9 +809,9 @@ export function FilaProducao() {
       const variacaoId = item.variacaoManual?.id || item.variacaoMatch?.id;
 
       if (produtoId) {
-        // Criar pedido com quantidade customizada
+        // Criar pedido com quantidade original do marketplace (nao editavel)
         const success = await importTikTokOrderToPedido(
-          { ...item.order, quantity: item.quantidade },
+          item.order,
           produtoId,
           variacaoId
         );
@@ -933,13 +919,6 @@ export function FilaProducao() {
     ));
   };
 
-  // Atualizar quantidade de pedido Shopee
-  const updateShopeeOrderQuantity = (orderId: string, quantidade: number) => {
-    setShopeeOrdersWithMatch(prev => prev.map(item =>
-      item.order.id === orderId ? { ...item, quantidade: Math.max(1, quantidade) } : item
-    ));
-  };
-
   // Selecionar produto manualmente para pedido Shopee
   const setShopeeOrderManualProduct = (orderId: string, produtoId: string, variacaoId?: string) => {
     const produto = produtos.find(p => p.id === produtoId);
@@ -983,9 +962,9 @@ export function FilaProducao() {
       const variacaoId = item.variacaoManual?.id || item.variacaoMatch?.id;
 
       if (produtoId) {
-        // Criar pedido com quantidade customizada
+        // Criar pedido com quantidade original do marketplace (nao editavel)
         const success = await importShopeeOrderToPedido(
-          { ...item.order, quantity: item.quantidade },
+          item.order,
           produtoId,
           variacaoId
         );
@@ -3397,28 +3376,10 @@ export function FilaProducao() {
                             )}
                           </div>
 
-                          {/* Quantidade editavel */}
-                          <div className="flex items-center gap-1">
-                            <button
-                              onClick={() => updateMLOrderQuantity(item.order.id!, item.quantidade - 1)}
-                              className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
-                              disabled={item.quantidade <= 1}
-                            >
-                              <Minus className="w-3 h-3" />
-                            </button>
-                            <input
-                              type="number"
-                              min="1"
-                              value={item.quantidade}
-                              onChange={(e) => updateMLOrderQuantity(item.order.id!, parseInt(e.target.value) || 1)}
-                              className="w-12 text-center text-sm border rounded px-1 py-0.5"
-                            />
-                            <button
-                              onClick={() => updateMLOrderQuantity(item.order.id!, item.quantidade + 1)}
-                              className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
-                            >
-                              <Plus className="w-3 h-3" />
-                            </button>
+                          {/* Quantidade fixa (marketplace) */}
+                          <div className="flex items-center gap-1 px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm font-semibold">
+                            <Package className="w-3 h-3" />
+                            x{item.order.quantity}
                           </div>
 
                           {/* Badge de status */}
@@ -3702,28 +3663,10 @@ export function FilaProducao() {
                             )}
                           </div>
 
-                          {/* Quantidade editavel */}
-                          <div className="flex items-center gap-1">
-                            <button
-                              onClick={() => updateTikTokOrderQuantity(item.order.id!, item.quantidade - 1)}
-                              className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
-                              disabled={item.quantidade <= 1}
-                            >
-                              <Minus className="w-3 h-3" />
-                            </button>
-                            <input
-                              type="number"
-                              min="1"
-                              value={item.quantidade}
-                              onChange={(e) => updateTikTokOrderQuantity(item.order.id!, parseInt(e.target.value) || 1)}
-                              className="w-12 text-center text-sm border rounded px-1 py-0.5"
-                            />
-                            <button
-                              onClick={() => updateTikTokOrderQuantity(item.order.id!, item.quantidade + 1)}
-                              className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
-                            >
-                              <Plus className="w-3 h-3" />
-                            </button>
+                          {/* Quantidade fixa (marketplace) */}
+                          <div className="flex items-center gap-1 px-2 py-1 bg-pink-100 text-pink-800 rounded-full text-sm font-semibold">
+                            <Package className="w-3 h-3" />
+                            x{item.order.quantity}
                           </div>
 
                           {/* Badge de status */}
@@ -4007,28 +3950,10 @@ export function FilaProducao() {
                             )}
                           </div>
 
-                          {/* Quantidade editavel */}
-                          <div className="flex items-center gap-1">
-                            <button
-                              onClick={() => updateShopeeOrderQuantity(item.order.id!, item.quantidade - 1)}
-                              className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
-                              disabled={item.quantidade <= 1}
-                            >
-                              <Minus className="w-3 h-3" />
-                            </button>
-                            <input
-                              type="number"
-                              min="1"
-                              value={item.quantidade}
-                              onChange={(e) => updateShopeeOrderQuantity(item.order.id!, parseInt(e.target.value) || 1)}
-                              className="w-12 text-center text-sm border rounded px-1 py-0.5"
-                            />
-                            <button
-                              onClick={() => updateShopeeOrderQuantity(item.order.id!, item.quantidade + 1)}
-                              className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
-                            >
-                              <Plus className="w-3 h-3" />
-                            </button>
+                          {/* Quantidade fixa (marketplace) */}
+                          <div className="flex items-center gap-1 px-2 py-1 bg-orange-100 text-orange-800 rounded-full text-sm font-semibold">
+                            <Package className="w-3 h-3" />
+                            x{item.order.quantity}
                           </div>
 
                           {/* Badge de status */}
