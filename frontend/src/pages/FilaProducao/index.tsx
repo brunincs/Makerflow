@@ -54,6 +54,13 @@ import {
   Edit3,
 } from 'lucide-react';
 
+// Interface para variação selecionada com quantidade
+interface VariacaoSelecionada {
+  id: string;
+  nome_variacao: string;
+  quantidade: number;
+}
+
 // Interface para pedido importado/analisado
 interface PedidoImportado {
   textoOriginal: string;
@@ -62,6 +69,7 @@ interface PedidoImportado {
   quantidade: number;
   produtoEncontrado?: ProdutoConcorrente;
   variacaoEncontrada?: { id: string; nome_variacao: string };
+  variacoesSelecionadas?: VariacaoSelecionada[]; // Para múltiplas variações
   status: 'encontrado' | 'nao_encontrado' | 'variacao_nao_encontrada' | 'selecionar_variacao';
 }
 
@@ -985,13 +993,27 @@ export function FilaProducao() {
 
     try {
       for (const pedido of pedidosValidos) {
-        await createPedido({
-          produto_id: pedido.produtoEncontrado!.id!,
-          variacao_id: pedido.variacaoEncontrada?.id || null,
-          quantidade: pedido.quantidade,
-          quantidade_produzida: 0,
-          status: 'pendente',
-        });
+        // Se tem múltiplas variações selecionadas, criar um pedido para cada
+        if (pedido.variacoesSelecionadas && pedido.variacoesSelecionadas.length > 0) {
+          for (const variacao of pedido.variacoesSelecionadas) {
+            await createPedido({
+              produto_id: pedido.produtoEncontrado!.id!,
+              variacao_id: variacao.id,
+              quantidade: variacao.quantidade,
+              quantidade_produzida: 0,
+              status: 'pendente',
+            });
+          }
+        } else {
+          // Comportamento normal - uma única variação ou sem variação
+          await createPedido({
+            produto_id: pedido.produtoEncontrado!.id!,
+            variacao_id: pedido.variacaoEncontrada?.id || null,
+            quantidade: pedido.quantidade,
+            quantidade_produzida: 0,
+            status: 'pendente',
+          });
+        }
       }
 
       await loadData();
@@ -1012,19 +1034,73 @@ export function FilaProducao() {
     setPedidosImportados([]);
   };
 
-  // Selecionar variação para pedido importado
-  const handleSelecionarVariacao = (index: number, variacaoId: string) => {
+  // Adicionar variação ao pedido importado
+  const handleAdicionarVariacao = (index: number, variacaoId: string, quantidade: number) => {
     setPedidosImportados(prev => prev.map((pedido, i) => {
       if (i !== index || !pedido.produtoEncontrado) return pedido;
 
       const variacao = pedido.produtoEncontrado.variacoes?.find(v => v.id === variacaoId);
       if (!variacao) return pedido;
 
+      const variacoesSelecionadas = pedido.variacoesSelecionadas || [];
+      const existente = variacoesSelecionadas.find(v => v.id === variacaoId);
+
+      let novasVariacoes: VariacaoSelecionada[];
+      if (existente) {
+        // Atualizar quantidade se já existe
+        novasVariacoes = variacoesSelecionadas.map(v =>
+          v.id === variacaoId ? { ...v, quantidade: v.quantidade + quantidade } : v
+        );
+      } else {
+        // Adicionar nova variação
+        novasVariacoes = [...variacoesSelecionadas, {
+          id: variacao.id!,
+          nome_variacao: variacao.nome_variacao,
+          quantidade
+        }];
+      }
+
+      // Calcular total selecionado
+      const totalSelecionado = novasVariacoes.reduce((sum, v) => sum + v.quantidade, 0);
+
       return {
         ...pedido,
-        variacaoEncontrada: { id: variacao.id!, nome_variacao: variacao.nome_variacao },
-        nomeVariacao: variacao.nome_variacao,
-        status: 'encontrado' as const
+        variacoesSelecionadas: novasVariacoes,
+        status: totalSelecionado >= pedido.quantidade ? 'encontrado' as const : 'selecionar_variacao' as const
+      };
+    }));
+  };
+
+  // Remover variação do pedido importado
+  const handleRemoverVariacao = (index: number, variacaoId: string) => {
+    setPedidosImportados(prev => prev.map((pedido, i) => {
+      if (i !== index) return pedido;
+
+      const variacoesSelecionadas = (pedido.variacoesSelecionadas || []).filter(v => v.id !== variacaoId);
+      const totalSelecionado = variacoesSelecionadas.reduce((sum, v) => sum + v.quantidade, 0);
+
+      return {
+        ...pedido,
+        variacoesSelecionadas,
+        status: totalSelecionado >= pedido.quantidade ? 'encontrado' as const : 'selecionar_variacao' as const
+      };
+    }));
+  };
+
+  // Atualizar quantidade de uma variação
+  const handleAtualizarQtdVariacao = (index: number, variacaoId: string, quantidade: number) => {
+    setPedidosImportados(prev => prev.map((pedido, i) => {
+      if (i !== index) return pedido;
+
+      const variacoesSelecionadas = (pedido.variacoesSelecionadas || []).map(v =>
+        v.id === variacaoId ? { ...v, quantidade: Math.max(1, quantidade) } : v
+      );
+      const totalSelecionado = variacoesSelecionadas.reduce((sum, v) => sum + v.quantidade, 0);
+
+      return {
+        ...pedido,
+        variacoesSelecionadas,
+        status: totalSelecionado >= pedido.quantidade ? 'encontrado' as const : 'selecionar_variacao' as const
       };
     }));
   };
@@ -2402,31 +2478,101 @@ export function FilaProducao() {
                                 : 'text-red-600'
                             }`}>
                               {pedido.status === 'encontrado'
-                                ? `Encontrado: ${pedido.produtoEncontrado?.nome}${pedido.variacaoEncontrada ? ` (${pedido.variacaoEncontrada.nome_variacao})` : ''}`
+                                ? pedido.variacoesSelecionadas && pedido.variacoesSelecionadas.length > 0
+                                  ? `${pedido.produtoEncontrado?.nome}: ${pedido.variacoesSelecionadas.map(v => `${v.quantidade}x ${v.nome_variacao}`).join(', ')}`
+                                  : `Encontrado: ${pedido.produtoEncontrado?.nome}${pedido.variacaoEncontrada ? ` (${pedido.variacaoEncontrada.nome_variacao})` : ''}`
                                 : pedido.status === 'selecionar_variacao'
-                                ? 'Selecione a variacao do produto'
+                                ? `Selecione as variacoes (${pedido.quantidade - (pedido.variacoesSelecionadas || []).reduce((s, v) => s + v.quantidade, 0)} restante${pedido.quantidade - (pedido.variacoesSelecionadas || []).reduce((s, v) => s + v.quantidade, 0) > 1 ? 's' : ''})`
                                 : pedido.status === 'variacao_nao_encontrada'
                                 ? `Produto encontrado, mas variacao "${pedido.nomeVariacao}" nao existe`
                                 : 'Produto nao encontrado no Radar'}
                             </p>
 
-                            {/* Dropdown de variação */}
-                            {(pedido.status === 'selecionar_variacao' || pedido.status === 'variacao_nao_encontrada') &&
+                            {/* Seleção de múltiplas variações */}
+                            {(pedido.status === 'selecionar_variacao' || pedido.status === 'variacao_nao_encontrada' ||
+                              (pedido.status === 'encontrado' && pedido.variacoesSelecionadas && pedido.variacoesSelecionadas.length > 0)) &&
                               pedido.produtoEncontrado?.variacoes && pedido.produtoEncontrado.variacoes.length > 0 && (
-                              <div className="mt-2">
-                                <select
-                                  value={pedido.variacaoEncontrada?.id || ''}
-                                  onChange={(e) => handleSelecionarVariacao(index, e.target.value)}
-                                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-1.5
-                                    focus:outline-none focus:ring-2 focus:ring-purple-500"
-                                >
-                                  <option value="">Selecionar variacao...</option>
-                                  {pedido.produtoEncontrado.variacoes.map(v => (
-                                    <option key={v.id} value={v.id}>
-                                      {v.nome_variacao} {v.sku ? `(${v.sku})` : ''}
-                                    </option>
-                                  ))}
-                                </select>
+                              <div className="mt-2 space-y-2">
+                                {/* Variações já selecionadas */}
+                                {pedido.variacoesSelecionadas && pedido.variacoesSelecionadas.length > 0 && (
+                                  <div className="space-y-1">
+                                    {pedido.variacoesSelecionadas.map(v => (
+                                      <div key={v.id} className="flex items-center gap-2 bg-white rounded px-2 py-1 border">
+                                        <span className="flex-1 text-sm text-gray-700">{v.nome_variacao}</span>
+                                        <div className="flex items-center gap-1">
+                                          <button
+                                            onClick={() => handleAtualizarQtdVariacao(index, v.id, v.quantidade - 1)}
+                                            disabled={v.quantidade <= 1}
+                                            className="p-0.5 text-gray-400 hover:text-gray-600 disabled:opacity-30"
+                                          >
+                                            <Minus className="w-3 h-3" />
+                                          </button>
+                                          <span className="w-6 text-center text-sm font-medium">{v.quantidade}</span>
+                                          <button
+                                            onClick={() => handleAtualizarQtdVariacao(index, v.id, v.quantidade + 1)}
+                                            className="p-0.5 text-gray-400 hover:text-gray-600"
+                                          >
+                                            <Plus className="w-3 h-3" />
+                                          </button>
+                                        </div>
+                                        <button
+                                          onClick={() => handleRemoverVariacao(index, v.id)}
+                                          className="p-0.5 text-red-400 hover:text-red-600"
+                                        >
+                                          <X className="w-3 h-3" />
+                                        </button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+
+                                {/* Adicionar nova variação */}
+                                {(() => {
+                                  const totalSelecionado = (pedido.variacoesSelecionadas || []).reduce((sum, v) => sum + v.quantidade, 0);
+                                  const restante = pedido.quantidade - totalSelecionado;
+
+                                  if (restante <= 0) return null;
+
+                                  return (
+                                    <div className="flex items-center gap-2">
+                                      <select
+                                        id={`variacao-${index}`}
+                                        defaultValue=""
+                                        className="flex-1 text-sm border border-gray-300 rounded-lg px-2 py-1.5
+                                          focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                      >
+                                        <option value="">Adicionar variacao... ({restante} restante{restante > 1 ? 's' : ''})</option>
+                                        {pedido.produtoEncontrado!.variacoes!.map(v => (
+                                          <option key={v.id} value={v.id}>
+                                            {v.nome_variacao} {v.sku ? `(${v.sku})` : ''}
+                                          </option>
+                                        ))}
+                                      </select>
+                                      <input
+                                        type="number"
+                                        id={`qtd-${index}`}
+                                        min="1"
+                                        max={restante}
+                                        defaultValue="1"
+                                        className="w-14 text-sm border border-gray-300 rounded-lg px-2 py-1.5 text-center"
+                                      />
+                                      <button
+                                        onClick={() => {
+                                          const selectEl = document.getElementById(`variacao-${index}`) as HTMLSelectElement;
+                                          const qtdEl = document.getElementById(`qtd-${index}`) as HTMLInputElement;
+                                          if (selectEl.value) {
+                                            handleAdicionarVariacao(index, selectEl.value, parseInt(qtdEl.value) || 1);
+                                            selectEl.value = '';
+                                            qtdEl.value = '1';
+                                          }
+                                        }}
+                                        className="px-2 py-1.5 bg-purple-600 text-white rounded-lg text-sm hover:bg-purple-700"
+                                      >
+                                        <Plus className="w-4 h-4" />
+                                      </button>
+                                    </div>
+                                  );
+                                })()}
                               </div>
                             )}
                           </div>
