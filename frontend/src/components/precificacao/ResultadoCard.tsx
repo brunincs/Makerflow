@@ -293,13 +293,24 @@ export function ResultadoCard({ state, canSave = true, onSaveSuccess, nomeProdut
   const lucroLiquido = precoVenda - custoTotal;
   const margemLiquida = (lucroLiquido / precoVenda) * 100;
 
-  // Lucro por hora
-  const lucroPorHora = tempoHoras > 0 ? lucroLiquido / tempoHoras : 0;
+  // Tempo efetivo por peça (considera se imprime múltiplas de uma vez)
+  // Se multiplas_pecas = true: tempo informado é o tempo TOTAL da mesa, então tempo por peça = tempo / quantidade
+  // Se multiplas_pecas = false: tempo informado é de UMA peça
+  const tempoEfetivoPorPeca = custos.multiplas_pecas && quantidadePecas > 1
+    ? tempoHoras / quantidadePecas
+    : tempoHoras;
+
+  // Lucro por hora (usa tempo efetivo por peça para calcular corretamente)
+  const lucroPorHora = tempoEfetivoPorPeca > 0 ? lucroLiquido / tempoEfetivoPorPeca : 0;
 
   // Capacidade produtiva (assumindo 20h de impressão por dia, 30 dias/mês)
   const horasPorDia = 20;
   const diasPorMes = 30;
-  const pecasPorDia = tempoHoras > 0 ? Math.floor(horasPorDia / tempoHoras) : 0;
+  // Se multiplas_pecas = true: produz N peças a cada ciclo de tempoHoras
+  // Se multiplas_pecas = false: produz 1 peça a cada tempoHoras
+  const ciclosPorDia = tempoHoras > 0 ? Math.floor(horasPorDia / tempoHoras) : 0;
+  const pecasPorCiclo = custos.multiplas_pecas ? quantidadePecas : 1;
+  const pecasPorDia = ciclosPorDia * pecasPorCiclo;
   const lucroDiario = pecasPorDia * lucroLiquido;
   const pecasPorMes = pecasPorDia * diasPorMes;
   const lucroMensal = lucroDiario * diasPorMes;
@@ -584,7 +595,8 @@ export function ResultadoCard({ state, canSave = true, onSaveSuccess, nomeProdut
             </div>
           </div>
           <p className="text-xs text-gray-400 mt-3 text-center">
-            Tempo por peca: {Math.floor(tempoHoras)}h {Math.round((tempoHoras % 1) * 60)}min
+            Tempo por peca: {Math.floor(tempoEfetivoPorPeca)}h {Math.round((tempoEfetivoPorPeca % 1) * 60)}min
+            {custos.multiplas_pecas && quantidadePecas > 1 && ` (${quantidadePecas} de uma vez)`}
           </p>
         </div>
       )}
@@ -629,11 +641,11 @@ export function ResultadoCard({ state, canSave = true, onSaveSuccess, nomeProdut
                     <span className="font-medium">{pesoFilamento}g</span>
                   </div>
                 )}
-                {tempoHoras > 0 && (
+                {tempoEfetivoPorPeca > 0 && (
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Tempo:</span>
                     <span className="font-medium">
-                      {Math.floor(tempoHoras)}h {Math.round((tempoHoras % 1) * 60)}min
+                      {Math.floor(tempoEfetivoPorPeca)}h {Math.round((tempoEfetivoPorPeca % 1) * 60)}min
                     </span>
                   </div>
                 )}
@@ -654,12 +666,13 @@ export function ResultadoCard({ state, canSave = true, onSaveSuccess, nomeProdut
                     <span className="font-bold text-blue-800">{pesoFilamento * quantidadePecas}g</span>
                   </div>
                 )}
-                {tempoHoras > 0 && (
+                {tempoEfetivoPorPeca > 0 && (
                   <div className="flex justify-between text-sm">
                     <span className="text-blue-700">Tempo:</span>
                     <span className="font-bold text-blue-800">
                       {(() => {
-                        const totalHoras = custos.multiplas_pecas ? tempoHoras : tempoHoras * quantidadePecas;
+                        // Tempo total: sempre tempo efetivo por peça * quantidade
+                        const totalHoras = tempoEfetivoPorPeca * quantidadePecas;
                         const h = Math.floor(totalHoras);
                         const m = Math.round((totalHoras - h) * 60);
                         return `${h}h ${m}min`;
