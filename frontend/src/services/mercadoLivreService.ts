@@ -150,7 +150,7 @@ export const getMLOrders = async (onlyPending: boolean = true): Promise<MLOrder[
 };
 
 // Buscar produto correspondente pelo SKU (prioridade) ou nome
-const findMatchingProduct = async (productTitle: string, variation?: string | null, sellerSku?: string | null) => {
+export const findMatchingProduct = async (productTitle: string, variation?: string | null, sellerSku?: string | null) => {
   const produtos = await getProdutos();
 
   // 1. PRIORIDADE: Buscar por SKU se fornecido

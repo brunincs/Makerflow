@@ -15,6 +15,7 @@ import {
   importMLOrderToPedido,
   disconnectML,
   getMLLoginUrl,
+  findMatchingProduct,
 } from '../../services/mercadoLivreService';
 import {
   ClipboardList,
@@ -48,6 +49,9 @@ import {
   Calendar,
   Flame,
   Circle,
+  ChevronDown,
+  ChevronRight,
+  Edit3,
 } from 'lucide-react';
 
 // Interface para pedido importado/analisado
@@ -59,6 +63,19 @@ interface PedidoImportado {
   produtoEncontrado?: ProdutoConcorrente;
   variacaoEncontrada?: { id: string; nome_variacao: string };
   status: 'encontrado' | 'nao_encontrado' | 'variacao_nao_encontrada';
+}
+
+// Interface para pedido ML com match
+interface MLOrderWithMatch {
+  order: MLOrder;
+  produtoMatch?: ProdutoConcorrente;
+  variacaoMatch?: { id: string; nome_variacao: string };
+  matchStatus: 'encontrado_sku' | 'encontrado_nome' | 'nao_encontrado';
+  quantidade: number;
+  selecionado: boolean;
+  produtoManual?: ProdutoConcorrente;
+  variacaoManual?: { id: string; nome_variacao: string };
+  expanded: boolean;
 }
 
 // Parser de pedidos colados
@@ -285,9 +302,10 @@ export function FilaProducao() {
   const [mlSyncing, setMlSyncing] = useState(false);
   const [showMLModal, setShowMLModal] = useState(false);
   const [mlImporting, setMlImporting] = useState(false);
-  const [mlOrdersToImport, setMlOrdersToImport] = useState<Set<string>>(new Set());
   const [mlLoaded, setMlLoaded] = useState(false);
   const [mlLoginUrl, setMlLoginUrl] = useState<string>('');
+  const [mlOrdersWithMatch, setMlOrdersWithMatch] = useState<MLOrderWithMatch[]>([]);
+  const [mlAnalyzing, setMlAnalyzing] = useState(false);
 
   // Historico de pedidos concluidos
   const [showHistoricoModal, setShowHistoricoModal] = useState(false);
@@ -391,10 +409,88 @@ export function FilaProducao() {
     }
   };
 
-  // Importar pedidos selecionados do ML
+  // Analisar pedidos ML e buscar correspondencias
+  const handleOpenMLImport = async () => {
+    setShowMLModal(true);
+    setMlAnalyzing(true);
+
+    try {
+      const ordersWithMatch: MLOrderWithMatch[] = [];
+
+      for (const order of mlOrders) {
+        const match = await findMatchingProduct(order.product_title, order.variation, order.seller_sku);
+
+        ordersWithMatch.push({
+          order,
+          produtoMatch: match?.produto,
+          variacaoMatch: match?.variacao ? { id: match.variacao.id!, nome_variacao: match.variacao.nome_variacao } : undefined,
+          matchStatus: match ? (match.matchedBy === 'sku' ? 'encontrado_sku' : 'encontrado_nome') : 'nao_encontrado',
+          quantidade: order.quantity,
+          selecionado: match !== null, // Auto-selecionar se encontrou
+          expanded: false,
+        });
+      }
+
+      setMlOrdersWithMatch(ordersWithMatch);
+    } catch (error) {
+      console.error('Erro ao analisar pedidos:', error);
+    } finally {
+      setMlAnalyzing(false);
+    }
+  };
+
+  // Toggle seleção de pedido ML
+  const toggleMLOrderSelection = (orderId: string) => {
+    setMlOrdersWithMatch(prev => prev.map(item =>
+      item.order.id === orderId ? { ...item, selecionado: !item.selecionado } : item
+    ));
+  };
+
+  // Toggle expansão de pedido ML
+  const toggleMLOrderExpand = (orderId: string) => {
+    setMlOrdersWithMatch(prev => prev.map(item =>
+      item.order.id === orderId ? { ...item, expanded: !item.expanded } : item
+    ));
+  };
+
+  // Atualizar quantidade de pedido ML
+  const updateMLOrderQuantity = (orderId: string, quantidade: number) => {
+    setMlOrdersWithMatch(prev => prev.map(item =>
+      item.order.id === orderId ? { ...item, quantidade: Math.max(1, quantidade) } : item
+    ));
+  };
+
+  // Selecionar produto manualmente para pedido ML
+  const setMLOrderManualProduct = (orderId: string, produtoId: string, variacaoId?: string) => {
+    const produto = produtos.find(p => p.id === produtoId);
+    const variacao = produto?.variacoes?.find(v => v.id === variacaoId);
+
+    setMlOrdersWithMatch(prev => prev.map(item =>
+      item.order.id === orderId ? {
+        ...item,
+        produtoManual: produto,
+        variacaoManual: variacao ? { id: variacao.id!, nome_variacao: variacao.nome_variacao } : undefined,
+        selecionado: true,
+      } : item
+    ));
+  };
+
+  // Importar pedidos selecionados do ML (versão melhorada)
   const handleImportMLOrders = async () => {
-    if (mlOrdersToImport.size === 0) {
+    const pedidosSelecionados = mlOrdersWithMatch.filter(item => item.selecionado);
+
+    if (pedidosSelecionados.length === 0) {
       alert('Selecione pelo menos um pedido para importar');
+      return;
+    }
+
+    // Verificar se todos têm produto definido
+    const semProduto = pedidosSelecionados.filter(item =>
+      !item.produtoManual && !item.produtoMatch
+    );
+
+    if (semProduto.length > 0) {
+      alert(`${semProduto.length} pedido(s) não têm produto definido. Selecione um produto manualmente ou desmarque-os.`);
       return;
     }
 
@@ -402,10 +498,18 @@ export function FilaProducao() {
     let successCount = 0;
     let failCount = 0;
 
-    for (const orderId of mlOrdersToImport) {
-      const order = mlOrders.find(o => o.id === orderId);
-      if (order) {
-        const success = await importMLOrderToPedido(order);
+    for (const item of pedidosSelecionados) {
+      const produtoId = item.produtoManual?.id || item.produtoMatch?.id;
+      const variacaoId = item.variacaoManual?.id || item.variacaoMatch?.id;
+
+      if (produtoId) {
+        // Criar pedido com quantidade customizada
+        const success = await importMLOrderToPedido(
+          { ...item.order, quantity: item.quantidade },
+          produtoId,
+          variacaoId
+        );
+
         if (success) {
           successCount++;
         } else {
@@ -418,14 +522,14 @@ export function FilaProducao() {
     await loadData();
     const orders = await getMLOrders(true);
     setMlOrders(orders);
-    setMlOrdersToImport(new Set());
+    setMlOrdersWithMatch([]);
     setMlImporting(false);
     setShowMLModal(false);
 
     if (successCount > 0) {
       alert(`${successCount} pedido(s) importado(s) com sucesso!${failCount > 0 ? ` (${failCount} falharam)` : ''}`);
     } else {
-      alert('Nenhum pedido foi importado. Verifique se os produtos existem no Radar de Produtos.');
+      alert('Nenhum pedido foi importado.');
     }
   };
 
@@ -1080,11 +1184,11 @@ export function FilaProducao() {
               </button>
               {mlOrders.length > 0 && (
                 <button
-                  onClick={() => setShowMLModal(true)}
+                  onClick={handleOpenMLImport}
                   className="flex items-center gap-2 px-3 py-2 text-sm border border-yellow-500 text-yellow-600 rounded-lg hover:bg-yellow-50 transition-colors"
                 >
                   <ShoppingCart className="w-4 h-4" />
-                  Ver Pedidos ML
+                  Importar Pedidos ({mlOrders.length})
                 </button>
               )}
               <button
@@ -2341,7 +2445,7 @@ export function FilaProducao() {
       {/* Modal Pedidos Mercado Livre */}
       {showMLModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-hidden flex flex-col">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl mx-4 max-h-[90vh] overflow-hidden flex flex-col">
             <div className="flex items-center justify-between p-4 border-b">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-yellow-100 rounded-lg">
@@ -2349,157 +2453,293 @@ export function FilaProducao() {
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900">
-                    Pedidos Mercado Livre
+                    Importar Pedidos do Mercado Livre
                   </h3>
                   <p className="text-sm text-gray-500">
-                    {mlOrders.length} pedido(s) pendente(s)
+                    {mlOrdersWithMatch.length} pedido(s) para revisar
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={handleDisconnectML}
-                  className="p-2 text-gray-400 hover:text-red-600 transition-colors"
-                  title="Desconectar"
-                >
-                  <Unlink className="w-5 h-5" />
-                </button>
-                <button
-                  onClick={() => setShowMLModal(false)}
-                  className="p-1 text-gray-400 hover:text-gray-600"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
+              <button
+                onClick={() => {
+                  setShowMLModal(false);
+                  setMlOrdersWithMatch([]);
+                }}
+                className="p-1 text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-4">
-              {mlOrders.length === 0 ? (
+              {mlAnalyzing ? (
+                <div className="text-center py-12">
+                  <Loader2 className="w-8 h-8 text-yellow-500 animate-spin mx-auto mb-3" />
+                  <p className="text-gray-500">Analisando pedidos e buscando correspondencias...</p>
+                </div>
+              ) : mlOrdersWithMatch.length === 0 ? (
                 <div className="text-center py-8">
                   <CheckCircle2 className="w-12 h-12 text-green-400 mx-auto mb-3" />
-                  <p className="text-gray-500">Todos os pedidos foram importados!</p>
+                  <p className="text-gray-500">Nenhum pedido pendente para importar!</p>
                 </div>
               ) : (
                 <div className="space-y-3">
                   {/* Selecionar todos */}
-                  <div className="flex items-center gap-2 pb-2 border-b">
-                    <input
-                      type="checkbox"
-                      checked={mlOrdersToImport.size === mlOrders.length && mlOrders.length > 0}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setMlOrdersToImport(new Set(mlOrders.map(o => o.id!)));
-                        } else {
-                          setMlOrdersToImport(new Set());
-                        }
-                      }}
-                      className="w-4 h-4 text-yellow-600 rounded"
-                    />
-                    <span className="text-sm text-gray-600">Selecionar todos</span>
+                  <div className="flex items-center justify-between pb-3 border-b">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={mlOrdersWithMatch.every(item => item.selecionado)}
+                        onChange={(e) => {
+                          setMlOrdersWithMatch(prev => prev.map(item => ({
+                            ...item,
+                            selecionado: e.target.checked && (item.produtoMatch || item.produtoManual) !== undefined
+                          })));
+                        }}
+                        className="w-4 h-4 text-yellow-600 rounded"
+                      />
+                      <span className="text-sm text-gray-600">Selecionar todos com produto</span>
+                    </div>
+                    <div className="flex items-center gap-4 text-xs">
+                      <span className="flex items-center gap-1 text-green-600">
+                        <Check className="w-3 h-3" /> SKU
+                      </span>
+                      <span className="flex items-center gap-1 text-blue-600">
+                        <Search className="w-3 h-3" /> Nome
+                      </span>
+                      <span className="flex items-center gap-1 text-red-600">
+                        <AlertCircle className="w-3 h-3" /> Nao encontrado
+                      </span>
+                    </div>
                   </div>
 
-                  {mlOrders.map((order) => (
-                    <div
-                      key={order.id}
-                      className={`p-3 rounded-lg border-2 transition-colors ${
-                        mlOrdersToImport.has(order.id!)
-                          ? 'border-yellow-500 bg-yellow-50'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      <div className="flex items-start gap-3">
-                        <input
-                          type="checkbox"
-                          checked={mlOrdersToImport.has(order.id!)}
-                          onChange={(e) => {
-                            const newSet = new Set(mlOrdersToImport);
-                            if (e.target.checked) {
-                              newSet.add(order.id!);
-                            } else {
-                              newSet.delete(order.id!);
-                            }
-                            setMlOrdersToImport(newSet);
-                          }}
-                          className="w-4 h-4 text-yellow-600 rounded mt-1"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-gray-900 truncate">
-                            {order.product_title}
-                          </p>
-                          {order.variation && (
-                            <p className="text-sm text-gray-500">
-                              Variacao: {order.variation}
-                            </p>
-                          )}
-                          {order.seller_sku && (
-                            <p className="text-sm text-blue-600 font-mono">
-                              SKU: {order.seller_sku}
-                            </p>
-                          )}
-                          <div className="flex items-center gap-4 mt-1 text-sm">
-                            <span className="font-semibold text-indigo-600">
-                              {order.quantity}x
-                            </span>
-                            {order.unit_price && (
-                              <span className="text-green-600">
-                                R$ {order.unit_price.toFixed(2)}
-                              </span>
+                  {mlOrdersWithMatch.map((item) => {
+                    const produtoFinal = item.produtoManual || item.produtoMatch;
+                    const variacaoFinal = item.variacaoManual || item.variacaoMatch;
+                    const temVariacoes = item.order.variation || (produtoFinal?.variacoes && produtoFinal.variacoes.length > 0);
+
+                    return (
+                      <div
+                        key={item.order.id}
+                        className={`rounded-lg border-2 transition-colors ${
+                          item.selecionado
+                            ? 'border-yellow-500 bg-yellow-50'
+                            : 'border-gray-200'
+                        }`}
+                      >
+                        {/* Linha principal */}
+                        <div className="p-3 flex items-center gap-3">
+                          <input
+                            type="checkbox"
+                            checked={item.selecionado}
+                            onChange={() => toggleMLOrderSelection(item.order.id!)}
+                            className="w-4 h-4 text-yellow-600 rounded"
+                          />
+
+                          <button
+                            onClick={() => toggleMLOrderExpand(item.order.id!)}
+                            className="p-1 text-gray-400 hover:text-gray-600"
+                          >
+                            {item.expanded ? (
+                              <ChevronDown className="w-4 h-4" />
+                            ) : (
+                              <ChevronRight className="w-4 h-4" />
                             )}
-                            <span className="text-gray-400">
-                              {order.buyer_nickname}
-                            </span>
+                          </button>
+
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-medium text-gray-900 truncate">
+                                {item.order.product_title}
+                              </p>
+                              {temVariacoes && (
+                                <span className="px-1.5 py-0.5 text-xs bg-purple-100 text-purple-700 rounded">
+                                  Com variacoes
+                                </span>
+                              )}
+                            </div>
+                            {item.order.variation && (
+                              <p className="text-sm text-gray-500 truncate">
+                                ML: {item.order.variation}
+                              </p>
+                            )}
+                            {produtoFinal && (
+                              <p className="text-sm text-green-600 truncate">
+                                → {produtoFinal.nome}{variacaoFinal ? ` - ${variacaoFinal.nome_variacao}` : ''}
+                              </p>
+                            )}
                           </div>
-                          {order.date_created && (
-                            <p className="text-xs text-gray-400 mt-1">
-                              {new Date(order.date_created).toLocaleDateString('pt-BR', {
-                                day: '2-digit',
-                                month: '2-digit',
-                                year: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit',
-                              })}
-                            </p>
-                          )}
+
+                          {/* Quantidade editavel */}
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => updateMLOrderQuantity(item.order.id!, item.quantidade - 1)}
+                              className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
+                              disabled={item.quantidade <= 1}
+                            >
+                              <Minus className="w-3 h-3" />
+                            </button>
+                            <input
+                              type="number"
+                              min="1"
+                              value={item.quantidade}
+                              onChange={(e) => updateMLOrderQuantity(item.order.id!, parseInt(e.target.value) || 1)}
+                              className="w-12 text-center text-sm border rounded px-1 py-0.5"
+                            />
+                            <button
+                              onClick={() => updateMLOrderQuantity(item.order.id!, item.quantidade + 1)}
+                              className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
+                            >
+                              <Plus className="w-3 h-3" />
+                            </button>
+                          </div>
+
+                          {/* Badge de status */}
+                          <span className={`px-2 py-1 text-xs rounded-full whitespace-nowrap ${
+                            item.matchStatus === 'encontrado_sku'
+                              ? 'bg-green-100 text-green-700'
+                              : item.matchStatus === 'encontrado_nome'
+                              ? 'bg-blue-100 text-blue-700'
+                              : 'bg-red-100 text-red-700'
+                          }`}>
+                            {item.matchStatus === 'encontrado_sku'
+                              ? 'SKU'
+                              : item.matchStatus === 'encontrado_nome'
+                              ? 'Nome'
+                              : 'Nao encontrado'}
+                          </span>
                         </div>
-                        <span className={`px-2 py-1 text-xs rounded-full ${
-                          order.status === 'paid' ? 'bg-green-100 text-green-700' :
-                          order.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                          'bg-gray-100 text-gray-700'
-                        }`}>
-                          {order.status === 'paid' ? 'Pago' :
-                           order.status === 'pending' ? 'Pendente' :
-                           order.status}
-                        </span>
+
+                        {/* Area expandida */}
+                        {item.expanded && (
+                          <div className="px-4 pb-4 pt-2 border-t bg-gray-50 space-y-3">
+                            {/* Informacoes do pedido ML */}
+                            <div className="grid grid-cols-2 gap-4 text-sm">
+                              <div>
+                                <span className="text-gray-500">Pedido ML:</span>{' '}
+                                <span className="font-mono">{item.order.ml_order_id}</span>
+                              </div>
+                              {item.order.seller_sku && (
+                                <div>
+                                  <span className="text-gray-500">SKU:</span>{' '}
+                                  <span className="font-mono text-blue-600">{item.order.seller_sku}</span>
+                                </div>
+                              )}
+                              {item.order.buyer_nickname && (
+                                <div>
+                                  <span className="text-gray-500">Comprador:</span>{' '}
+                                  {item.order.buyer_nickname}
+                                </div>
+                              )}
+                              {item.order.unit_price && (
+                                <div>
+                                  <span className="text-gray-500">Preco:</span>{' '}
+                                  <span className="text-green-600">R$ {item.order.unit_price.toFixed(2)}</span>
+                                </div>
+                              )}
+                              {item.order.date_created && (
+                                <div>
+                                  <span className="text-gray-500">Data:</span>{' '}
+                                  {new Date(item.order.date_created).toLocaleDateString('pt-BR', {
+                                    day: '2-digit',
+                                    month: '2-digit',
+                                    year: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                  })}
+                                </div>
+                              )}
+                              <div>
+                                <span className="text-gray-500">Qtd original:</span>{' '}
+                                <span className="font-semibold">{item.order.quantity}</span>
+                              </div>
+                            </div>
+
+                            {/* Selecao manual de produto */}
+                            <div className="pt-2 border-t">
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                <Edit3 className="w-4 h-4 inline mr-1" />
+                                Selecionar produto manualmente:
+                              </label>
+                              <div className="flex gap-2">
+                                <select
+                                  value={produtoFinal?.id || ''}
+                                  onChange={(e) => {
+                                    const prodId = e.target.value;
+                                    if (prodId) {
+                                      setMLOrderManualProduct(item.order.id!, prodId);
+                                    }
+                                  }}
+                                  className="flex-1 text-sm border border-gray-300 rounded-lg px-3 py-2"
+                                >
+                                  <option value="">Selecionar produto...</option>
+                                  {produtos.map(p => (
+                                    <option key={p.id} value={p.id}>
+                                      {p.nome} {p.sku ? `(${p.sku})` : ''}
+                                    </option>
+                                  ))}
+                                </select>
+
+                                {/* Selecao de variacao se o produto tiver */}
+                                {produtoFinal?.variacoes && produtoFinal.variacoes.length > 0 && (
+                                  <select
+                                    value={variacaoFinal?.id || ''}
+                                    onChange={(e) => {
+                                      const varId = e.target.value;
+                                      setMLOrderManualProduct(item.order.id!, produtoFinal.id!, varId || undefined);
+                                    }}
+                                    className="w-48 text-sm border border-gray-300 rounded-lg px-3 py-2"
+                                  >
+                                    <option value="">Sem variacao</option>
+                                    {produtoFinal.variacoes.map(v => (
+                                      <option key={v.id} value={v.id}>
+                                        {v.nome_variacao} {v.sku ? `(${v.sku})` : ''}
+                                      </option>
+                                    ))}
+                                  </select>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
 
             <div className="flex items-center justify-between gap-3 p-4 border-t bg-gray-50">
-              <p className="text-sm text-gray-500">
-                {mlOrdersToImport.size} selecionado(s)
-              </p>
+              <div className="text-sm text-gray-500">
+                <span className="font-medium text-gray-900">{mlOrdersWithMatch.filter(i => i.selecionado).length}</span> selecionado(s) de {mlOrdersWithMatch.length}
+                {mlOrdersWithMatch.filter(i => i.matchStatus === 'nao_encontrado' && !i.produtoManual).length > 0 && (
+                  <span className="text-red-500 ml-2">
+                    ({mlOrdersWithMatch.filter(i => i.matchStatus === 'nao_encontrado' && !i.produtoManual).length} sem produto)
+                  </span>
+                )}
+              </div>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setShowMLModal(false)}
+                  onClick={() => {
+                    setShowMLModal(false);
+                    setMlOrdersWithMatch([]);
+                  }}
                   className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
                 >
-                  Fechar
+                  Cancelar
                 </button>
                 <button
                   onClick={handleImportMLOrders}
-                  disabled={mlOrdersToImport.size === 0 || mlImporting}
+                  disabled={mlOrdersWithMatch.filter(i => i.selecionado).length === 0 || mlImporting}
                   className="flex items-center gap-2 px-4 py-2 bg-yellow-500 text-white rounded-lg
                     hover:bg-yellow-600 transition-colors disabled:opacity-50"
                 >
                   {mlImporting ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
-                    <Check className="w-4 h-4" />
+                    <Download className="w-4 h-4" />
                   )}
-                  Importar para Fila
+                  Importar Selecionados
                 </button>
               </div>
             </div>
