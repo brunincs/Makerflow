@@ -240,6 +240,7 @@ export function FilaProducao() {
   const [itemParaProduzir, setItemParaProduzir] = useState<ItemFilaProducao | null>(null);
   const [qtdProduzida, setQtdProduzida] = useState<number>(1);
   const [filamentoId, setFilamentoId] = useState<string>('');
+  const [impressoraId, setImpressoraId] = useState<string>('');
   const [produzindo, setProduzindo] = useState(false);
 
   // Modal de importar pedidos
@@ -729,6 +730,7 @@ export function FilaProducao() {
     setItemParaProduzir(item);
     setQtdProduzida(item.quantidade_produzir);
     setFilamentoId('');
+    setImpressoraId('');
     setShowProduzidoModal(true);
   };
 
@@ -846,6 +848,7 @@ export function FilaProducao() {
           produto_id: itemParaProduzir.produto_id,
           variacao_id: itemParaProduzir.variacao_id || undefined,
           filamento_id: filamentoId,
+          impressora_id: impressoraId || undefined,
           quantidade: qtdProduzida,
           peso_peca_g: itemParaProduzir.peso_por_peca,
           tempo_peca_min: itemParaProduzir.tempo_por_peca ? itemParaProduzir.tempo_por_peca * 60 : undefined,
@@ -1834,6 +1837,26 @@ export function FilaProducao() {
                 </p>
               </div>
 
+              {/* Selecionar impressora */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Impressora utilizada
+                </label>
+                <select
+                  value={impressoraId}
+                  onChange={(e) => setImpressoraId(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white
+                    focus:outline-none focus:ring-2 focus:ring-green-500"
+                >
+                  <option value="">Selecione uma impressora</option>
+                  {impressorasDisponiveis.map((imp) => (
+                    <option key={imp.id} value={imp.id}>
+                      {imp.apelido || imp.modelo} {imp.marca ? `(${imp.marca})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               {/* Selecionar filamento */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1863,6 +1886,15 @@ export function FilaProducao() {
                   <span>Pecas produzidas:</span>
                   <span className="font-bold">{qtdProduzida}</span>
                 </div>
+                {impressoraId && (
+                  <div className="flex justify-between text-sm text-green-800">
+                    <span>Impressora:</span>
+                    <span className="font-bold">
+                      {impressorasDisponiveis.find(i => i.id === impressoraId)?.apelido ||
+                       impressorasDisponiveis.find(i => i.id === impressoraId)?.modelo || '-'}
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between text-sm text-green-800">
                   <span>Filamento utilizado:</span>
                   <span className="font-bold">{(qtdProduzida * itemParaProduzir.peso_por_peca).toFixed(0)}g</span>
