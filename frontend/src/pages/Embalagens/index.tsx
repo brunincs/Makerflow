@@ -1,17 +1,26 @@
 import { useState, useEffect } from 'react';
 import { Card, CardBody } from '../../components/ui';
 import { Embalagem, TipoEmbalagem } from '../../types';
-import { getEmbalagens, createEmbalagem, updateEmbalagem, deleteEmbalagem } from '../../services/embalagensService';
+import {
+  getEmbalagens,
+  createEmbalagem,
+  updateEmbalagem,
+  deleteEmbalagem,
+  adicionarEstoqueEmbalagem,
+  removerEstoqueEmbalagem
+} from '../../services/embalagensService';
 import { DecimalInput } from '../../components/ui/DecimalInput';
 import {
   Package,
   Plus,
+  Minus,
   Trash2,
   Edit2,
   X,
   Check,
   Loader2,
   AlertCircle,
+  AlertTriangle,
   Mail,
   Shield,
   BoxIcon
@@ -23,15 +32,21 @@ const TIPOS_EMBALAGEM: { value: TipoEmbalagem; label: string; icon: typeof Mail 
   { value: 'Caixa', label: 'Caixa', icon: BoxIcon },
 ];
 
+const TAMANHOS_SUGERIDOS = ['P', 'M', 'G', 'GG'];
+
 interface EmbalagemForm {
   tipo: TipoEmbalagem;
   nome_embalagem: string;
+  tamanho: string;
+  quantidade: number;
   preco_unitario: number;
 }
 
 const initialForm: EmbalagemForm = {
   tipo: 'Envelope',
   nome_embalagem: '',
+  tamanho: '',
+  quantidade: 0,
   preco_unitario: 0,
 };
 
@@ -44,6 +59,12 @@ export function Embalagens() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<EmbalagemForm>(initialForm);
 
+  // Modal de estoque
+  const [showEstoqueModal, setShowEstoqueModal] = useState<'entrada' | 'saida' | null>(null);
+  const [estoqueEmbalagemId, setEstoqueEmbalagemId] = useState<string | null>(null);
+  const [estoqueQuantidade, setEstoqueQuantidade] = useState<number>(1);
+  const [savingEstoque, setSavingEstoque] = useState(false);
+
   useEffect(() => {
     loadEmbalagens();
   }, []);
@@ -54,6 +75,22 @@ export function Embalagens() {
     setEmbalagens(data);
     setLoading(false);
   };
+
+  // Estoque baixo = menos de 10 unidades
+  const isEstoqueBaixo = (quantidade: number) => quantidade < 10;
+
+  // Embalagens com baixo estoque
+  const embalagensBaixoEstoque = embalagens.filter(e => isEstoqueBaixo(e.quantidade || 0));
+
+  // Ordenar: baixo estoque primeiro, depois por tipo e nome
+  const embalagensOrdenadas = [...embalagens].sort((a, b) => {
+    const aBaixo = isEstoqueBaixo(a.quantidade || 0);
+    const bBaixo = isEstoqueBaixo(b.quantidade || 0);
+    if (aBaixo && !bBaixo) return -1;
+    if (!aBaixo && bBaixo) return 1;
+    if (a.tipo !== b.tipo) return a.tipo.localeCompare(b.tipo);
+    return a.nome_embalagem.localeCompare(b.nome_embalagem);
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -87,6 +124,8 @@ export function Embalagens() {
     setForm({
       tipo: embalagem.tipo,
       nome_embalagem: embalagem.nome_embalagem,
+      tamanho: embalagem.tamanho || '',
+      quantidade: embalagem.quantidade || 0,
       preco_unitario: embalagem.preco_unitario,
     });
     setEditingId(embalagem.id);
@@ -110,6 +149,38 @@ export function Embalagens() {
     setShowForm(false);
   };
 
+  const handleOpenEstoqueModal = (tipo: 'entrada' | 'saida', id: string) => {
+    setShowEstoqueModal(tipo);
+    setEstoqueEmbalagemId(id);
+    setEstoqueQuantidade(1);
+  };
+
+  const handleCloseEstoqueModal = () => {
+    setShowEstoqueModal(null);
+    setEstoqueEmbalagemId(null);
+    setEstoqueQuantidade(1);
+  };
+
+  const handleSubmitEstoque = async () => {
+    if (!estoqueEmbalagemId || estoqueQuantidade <= 0) return;
+
+    setSavingEstoque(true);
+
+    let resultado: Embalagem | null = null;
+    if (showEstoqueModal === 'entrada') {
+      resultado = await adicionarEstoqueEmbalagem(estoqueEmbalagemId, estoqueQuantidade);
+    } else {
+      resultado = await removerEstoqueEmbalagem(estoqueEmbalagemId, estoqueQuantidade);
+    }
+
+    if (resultado) {
+      setEmbalagens(prev => prev.map(e => e.id === estoqueEmbalagemId ? resultado! : e));
+      handleCloseEstoqueModal();
+    }
+
+    setSavingEstoque(false);
+  };
+
   const formatCurrency = (value: number) => {
     return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
@@ -127,6 +198,8 @@ export function Embalagens() {
       default: return 'bg-gray-100 text-gray-600';
     }
   };
+
+  const getEmbalagemAtual = () => embalagens.find(e => e.id === estoqueEmbalagemId);
 
   if (loading) {
     return (
@@ -177,6 +250,40 @@ export function Embalagens() {
         )}
       </div>
 
+      {/* Alerta de Baixo Estoque */}
+      {embalagensBaixoEstoque.length > 0 && (
+        <Card className="mb-6 border-orange-200 bg-orange-50">
+          <CardBody className="p-4">
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-orange-100 rounded-lg">
+                <AlertTriangle className="w-5 h-5 text-orange-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-orange-800 mb-2">
+                  Embalagens com estoque baixo ({embalagensBaixoEstoque.length})
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  {embalagensBaixoEstoque.map(e => (
+                    <span
+                      key={e.id}
+                      className="inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-orange-200 rounded-lg text-sm"
+                    >
+                      <span className="font-medium text-gray-900">
+                        {e.nome_embalagem}
+                        {e.tamanho && <span className="text-gray-500"> ({e.tamanho})</span>}
+                      </span>
+                      <span className="text-orange-600 font-bold">
+                        {e.quantidade || 0} un
+                      </span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </CardBody>
+        </Card>
+      )}
+
       {/* Formulario */}
       {showForm && (
         <Card className="mb-6">
@@ -186,7 +293,7 @@ export function Embalagens() {
             </h3>
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                 {/* Tipo */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -205,7 +312,7 @@ export function Embalagens() {
                 </div>
 
                 {/* Nome da Embalagem */}
-                <div>
+                <div className="lg:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Nome da embalagem *
                   </label>
@@ -213,16 +320,39 @@ export function Embalagens() {
                     type="text"
                     value={form.nome_embalagem}
                     onChange={(e) => setForm(prev => ({ ...prev, nome_embalagem: e.target.value }))}
-                    placeholder="Ex: Envelope kraft P, Plastico bolha 20x30..."
+                    placeholder="Ex: Envelope kraft, Plastico bolha..."
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white
                       focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                   />
                 </div>
 
+                {/* Tamanho */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Tamanho
+                  </label>
+                  <div className="flex gap-1">
+                    <input
+                      type="text"
+                      value={form.tamanho}
+                      onChange={(e) => setForm(prev => ({ ...prev, tamanho: e.target.value }))}
+                      placeholder="P, M, G..."
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-white
+                        focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                      list="tamanhos-sugeridos"
+                    />
+                    <datalist id="tamanhos-sugeridos">
+                      {TAMANHOS_SUGERIDOS.map(t => (
+                        <option key={t} value={t} />
+                      ))}
+                    </datalist>
+                  </div>
+                </div>
+
                 {/* Preco Unitario */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Preco unitario (R$) *
+                    Preco unitario *
                   </label>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 pointer-events-none">
@@ -238,6 +368,25 @@ export function Embalagens() {
                   </div>
                 </div>
               </div>
+
+              {/* Quantidade inicial - apenas na criação */}
+              {!editingId && (
+                <div className="max-w-xs">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Quantidade inicial em estoque
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={form.quantidade}
+                    onChange={(e) => setForm(prev => ({ ...prev, quantidade: parseInt(e.target.value) || 0 }))}
+                    placeholder="0"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white
+                      focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                  />
+                </div>
+              )}
 
               {/* Botoes */}
               <div className="flex items-center gap-3 pt-4 border-t border-gray-200">
@@ -291,16 +440,17 @@ export function Embalagens() {
         </Card>
       ) : (
         <div className="space-y-3">
-          {embalagens.map((embalagem) => {
+          {embalagensOrdenadas.map((embalagem) => {
             const TipoIcon = getTipoIcon(embalagem.tipo);
             const tipoColor = getTipoColor(embalagem.tipo);
+            const baixoEstoque = isEstoqueBaixo(embalagem.quantidade || 0);
 
             return (
-              <Card key={embalagem.id} className="overflow-hidden">
+              <Card key={embalagem.id} className={`overflow-hidden ${baixoEstoque ? 'border-orange-200' : ''}`}>
                 <div className="flex items-center gap-4 p-4">
                   {/* Icone */}
-                  <div className={`p-3 rounded-xl ${tipoColor}`}>
-                    <TipoIcon className="w-6 h-6" />
+                  <div className={`p-3 rounded-xl ${baixoEstoque ? 'bg-orange-100' : tipoColor}`}>
+                    <TipoIcon className={`w-6 h-6 ${baixoEstoque ? 'text-orange-600' : ''}`} />
                   </div>
 
                   {/* Info */}
@@ -309,22 +459,60 @@ export function Embalagens() {
                       <span className={`px-2 py-0.5 text-xs font-medium rounded ${tipoColor}`}>
                         {embalagem.tipo}
                       </span>
+                      {embalagem.tamanho && (
+                        <span className="px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-600 rounded">
+                          {embalagem.tamanho}
+                        </span>
+                      )}
+                      {baixoEstoque && (
+                        <span className="px-2 py-0.5 text-xs font-medium bg-orange-100 text-orange-700 rounded-full">
+                          Baixo estoque
+                        </span>
+                      )}
                     </div>
                     <h3 className="font-semibold text-gray-900 truncate">
                       {embalagem.nome_embalagem}
                     </h3>
                   </div>
 
+                  {/* Estoque */}
+                  <div className="text-center px-4 border-l border-gray-200">
+                    <div className={`flex items-center gap-1 ${baixoEstoque ? 'text-orange-600' : 'text-green-600'}`}>
+                      {baixoEstoque && <AlertTriangle className="w-4 h-4" />}
+                      <span className="text-lg font-bold">{embalagem.quantidade || 0}</span>
+                    </div>
+                    <p className="text-xs text-gray-500">unidades</p>
+                  </div>
+
                   {/* Preco */}
-                  <div className="text-right">
-                    <p className="text-2xl font-bold text-amber-700">
+                  <div className="text-right px-4 border-l border-gray-200">
+                    <p className="text-lg font-bold text-amber-700">
                       R$ {formatCurrency(embalagem.preco_unitario)}
                     </p>
                     <p className="text-xs text-gray-500">/unidade</p>
                   </div>
 
                   {/* Acoes */}
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1 border-l border-gray-200 pl-4">
+                    {/* Botões de estoque */}
+                    <button
+                      onClick={() => handleOpenEstoqueModal('entrada', embalagem.id)}
+                      className="flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-green-600 bg-green-50 rounded-lg hover:bg-green-100 transition-colors"
+                      title="Adicionar estoque"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => handleOpenEstoqueModal('saida', embalagem.id)}
+                      className="flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
+                      title="Remover estoque"
+                    >
+                      <Minus className="w-3.5 h-3.5" />
+                    </button>
+
+                    {/* Separador */}
+                    <div className="w-px h-6 bg-gray-200 mx-1" />
+
                     <button
                       onClick={() => handleEdit(embalagem)}
                       className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
@@ -359,6 +547,128 @@ export function Embalagens() {
             <span className="text-gray-500">
               <strong className="text-gray-900">{embalagens.length}</strong> {embalagens.length === 1 ? 'embalagem cadastrada' : 'embalagens cadastradas'}
             </span>
+            <span className="text-gray-500">
+              Estoque total: <strong className="text-gray-900">
+                {embalagens.reduce((acc, e) => acc + (e.quantidade || 0), 0)} unidades
+              </strong>
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Estoque */}
+      {showEstoqueModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="fixed inset-0 bg-black/50" onClick={handleCloseEstoqueModal} />
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div className="relative bg-white rounded-xl shadow-xl w-full max-w-sm">
+              <div className="px-6 py-4 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                    {showEstoqueModal === 'entrada' ? (
+                      <>
+                        <Plus className="w-5 h-5 text-green-600" />
+                        Adicionar Estoque
+                      </>
+                    ) : (
+                      <>
+                        <Minus className="w-5 h-5 text-red-600" />
+                        Remover Estoque
+                      </>
+                    )}
+                  </h3>
+                  <button onClick={handleCloseEstoqueModal} className="p-2 hover:bg-gray-100 rounded-lg">
+                    <X className="w-5 h-5 text-gray-500" />
+                  </button>
+                </div>
+                {getEmbalagemAtual() && (
+                  <p className="text-sm text-gray-500 mt-1">
+                    {getEmbalagemAtual()?.nome_embalagem}
+                    {getEmbalagemAtual()?.tamanho && ` (${getEmbalagemAtual()?.tamanho})`}
+                  </p>
+                )}
+              </div>
+
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Quantidade
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max={showEstoqueModal === 'saida' ? (getEmbalagemAtual()?.quantidade || 0) : undefined}
+                    step="1"
+                    value={estoqueQuantidade}
+                    onChange={(e) => setEstoqueQuantidade(parseInt(e.target.value) || 1)}
+                    className={`w-full px-3 py-2 border border-gray-300 rounded-lg bg-white
+                      focus:outline-none focus:ring-2 ${
+                        showEstoqueModal === 'entrada'
+                          ? 'focus:ring-green-500 focus:border-green-500'
+                          : 'focus:ring-red-500 focus:border-red-500'
+                      }`}
+                  />
+                  {showEstoqueModal === 'saida' && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Maximo: {getEmbalagemAtual()?.quantidade || 0} unidades
+                    </p>
+                  )}
+                </div>
+
+                <div className={`p-4 rounded-lg border text-sm space-y-1 ${
+                  showEstoqueModal === 'entrada'
+                    ? 'bg-green-50 border-green-200'
+                    : 'bg-red-50 border-red-200'
+                }`}>
+                  <div className="flex justify-between">
+                    <span className={showEstoqueModal === 'entrada' ? 'text-green-700' : 'text-red-700'}>
+                      Estoque atual:
+                    </span>
+                    <span className="font-medium">{getEmbalagemAtual()?.quantidade || 0} un</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className={showEstoqueModal === 'entrada' ? 'text-green-700' : 'text-red-700'}>
+                      {showEstoqueModal === 'entrada' ? 'Adicionando:' : 'Removendo:'}
+                    </span>
+                    <span className="font-medium">
+                      {showEstoqueModal === 'entrada' ? '+' : '-'}{estoqueQuantidade} un
+                    </span>
+                  </div>
+                  <div className="flex justify-between border-t pt-1 border-current border-opacity-20">
+                    <span className={showEstoqueModal === 'entrada' ? 'text-green-700' : 'text-red-700'}>
+                      Novo estoque:
+                    </span>
+                    <span className="font-bold">
+                      {showEstoqueModal === 'entrada'
+                        ? (getEmbalagemAtual()?.quantidade || 0) + estoqueQuantidade
+                        : Math.max(0, (getEmbalagemAtual()?.quantidade || 0) - estoqueQuantidade)
+                      } un
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    onClick={handleSubmitEstoque}
+                    disabled={savingEstoque}
+                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 text-white rounded-lg disabled:opacity-50 ${
+                      showEstoqueModal === 'entrada'
+                        ? 'bg-green-600 hover:bg-green-700'
+                        : 'bg-red-600 hover:bg-red-700'
+                    }`}
+                  >
+                    {savingEstoque ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                    {showEstoqueModal === 'entrada' ? 'Adicionar' : 'Remover'}
+                  </button>
+                  <button
+                    onClick={handleCloseEstoqueModal}
+                    className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}

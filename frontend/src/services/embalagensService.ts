@@ -19,12 +19,15 @@ export const createEmbalagem = async (
   const dadosParaSalvar = {
     tipo: embalagem.tipo,
     nome_embalagem: embalagem.nome_embalagem,
+    tamanho: embalagem.tamanho || undefined,
+    quantidade: embalagem.quantidade || 0,
     preco_unitario: embalagem.preco_unitario,
   };
 
   if (!isSupabaseConfigured() || !supabase) {
     const novo: Embalagem = {
       ...dadosParaSalvar,
+      quantidade: dadosParaSalvar.quantidade,
       id: crypto.randomUUID(),
       created_at: new Date().toISOString(),
     };
@@ -123,4 +126,93 @@ export const deleteEmbalagem = async (id: string): Promise<boolean> => {
   }
 
   return true;
+};
+
+// Adicionar estoque de embalagem
+export const adicionarEstoqueEmbalagem = async (
+  id: string,
+  quantidade: number
+): Promise<Embalagem | null> => {
+  if (!isSupabaseConfigured() || !supabase) {
+    const embalagens = getLocalEmbalagens();
+    const index = embalagens.findIndex(e => e.id === id);
+    if (index === -1) return null;
+
+    embalagens[index].quantidade = (embalagens[index].quantidade || 0) + quantidade;
+    setLocalEmbalagens(embalagens);
+    return embalagens[index];
+  }
+
+  // Primeiro buscar a quantidade atual
+  const { data: current, error: fetchError } = await supabase
+    .from('embalagens')
+    .select('quantidade')
+    .eq('id', id)
+    .single();
+
+  if (fetchError) {
+    console.error('Erro ao buscar embalagem:', fetchError);
+    return null;
+  }
+
+  const novaQuantidade = (current?.quantidade || 0) + quantidade;
+
+  const { data, error } = await supabase
+    .from('embalagens')
+    .update({ quantidade: novaQuantidade })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Erro ao adicionar estoque:', error);
+    return null;
+  }
+
+  return data;
+};
+
+// Remover estoque de embalagem
+export const removerEstoqueEmbalagem = async (
+  id: string,
+  quantidade: number
+): Promise<Embalagem | null> => {
+  if (!isSupabaseConfigured() || !supabase) {
+    const embalagens = getLocalEmbalagens();
+    const index = embalagens.findIndex(e => e.id === id);
+    if (index === -1) return null;
+
+    const novaQtd = Math.max(0, (embalagens[index].quantidade || 0) - quantidade);
+    embalagens[index].quantidade = novaQtd;
+    setLocalEmbalagens(embalagens);
+    return embalagens[index];
+  }
+
+  // Primeiro buscar a quantidade atual
+  const { data: current, error: fetchError } = await supabase
+    .from('embalagens')
+    .select('quantidade')
+    .eq('id', id)
+    .single();
+
+  if (fetchError) {
+    console.error('Erro ao buscar embalagem:', fetchError);
+    return null;
+  }
+
+  const novaQuantidade = Math.max(0, (current?.quantidade || 0) - quantidade);
+
+  const { data, error } = await supabase
+    .from('embalagens')
+    .update({ quantidade: novaQuantidade })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Erro ao remover estoque:', error);
+    return null;
+  }
+
+  return data;
 };

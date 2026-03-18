@@ -206,6 +206,8 @@ export interface Embalagem {
   user_id?: string;
   tipo: TipoEmbalagem;
   nome_embalagem: string;
+  tamanho?: string;
+  quantidade: number;
   preco_unitario: number;
   created_at?: string;
 }

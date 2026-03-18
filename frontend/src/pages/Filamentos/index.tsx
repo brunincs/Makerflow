@@ -289,9 +289,22 @@ export function Filamentos() {
     return kg.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
-  const isEstoqueBaixo = (gramas: number) => gramas < 1000;
+  // Estoque baixo = menos de 200g
+  const isEstoqueBaixo = (gramas: number) => gramas < 200;
 
   const getFilamentoAtual = () => filamentos.find(f => f.id === modalFilamentoId);
+
+  // Filamentos com baixo estoque
+  const filamentosBaixoEstoque = filamentos.filter(f => isEstoqueBaixo(f.estoque_gramas || 0));
+
+  // Ordenar: baixo estoque primeiro, depois por nome
+  const filamentosOrdenados = [...filamentos].sort((a, b) => {
+    const aBaixo = isEstoqueBaixo(a.estoque_gramas || 0);
+    const bBaixo = isEstoqueBaixo(b.estoque_gramas || 0);
+    if (aBaixo && !bBaixo) return -1;
+    if (!aBaixo && bBaixo) return 1;
+    return a.nome_filamento.localeCompare(b.nome_filamento);
+  });
 
   // Calcular preview do novo preço médio para entrada
   const calcularNovoPrecoMedio = () => {
@@ -354,6 +367,38 @@ export function Filamentos() {
           </button>
         )}
       </div>
+
+      {/* Alerta de Baixo Estoque */}
+      {filamentosBaixoEstoque.length > 0 && (
+        <Card className="mb-6 border-orange-200 bg-orange-50">
+          <CardBody className="p-4">
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-orange-100 rounded-lg">
+                <AlertTriangle className="w-5 h-5 text-orange-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-orange-800 mb-2">
+                  Filamentos com estoque baixo ({filamentosBaixoEstoque.length})
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  {filamentosBaixoEstoque.map(f => (
+                    <span
+                      key={f.id}
+                      className="inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-orange-200 rounded-lg text-sm"
+                    >
+                      <span className="font-medium text-gray-900">{f.nome_filamento}</span>
+                      {f.cor && <span className="text-gray-500">({f.cor})</span>}
+                      <span className="text-orange-600 font-bold">
+                        {formatEstoque(f.estoque_gramas || 0)} kg
+                      </span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </CardBody>
+        </Card>
+      )}
 
       {/* Formulario */}
       {showForm && (
@@ -529,12 +574,12 @@ export function Filamentos() {
         </Card>
       ) : (
         <div className="space-y-3">
-          {filamentos.map((filamento) => (
-            <Card key={filamento.id} className="overflow-hidden">
+          {filamentosOrdenados.map((filamento) => (
+            <Card key={filamento.id} className={`overflow-hidden ${isEstoqueBaixo(filamento.estoque_gramas || 0) ? 'border-orange-200' : ''}`}>
               <div className="flex items-center gap-4 p-4">
                 {/* Icone */}
-                <div className="p-3 bg-purple-100 rounded-xl">
-                  <Cylinder className="w-6 h-6 text-purple-600" />
+                <div className={`p-3 rounded-xl ${isEstoqueBaixo(filamento.estoque_gramas || 0) ? 'bg-orange-100' : 'bg-purple-100'}`}>
+                  <Cylinder className={`w-6 h-6 ${isEstoqueBaixo(filamento.estoque_gramas || 0) ? 'text-orange-600' : 'text-purple-600'}`} />
                 </div>
 
                 {/* Info */}
@@ -551,6 +596,11 @@ export function Filamentos() {
                         <span className="text-sm text-gray-500">{filamento.cor}</span>
                       </>
                     )}
+                    {isEstoqueBaixo(filamento.estoque_gramas || 0) && (
+                      <span className="px-2 py-0.5 text-xs font-medium bg-orange-100 text-orange-700 rounded-full">
+                        Baixo estoque
+                      </span>
+                    )}
                   </div>
                   <h3 className="font-semibold text-gray-900 truncate">
                     {filamento.nome_filamento}
@@ -560,7 +610,7 @@ export function Filamentos() {
                 {/* Estoque */}
                 <div className="text-center px-4 border-l border-gray-200">
                   <div className={`flex items-center gap-1 ${
-                    isEstoqueBaixo(filamento.estoque_gramas || 0) ? 'text-red-600' : 'text-green-600'
+                    isEstoqueBaixo(filamento.estoque_gramas || 0) ? 'text-orange-600' : 'text-green-600'
                   }`}>
                     {isEstoqueBaixo(filamento.estoque_gramas || 0) && (
                       <AlertTriangle className="w-4 h-4" />
