@@ -1658,6 +1658,24 @@ export function FilaProducao() {
                                 {getPrioridadeConfig(item.prioridade).texto}
                               </span>
                             )}
+                            {/* Contagem de pedidos por prioridade */}
+                            {item.pedidos.length > 1 && (
+                              <span className="text-xs text-gray-500">
+                                ({item.pedidos.length} pedidos:
+                                {(() => {
+                                  const counts: Record<string, number> = { urgente: 0, alta: 0, normal: 0 };
+                                  item.pedidos.forEach(p => {
+                                    const prio = p.prioridade || 'normal';
+                                    counts[prio]++;
+                                  });
+                                  const parts = [];
+                                  if (counts.urgente > 0) parts.push(`${counts.urgente} urg`);
+                                  if (counts.alta > 0) parts.push(`${counts.alta} alta`);
+                                  if (counts.normal > 0) parts.push(`${counts.normal} normal`);
+                                  return ' ' + parts.join(', ');
+                                })()})
+                              </span>
+                            )}
                             {/* Data de entrega */}
                             {item.data_entrega && (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-xs">
@@ -1762,6 +1780,24 @@ export function FilaProducao() {
                                 {getPrioridadeConfig(item.prioridade).texto}
                               </span>
                             )}
+                            {/* Contagem de pedidos por prioridade */}
+                            {item.pedidos.length > 1 && (
+                              <span className="text-xs text-gray-500">
+                                ({item.pedidos.length} pedidos:
+                                {(() => {
+                                  const counts: Record<string, number> = { urgente: 0, alta: 0, normal: 0 };
+                                  item.pedidos.forEach(p => {
+                                    const prio = p.prioridade || 'normal';
+                                    counts[prio]++;
+                                  });
+                                  const parts = [];
+                                  if (counts.urgente > 0) parts.push(`${counts.urgente} urg`);
+                                  if (counts.alta > 0) parts.push(`${counts.alta} alta`);
+                                  if (counts.normal > 0) parts.push(`${counts.normal} normal`);
+                                  return ' ' + parts.join(', ');
+                                })()})
+                              </span>
+                            )}
                             {/* Data de entrega */}
                             {item.data_entrega && (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-xs">
@@ -1864,6 +1900,24 @@ export function FilaProducao() {
                               <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${getPrioridadeConfig(item.prioridade).bgCor} ${getPrioridadeConfig(item.prioridade).cor}`}>
                                 {item.prioridade === 'urgente' ? <Flame className="w-3 h-3" /> : <AlertTriangle className="w-3 h-3" />}
                                 {getPrioridadeConfig(item.prioridade).texto}
+                              </span>
+                            )}
+                            {/* Contagem de pedidos por prioridade */}
+                            {item.pedidos.length > 1 && (
+                              <span className="text-xs text-gray-500">
+                                ({item.pedidos.length} pedidos:
+                                {(() => {
+                                  const counts: Record<string, number> = { urgente: 0, alta: 0, normal: 0 };
+                                  item.pedidos.forEach(p => {
+                                    const prio = p.prioridade || 'normal';
+                                    counts[prio]++;
+                                  });
+                                  const parts = [];
+                                  if (counts.urgente > 0) parts.push(`${counts.urgente} urg`);
+                                  if (counts.alta > 0) parts.push(`${counts.alta} alta`);
+                                  if (counts.normal > 0) parts.push(`${counts.normal} normal`);
+                                  return ' ' + parts.join(', ');
+                                })()})
                               </span>
                             )}
                             {/* Data de entrega */}
@@ -3074,14 +3128,29 @@ export function FilaProducao() {
                             )}
                           </div>
                           <div>
-                            <p className="font-medium text-gray-900">
-                              {pedido.produto?.nome || 'Produto'}
-                              {pedido.variacao?.nome_variacao && (
-                                <span className="text-gray-500 font-normal">
-                                  {' '}({pedido.variacao.nome_variacao})
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-medium text-gray-900">
+                                {pedido.produto?.nome || 'Produto'}
+                                {pedido.variacao?.nome_variacao && (
+                                  <span className="text-gray-500 font-normal">
+                                    {' '}({pedido.variacao.nome_variacao})
+                                  </span>
+                                )}
+                              </p>
+                              {/* Badge de prioridade individual */}
+                              {pedido.prioridade && pedido.prioridade !== 'normal' && (
+                                <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium ${getPrioridadeConfig(pedido.prioridade).bgCor} ${getPrioridadeConfig(pedido.prioridade).cor}`}>
+                                  {pedido.prioridade === 'urgente' ? <Flame className="w-3 h-3" /> : <AlertTriangle className="w-3 h-3" />}
+                                  {getPrioridadeConfig(pedido.prioridade).texto}
                                 </span>
                               )}
-                            </p>
+                              {pedido.prioridade === 'normal' && (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
+                                  <Circle className="w-3 h-3" />
+                                  Normal
+                                </span>
+                              )}
+                            </div>
                             <span className="text-sm font-semibold text-green-600">
                               {pedido.quantidade} unidade(s) entregue(s)
                             </span>
