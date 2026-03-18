@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Card, CardBody } from '../../components/ui';
-import { Pedido, ProdutoConcorrente, ItemFilaProducao, EstoqueProduto, Filamento, Impressora, MLOrder, MLConnectionStatus, PrioridadePedido } from '../../types';
+import { Pedido, ProdutoConcorrente, ItemFilaProducao, EstoqueProduto, Filamento, Impressora, MLOrder, MLConnectionStatus, TikTokOrder, TikTokConnectionStatus, PrioridadePedido } from '../../types';
 import { getPedidosPendentes, createPedido, deletePedido, marcarProduzido, concluirPedido, getPedidosConcluidos, reverterPedido, calcularPrioridade, getPrioridadeValor } from '../../services/pedidosService';
 import { getEstoqueProdutos, removerEstoqueComMovimentacao } from '../../services/estoqueProdutosService';
 import { getProdutos } from '../../services/produtosService';
@@ -17,6 +17,15 @@ import {
   getMLLoginUrl,
   findMatchingProduct,
 } from '../../services/mercadoLivreService';
+import {
+  checkTikTokConnection,
+  syncTikTokOrders,
+  getTikTokOrders,
+  importTikTokOrderToPedido,
+  disconnectTikTok,
+  getTikTokLoginUrl,
+  findMatchingProduct as findMatchingProductTikTok,
+} from '../../services/tiktokShopService';
 import {
   ClipboardList,
   Plus,
@@ -76,6 +85,19 @@ interface PedidoImportado {
 // Interface para pedido ML com match
 interface MLOrderWithMatch {
   order: MLOrder;
+  produtoMatch?: ProdutoConcorrente;
+  variacaoMatch?: { id: string; nome_variacao: string };
+  matchStatus: 'encontrado_sku' | 'encontrado_nome' | 'nao_encontrado';
+  quantidade: number;
+  selecionado: boolean;
+  produtoManual?: ProdutoConcorrente;
+  variacaoManual?: { id: string; nome_variacao: string };
+  expanded: boolean;
+}
+
+// Interface para pedido TikTok com match
+interface TikTokOrderWithMatch {
+  order: TikTokOrder;
   produtoMatch?: ProdutoConcorrente;
   variacaoMatch?: { id: string; nome_variacao: string };
   matchStatus: 'encontrado_sku' | 'encontrado_nome' | 'nao_encontrado';
@@ -315,6 +337,17 @@ export function FilaProducao() {
   const [mlOrdersWithMatch, setMlOrdersWithMatch] = useState<MLOrderWithMatch[]>([]);
   const [mlAnalyzing, setMlAnalyzing] = useState(false);
 
+  // TikTok Shop
+  const [tiktokStatus, setTiktokStatus] = useState<TikTokConnectionStatus>({ connected: false });
+  const [tiktokOrders, setTiktokOrders] = useState<TikTokOrder[]>([]);
+  const [tiktokSyncing, setTiktokSyncing] = useState(false);
+  const [showTikTokModal, setShowTikTokModal] = useState(false);
+  const [tiktokImporting, setTiktokImporting] = useState(false);
+  const [tiktokLoaded, setTiktokLoaded] = useState(false);
+  const [tiktokLoginUrl, setTiktokLoginUrl] = useState<string>('');
+  const [tiktokOrdersWithMatch, setTiktokOrdersWithMatch] = useState<TikTokOrderWithMatch[]>([]);
+  const [tiktokAnalyzing, setTiktokAnalyzing] = useState(false);
+
   // Historico de pedidos concluidos
   const [showHistoricoModal, setShowHistoricoModal] = useState(false);
   const [pedidosConcluidos, setPedidosConcluidos] = useState<Pedido[]>([]);
@@ -347,6 +380,32 @@ export function FilaProducao() {
     checkML();
   }, []);
 
+  // Verificar conexao TikTok ao carregar
+  useEffect(() => {
+    const checkTikTok = async () => {
+      try {
+        const status = await checkTikTokConnection();
+        setTiktokStatus(status);
+
+        // Se estiver conectado, buscar pedidos pendentes
+        if (status.connected) {
+          const orders = await getTikTokOrders(true);
+          setTiktokOrders(orders);
+        } else {
+          // Carregar URL de login
+          const loginUrl = await getTikTokLoginUrl();
+          setTiktokLoginUrl(loginUrl);
+        }
+      } catch (error) {
+        console.error('Erro ao verificar TikTok:', error);
+      } finally {
+        setTiktokLoaded(true);
+      }
+    };
+
+    checkTikTok();
+  }, []);
+
   // Verificar se veio do callback do ML
   useEffect(() => {
     const mlParam = searchParams.get('ml');
@@ -359,6 +418,23 @@ export function FilaProducao() {
         setMlStatus(status);
         if (status.connected) {
           getMLOrders(true).then(setMlOrders);
+        }
+      });
+    }
+  }, [searchParams, setSearchParams]);
+
+  // Verificar se veio do callback do TikTok
+  useEffect(() => {
+    const tiktokParam = searchParams.get('tiktok');
+    if (tiktokParam === 'connected') {
+      // Limpar parametro da URL
+      searchParams.delete('tiktok');
+      setSearchParams(searchParams, { replace: true });
+      // Recarregar status
+      checkTikTokConnection().then(status => {
+        setTiktokStatus(status);
+        if (status.connected) {
+          getTikTokOrders(true).then(setTiktokOrders);
         }
       });
     }
@@ -551,6 +627,166 @@ export function FilaProducao() {
         // Recarregar URL de login para mostrar botao de conectar
         const loginUrl = await getMLLoginUrl();
         setMlLoginUrl(loginUrl);
+      }
+    }
+  };
+
+  // Sincronizar pedidos do TikTok Shop
+  const handleSyncTikTok = async () => {
+    setTiktokSyncing(true);
+    try {
+      const result = await syncTikTokOrders();
+      if (result) {
+        setTiktokOrders(result.pending);
+        if (result.synced > 0) {
+          alert(`${result.synced} novos pedidos sincronizados do TikTok Shop!`);
+        } else if (result.pending.length === 0) {
+          alert('Nenhum pedido pendente no TikTok Shop.');
+        }
+      }
+    } catch (error: any) {
+      console.error('Erro ao sincronizar TikTok:', error);
+      const message = error?.message || 'Erro ao sincronizar com TikTok Shop';
+      alert(message);
+    } finally {
+      setTiktokSyncing(false);
+    }
+  };
+
+  // Analisar pedidos TikTok e buscar correspondencias
+  const handleOpenTikTokImport = async () => {
+    setShowTikTokModal(true);
+    setTiktokAnalyzing(true);
+
+    try {
+      const ordersWithMatch: TikTokOrderWithMatch[] = [];
+
+      for (const order of tiktokOrders) {
+        const match = await findMatchingProductTikTok(order.product_title, order.variation, order.seller_sku);
+
+        ordersWithMatch.push({
+          order,
+          produtoMatch: match?.produto,
+          variacaoMatch: match?.variacao ? { id: match.variacao.id!, nome_variacao: match.variacao.nome_variacao } : undefined,
+          matchStatus: match ? (match.matchedBy === 'sku' ? 'encontrado_sku' : 'encontrado_nome') : 'nao_encontrado',
+          quantidade: order.quantity,
+          selecionado: match !== null, // Auto-selecionar se encontrou
+          expanded: false,
+        });
+      }
+
+      setTiktokOrdersWithMatch(ordersWithMatch);
+    } catch (error) {
+      console.error('Erro ao analisar pedidos TikTok:', error);
+    } finally {
+      setTiktokAnalyzing(false);
+    }
+  };
+
+  // Toggle seleção de pedido TikTok
+  const toggleTikTokOrderSelection = (orderId: string) => {
+    setTiktokOrdersWithMatch(prev => prev.map(item =>
+      item.order.id === orderId ? { ...item, selecionado: !item.selecionado } : item
+    ));
+  };
+
+  // Toggle expansão de pedido TikTok
+  const toggleTikTokOrderExpand = (orderId: string) => {
+    setTiktokOrdersWithMatch(prev => prev.map(item =>
+      item.order.id === orderId ? { ...item, expanded: !item.expanded } : item
+    ));
+  };
+
+  // Atualizar quantidade de pedido TikTok
+  const updateTikTokOrderQuantity = (orderId: string, quantidade: number) => {
+    setTiktokOrdersWithMatch(prev => prev.map(item =>
+      item.order.id === orderId ? { ...item, quantidade: Math.max(1, quantidade) } : item
+    ));
+  };
+
+  // Selecionar produto manualmente para pedido TikTok
+  const setTikTokOrderManualProduct = (orderId: string, produtoId: string, variacaoId?: string) => {
+    const produto = produtos.find(p => p.id === produtoId);
+    const variacao = produto?.variacoes?.find(v => v.id === variacaoId);
+
+    setTiktokOrdersWithMatch(prev => prev.map(item =>
+      item.order.id === orderId ? {
+        ...item,
+        produtoManual: produto,
+        variacaoManual: variacao ? { id: variacao.id!, nome_variacao: variacao.nome_variacao } : undefined,
+        selecionado: true,
+      } : item
+    ));
+  };
+
+  // Importar pedidos selecionados do TikTok
+  const handleImportTikTokOrders = async () => {
+    const pedidosSelecionados = tiktokOrdersWithMatch.filter(item => item.selecionado);
+
+    if (pedidosSelecionados.length === 0) {
+      alert('Selecione pelo menos um pedido para importar');
+      return;
+    }
+
+    // Verificar se todos têm produto definido
+    const semProduto = pedidosSelecionados.filter(item =>
+      !item.produtoManual && !item.produtoMatch
+    );
+
+    if (semProduto.length > 0) {
+      alert(`${semProduto.length} pedido(s) não têm produto definido. Selecione um produto manualmente ou desmarque-os.`);
+      return;
+    }
+
+    setTiktokImporting(true);
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const item of pedidosSelecionados) {
+      const produtoId = item.produtoManual?.id || item.produtoMatch?.id;
+      const variacaoId = item.variacaoManual?.id || item.variacaoMatch?.id;
+
+      if (produtoId) {
+        // Criar pedido com quantidade customizada
+        const success = await importTikTokOrderToPedido(
+          { ...item.order, quantity: item.quantidade },
+          produtoId,
+          variacaoId
+        );
+
+        if (success) {
+          successCount++;
+        } else {
+          failCount++;
+        }
+      }
+    }
+
+    // Recarregar dados
+    await loadData();
+    const orders = await getTikTokOrders(true);
+    setTiktokOrders(orders);
+    setTiktokOrdersWithMatch([]);
+    setTiktokImporting(false);
+    setShowTikTokModal(false);
+
+    if (successCount > 0) {
+      alert(`${successCount} pedido(s) importado(s) com sucesso!${failCount > 0 ? ` (${failCount} falharam)` : ''}`);
+    } else {
+      alert('Nenhum pedido foi importado.');
+    }
+  };
+
+  // Desconectar do TikTok Shop
+  const handleDisconnectTikTok = async () => {
+    if (confirm('Deseja desconectar do TikTok Shop?')) {
+      const success = await disconnectTikTok();
+      if (success) {
+        setTiktokStatus({ connected: false });
+        setTiktokOrders([]);
+        // Recarregar URL de login para mostrar botao de conectar
+        const loginUrl = await getTikTokLoginUrl();
+        setTiktokLoginUrl(loginUrl);
       }
     }
   };
@@ -1310,6 +1546,61 @@ export function FilaProducao() {
             >
               <Link2 className="w-4 h-4" />
               Conectar Mercado Livre
+            </a>
+          ) : null}
+
+          {/* TikTok Shop */}
+          {!tiktokLoaded ? (
+            <button
+              disabled
+              className="flex items-center gap-2 px-3 py-2 text-sm bg-black text-white rounded-lg opacity-50"
+            >
+              <Loader2 className="w-4 h-4 animate-spin" />
+              TikTok Shop
+            </button>
+          ) : tiktokStatus.connected ? (
+            <>
+              <button
+                onClick={handleSyncTikTok}
+                disabled={tiktokSyncing}
+                className="flex items-center gap-2 px-3 py-2 text-sm bg-black text-white rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50"
+              >
+                {tiktokSyncing ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-4 h-4" />
+                )}
+                Sincronizar TikTok
+                {tiktokOrders.length > 0 && (
+                  <span className="bg-white text-black px-1.5 py-0.5 rounded-full text-xs font-bold">
+                    {tiktokOrders.length}
+                  </span>
+                )}
+              </button>
+              {tiktokOrders.length > 0 && (
+                <button
+                  onClick={handleOpenTikTokImport}
+                  className="flex items-center gap-2 px-3 py-2 text-sm border border-black text-black rounded-lg hover:bg-gray-100 transition-colors"
+                >
+                  <ShoppingCart className="w-4 h-4" />
+                  Importar TikTok ({tiktokOrders.length})
+                </button>
+              )}
+              <button
+                onClick={handleDisconnectTikTok}
+                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                title="Desconectar TikTok Shop"
+              >
+                <Unlink className="w-4 h-4" />
+              </button>
+            </>
+          ) : tiktokLoginUrl ? (
+            <a
+              href={tiktokLoginUrl}
+              className="flex items-center gap-2 px-3 py-2 text-sm bg-black text-white rounded-lg hover:bg-gray-800 transition-colors"
+            >
+              <Link2 className="w-4 h-4" />
+              Conectar TikTok
             </a>
           ) : null}
 
@@ -3008,6 +3299,311 @@ export function FilaProducao() {
                     hover:bg-yellow-600 transition-colors disabled:opacity-50"
                 >
                   {mlImporting ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Download className="w-4 h-4" />
+                  )}
+                  Importar Selecionados
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Pedidos TikTok Shop */}
+      {showTikTokModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl mx-4 max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-gray-900 rounded-lg">
+                  <ShoppingCart className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Importar Pedidos do TikTok Shop
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    {tiktokOrdersWithMatch.length} pedido(s) para revisar
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowTikTokModal(false);
+                  setTiktokOrdersWithMatch([]);
+                }}
+                className="p-1 text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4">
+              {tiktokAnalyzing ? (
+                <div className="text-center py-12">
+                  <Loader2 className="w-8 h-8 text-gray-700 animate-spin mx-auto mb-3" />
+                  <p className="text-gray-500">Analisando pedidos e buscando correspondencias...</p>
+                </div>
+              ) : tiktokOrdersWithMatch.length === 0 ? (
+                <div className="text-center py-8">
+                  <CheckCircle2 className="w-12 h-12 text-green-400 mx-auto mb-3" />
+                  <p className="text-gray-500">Nenhum pedido pendente para importar!</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {/* Selecionar todos */}
+                  <div className="flex items-center justify-between pb-3 border-b">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={tiktokOrdersWithMatch.every(item => item.selecionado)}
+                        onChange={(e) => {
+                          setTiktokOrdersWithMatch(prev => prev.map(item => ({
+                            ...item,
+                            selecionado: e.target.checked && (item.produtoMatch || item.produtoManual) !== undefined
+                          })));
+                        }}
+                        className="w-4 h-4 text-gray-700 rounded"
+                      />
+                      <span className="text-sm text-gray-600">Selecionar todos com produto</span>
+                    </div>
+                    <div className="flex items-center gap-4 text-xs">
+                      <span className="flex items-center gap-1 text-green-600">
+                        <Check className="w-3 h-3" /> SKU
+                      </span>
+                      <span className="flex items-center gap-1 text-blue-600">
+                        <Search className="w-3 h-3" /> Nome
+                      </span>
+                      <span className="flex items-center gap-1 text-red-600">
+                        <AlertCircle className="w-3 h-3" /> Nao encontrado
+                      </span>
+                    </div>
+                  </div>
+
+                  {tiktokOrdersWithMatch.map((item) => {
+                    const produtoFinal = item.produtoManual || item.produtoMatch;
+                    const variacaoFinal = item.variacaoManual || item.variacaoMatch;
+                    const temVariacoes = item.order.variation || (produtoFinal?.variacoes && produtoFinal.variacoes.length > 0);
+
+                    return (
+                      <div
+                        key={item.order.id}
+                        className={`rounded-lg border-2 transition-colors ${
+                          item.selecionado
+                            ? 'border-gray-700 bg-gray-50'
+                            : 'border-gray-200'
+                        }`}
+                      >
+                        {/* Linha principal */}
+                        <div className="p-3 flex items-center gap-3">
+                          <input
+                            type="checkbox"
+                            checked={item.selecionado}
+                            onChange={() => toggleTikTokOrderSelection(item.order.id!)}
+                            className="w-4 h-4 text-gray-700 rounded"
+                          />
+
+                          <button
+                            onClick={() => toggleTikTokOrderExpand(item.order.id!)}
+                            className="p-1 text-gray-400 hover:text-gray-600"
+                          >
+                            {item.expanded ? (
+                              <ChevronDown className="w-4 h-4" />
+                            ) : (
+                              <ChevronRight className="w-4 h-4" />
+                            )}
+                          </button>
+
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-medium text-gray-900 truncate">
+                                {item.order.product_title}
+                              </p>
+                              {temVariacoes && (
+                                <span className="px-1.5 py-0.5 text-xs bg-purple-100 text-purple-700 rounded">
+                                  Com variacoes
+                                </span>
+                              )}
+                            </div>
+                            {item.order.variation && (
+                              <p className="text-sm text-gray-500 truncate">
+                                TikTok: {item.order.variation}
+                              </p>
+                            )}
+                            {produtoFinal && (
+                              <p className="text-sm text-green-600 truncate">
+                                → {produtoFinal.nome}{variacaoFinal ? ` - ${variacaoFinal.nome_variacao}` : ''}
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Quantidade editavel */}
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => updateTikTokOrderQuantity(item.order.id!, item.quantidade - 1)}
+                              className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
+                              disabled={item.quantidade <= 1}
+                            >
+                              <Minus className="w-3 h-3" />
+                            </button>
+                            <input
+                              type="number"
+                              min="1"
+                              value={item.quantidade}
+                              onChange={(e) => updateTikTokOrderQuantity(item.order.id!, parseInt(e.target.value) || 1)}
+                              className="w-12 text-center text-sm border rounded px-1 py-0.5"
+                            />
+                            <button
+                              onClick={() => updateTikTokOrderQuantity(item.order.id!, item.quantidade + 1)}
+                              className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
+                            >
+                              <Plus className="w-3 h-3" />
+                            </button>
+                          </div>
+
+                          {/* Badge de status */}
+                          <span className={`px-2 py-1 text-xs rounded-full whitespace-nowrap ${
+                            item.matchStatus === 'encontrado_sku'
+                              ? 'bg-green-100 text-green-700'
+                              : item.matchStatus === 'encontrado_nome'
+                              ? 'bg-blue-100 text-blue-700'
+                              : 'bg-red-100 text-red-700'
+                          }`}>
+                            {item.matchStatus === 'encontrado_sku'
+                              ? 'SKU'
+                              : item.matchStatus === 'encontrado_nome'
+                              ? 'Nome'
+                              : 'Nao encontrado'}
+                          </span>
+                        </div>
+
+                        {/* Area expandida */}
+                        {item.expanded && (
+                          <div className="px-4 pb-4 pt-2 border-t bg-gray-50 space-y-3">
+                            {/* Informacoes do pedido TikTok */}
+                            <div className="grid grid-cols-2 gap-4 text-sm">
+                              <div>
+                                <span className="text-gray-500">Pedido TikTok:</span>{' '}
+                                <span className="font-mono">{item.order.tiktok_order_id}</span>
+                              </div>
+                              {item.order.seller_sku && (
+                                <div>
+                                  <span className="text-gray-500">SKU:</span>{' '}
+                                  <span className="font-mono text-blue-600">{item.order.seller_sku}</span>
+                                </div>
+                              )}
+                              {item.order.buyer_name && (
+                                <div>
+                                  <span className="text-gray-500">Comprador:</span>{' '}
+                                  {item.order.buyer_name}
+                                </div>
+                              )}
+                              {item.order.unit_price && (
+                                <div>
+                                  <span className="text-gray-500">Preco:</span>{' '}
+                                  <span className="text-green-600">R$ {item.order.unit_price.toFixed(2)}</span>
+                                </div>
+                              )}
+                              {item.order.date_created && (
+                                <div>
+                                  <span className="text-gray-500">Data:</span>{' '}
+                                  {new Date(item.order.date_created).toLocaleDateString('pt-BR', {
+                                    day: '2-digit',
+                                    month: '2-digit',
+                                    year: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                  })}
+                                </div>
+                              )}
+                              <div>
+                                <span className="text-gray-500">Qtd original:</span>{' '}
+                                <span className="font-semibold">{item.order.quantity}</span>
+                              </div>
+                            </div>
+
+                            {/* Selecao manual de produto */}
+                            <div className="pt-2 border-t">
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                <Edit3 className="w-4 h-4 inline mr-1" />
+                                Selecionar produto manualmente:
+                              </label>
+                              <div className="flex gap-2">
+                                <select
+                                  value={produtoFinal?.id || ''}
+                                  onChange={(e) => {
+                                    const prodId = e.target.value;
+                                    if (prodId) {
+                                      setTikTokOrderManualProduct(item.order.id!, prodId);
+                                    }
+                                  }}
+                                  className="flex-1 text-sm border border-gray-300 rounded-lg px-3 py-2"
+                                >
+                                  <option value="">Selecionar produto...</option>
+                                  {produtos.map(p => (
+                                    <option key={p.id} value={p.id}>
+                                      {p.nome} {p.sku ? `(${p.sku})` : ''}
+                                    </option>
+                                  ))}
+                                </select>
+
+                                {/* Selecao de variacao se o produto tiver */}
+                                {produtoFinal?.variacoes && produtoFinal.variacoes.length > 0 && (
+                                  <select
+                                    value={variacaoFinal?.id || ''}
+                                    onChange={(e) => {
+                                      const varId = e.target.value;
+                                      setTikTokOrderManualProduct(item.order.id!, produtoFinal.id!, varId || undefined);
+                                    }}
+                                    className="w-48 text-sm border border-gray-300 rounded-lg px-3 py-2"
+                                  >
+                                    <option value="">Sem variacao</option>
+                                    {produtoFinal.variacoes.map(v => (
+                                      <option key={v.id} value={v.id}>
+                                        {v.nome_variacao} {v.sku ? `(${v.sku})` : ''}
+                                      </option>
+                                    ))}
+                                  </select>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between gap-3 p-4 border-t bg-gray-50">
+              <div className="text-sm text-gray-500">
+                <span className="font-medium text-gray-900">{tiktokOrdersWithMatch.filter(i => i.selecionado).length}</span> selecionado(s) de {tiktokOrdersWithMatch.length}
+                {tiktokOrdersWithMatch.filter(i => i.matchStatus === 'nao_encontrado' && !i.produtoManual).length > 0 && (
+                  <span className="text-red-500 ml-2">
+                    ({tiktokOrdersWithMatch.filter(i => i.matchStatus === 'nao_encontrado' && !i.produtoManual).length} sem produto)
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    setShowTikTokModal(false);
+                    setTiktokOrdersWithMatch([]);
+                  }}
+                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleImportTikTokOrders}
+                  disabled={tiktokOrdersWithMatch.filter(i => i.selecionado).length === 0 || tiktokImporting}
+                  className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg
+                    hover:bg-gray-800 transition-colors disabled:opacity-50"
+                >
+                  {tiktokImporting ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
                     <Download className="w-4 h-4" />

@@ -515,3 +515,39 @@ export interface MLSyncResponse {
   pending: MLOrder[];
   total_from_ml: number;
 }
+
+// ============ TIKTOK SHOP ============
+
+export interface TikTokOrder {
+  id?: string;
+  user_id?: string;
+  tiktok_order_id: string;
+  product_title: string;
+  variation?: string | null;
+  seller_sku?: string | null;
+  quantity: number;
+  unit_price?: number;
+  status: string;
+  buyer_name?: string;
+  date_created?: string;
+  imported: boolean;
+  pedido_id?: string | null;
+  created_at?: string;
+}
+
+export interface TikTokConnectionStatus {
+  connected: boolean;
+  shop_id?: string;
+  shop_name?: string;
+  expires_at?: string;
+  can_refresh?: boolean;
+  is_expired?: boolean;
+  reason?: string;
+}
+
+export interface TikTokSyncResponse {
+  synced: number;
+  pending: TikTokOrder[];
+  total_from_tiktok: number;
+  message?: string;
+}
