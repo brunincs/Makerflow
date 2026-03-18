@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Card, CardBody } from '../../components/ui';
-import { Pedido, ProdutoConcorrente, ItemFilaProducao, EstoqueProduto, Filamento, Impressora, MLOrder, MLConnectionStatus, TikTokOrder, TikTokConnectionStatus, PrioridadePedido } from '../../types';
+import { Pedido, ProdutoConcorrente, ItemFilaProducao, EstoqueProduto, Filamento, Impressora, MLOrder, MLConnectionStatus, TikTokOrder, TikTokConnectionStatus, ShopeeOrder, ShopeeConnectionStatus, PrioridadePedido } from '../../types';
 import { getPedidosPendentes, createPedido, deletePedido, marcarProduzido, concluirPedido, getPedidosConcluidos, reverterPedido, calcularPrioridade, getPrioridadeValor } from '../../services/pedidosService';
 import { getEstoqueProdutos, removerEstoqueComMovimentacao } from '../../services/estoqueProdutosService';
 import { getProdutos } from '../../services/produtosService';
@@ -26,6 +26,15 @@ import {
   getTikTokLoginUrl,
   findMatchingProduct as findMatchingProductTikTok,
 } from '../../services/tiktokShopService';
+import {
+  checkShopeeConnection,
+  syncShopeeOrders,
+  getShopeeOrders,
+  importShopeeOrderToPedido,
+  disconnectShopee,
+  getShopeeLoginUrl,
+  findMatchingProduct as findMatchingProductShopee,
+} from '../../services/shopeeService';
 import {
   ClipboardList,
   Plus,
@@ -98,6 +107,19 @@ interface MLOrderWithMatch {
 // Interface para pedido TikTok com match
 interface TikTokOrderWithMatch {
   order: TikTokOrder;
+  produtoMatch?: ProdutoConcorrente;
+  variacaoMatch?: { id: string; nome_variacao: string };
+  matchStatus: 'encontrado_sku' | 'encontrado_nome' | 'nao_encontrado';
+  quantidade: number;
+  selecionado: boolean;
+  produtoManual?: ProdutoConcorrente;
+  variacaoManual?: { id: string; nome_variacao: string };
+  expanded: boolean;
+}
+
+// Interface para pedido Shopee com match
+interface ShopeeOrderWithMatch {
+  order: ShopeeOrder;
   produtoMatch?: ProdutoConcorrente;
   variacaoMatch?: { id: string; nome_variacao: string };
   matchStatus: 'encontrado_sku' | 'encontrado_nome' | 'nao_encontrado';
@@ -348,6 +370,17 @@ export function FilaProducao() {
   const [tiktokOrdersWithMatch, setTiktokOrdersWithMatch] = useState<TikTokOrderWithMatch[]>([]);
   const [tiktokAnalyzing, setTiktokAnalyzing] = useState(false);
 
+  // Shopee
+  const [shopeeStatus, setShopeeStatus] = useState<ShopeeConnectionStatus>({ connected: false });
+  const [shopeeOrders, setShopeeOrders] = useState<ShopeeOrder[]>([]);
+  const [shopeeSyncing, setShopeeSyncing] = useState(false);
+  const [showShopeeModal, setShowShopeeModal] = useState(false);
+  const [shopeeImporting, setShopeeImporting] = useState(false);
+  const [shopeeLoaded, setShopeeLoaded] = useState(false);
+  const [shopeeLoginUrl, setShopeeLoginUrl] = useState<string>('');
+  const [shopeeOrdersWithMatch, setShopeeOrdersWithMatch] = useState<ShopeeOrderWithMatch[]>([]);
+  const [shopeeAnalyzing, setShopeeAnalyzing] = useState(false);
+
   // Historico de pedidos concluidos
   const [showHistoricoModal, setShowHistoricoModal] = useState(false);
   const [pedidosConcluidos, setPedidosConcluidos] = useState<Pedido[]>([]);
@@ -435,6 +468,49 @@ export function FilaProducao() {
         setTiktokStatus(status);
         if (status.connected) {
           getTikTokOrders(true).then(setTiktokOrders);
+        }
+      });
+    }
+  }, [searchParams, setSearchParams]);
+
+  // Verificar conexao Shopee ao carregar
+  useEffect(() => {
+    const checkShopee = async () => {
+      try {
+        const status = await checkShopeeConnection();
+        setShopeeStatus(status);
+
+        // Se estiver conectado, buscar pedidos pendentes
+        if (status.connected) {
+          const orders = await getShopeeOrders(true);
+          setShopeeOrders(orders);
+        } else {
+          // Carregar URL de login
+          const loginUrl = await getShopeeLoginUrl();
+          setShopeeLoginUrl(loginUrl);
+        }
+      } catch (error) {
+        console.error('Erro ao verificar Shopee:', error);
+      } finally {
+        setShopeeLoaded(true);
+      }
+    };
+
+    checkShopee();
+  }, []);
+
+  // Verificar se veio do callback da Shopee
+  useEffect(() => {
+    const shopeeParam = searchParams.get('shopee');
+    if (shopeeParam === 'connected') {
+      // Limpar parametro da URL
+      searchParams.delete('shopee');
+      setSearchParams(searchParams, { replace: true });
+      // Recarregar status
+      checkShopeeConnection().then(status => {
+        setShopeeStatus(status);
+        if (status.connected) {
+          getShopeeOrders(true).then(setShopeeOrders);
         }
       });
     }
@@ -787,6 +863,166 @@ export function FilaProducao() {
         // Recarregar URL de login para mostrar botao de conectar
         const loginUrl = await getTikTokLoginUrl();
         setTiktokLoginUrl(loginUrl);
+      }
+    }
+  };
+
+  // Sincronizar pedidos da Shopee
+  const handleSyncShopee = async () => {
+    setShopeeSyncing(true);
+    try {
+      const result = await syncShopeeOrders();
+      if (result) {
+        setShopeeOrders(result.pending);
+        if (result.synced > 0) {
+          alert(`${result.synced} novos pedidos sincronizados da Shopee!`);
+        } else if (result.pending.length === 0) {
+          alert('Nenhum pedido pendente na Shopee.');
+        }
+      }
+    } catch (error: any) {
+      console.error('Erro ao sincronizar Shopee:', error);
+      const message = error?.message || 'Erro ao sincronizar com Shopee';
+      alert(message);
+    } finally {
+      setShopeeSyncing(false);
+    }
+  };
+
+  // Analisar pedidos Shopee e buscar correspondencias
+  const handleOpenShopeeImport = async () => {
+    setShowShopeeModal(true);
+    setShopeeAnalyzing(true);
+
+    try {
+      const ordersWithMatch: ShopeeOrderWithMatch[] = [];
+
+      for (const order of shopeeOrders) {
+        const match = await findMatchingProductShopee(order.product_title, order.variation, order.seller_sku);
+
+        ordersWithMatch.push({
+          order,
+          produtoMatch: match?.produto,
+          variacaoMatch: match?.variacao ? { id: match.variacao.id!, nome_variacao: match.variacao.nome_variacao } : undefined,
+          matchStatus: match ? (match.matchedBy === 'sku' ? 'encontrado_sku' : 'encontrado_nome') : 'nao_encontrado',
+          quantidade: order.quantity,
+          selecionado: match !== null, // Auto-selecionar se encontrou
+          expanded: false,
+        });
+      }
+
+      setShopeeOrdersWithMatch(ordersWithMatch);
+    } catch (error) {
+      console.error('Erro ao analisar pedidos Shopee:', error);
+    } finally {
+      setShopeeAnalyzing(false);
+    }
+  };
+
+  // Toggle seleção de pedido Shopee
+  const toggleShopeeOrderSelection = (orderId: string) => {
+    setShopeeOrdersWithMatch(prev => prev.map(item =>
+      item.order.id === orderId ? { ...item, selecionado: !item.selecionado } : item
+    ));
+  };
+
+  // Toggle expansão de pedido Shopee
+  const toggleShopeeOrderExpand = (orderId: string) => {
+    setShopeeOrdersWithMatch(prev => prev.map(item =>
+      item.order.id === orderId ? { ...item, expanded: !item.expanded } : item
+    ));
+  };
+
+  // Atualizar quantidade de pedido Shopee
+  const updateShopeeOrderQuantity = (orderId: string, quantidade: number) => {
+    setShopeeOrdersWithMatch(prev => prev.map(item =>
+      item.order.id === orderId ? { ...item, quantidade: Math.max(1, quantidade) } : item
+    ));
+  };
+
+  // Selecionar produto manualmente para pedido Shopee
+  const setShopeeOrderManualProduct = (orderId: string, produtoId: string, variacaoId?: string) => {
+    const produto = produtos.find(p => p.id === produtoId);
+    const variacao = produto?.variacoes?.find(v => v.id === variacaoId);
+
+    setShopeeOrdersWithMatch(prev => prev.map(item =>
+      item.order.id === orderId ? {
+        ...item,
+        produtoManual: produto,
+        variacaoManual: variacao ? { id: variacao.id!, nome_variacao: variacao.nome_variacao } : undefined,
+        selecionado: true,
+      } : item
+    ));
+  };
+
+  // Importar pedidos selecionados da Shopee
+  const handleImportShopeeOrders = async () => {
+    const pedidosSelecionados = shopeeOrdersWithMatch.filter(item => item.selecionado);
+
+    if (pedidosSelecionados.length === 0) {
+      alert('Selecione pelo menos um pedido para importar');
+      return;
+    }
+
+    // Verificar se todos têm produto definido
+    const semProduto = pedidosSelecionados.filter(item =>
+      !item.produtoManual && !item.produtoMatch
+    );
+
+    if (semProduto.length > 0) {
+      alert(`${semProduto.length} pedido(s) não têm produto definido. Selecione um produto manualmente ou desmarque-os.`);
+      return;
+    }
+
+    setShopeeImporting(true);
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const item of pedidosSelecionados) {
+      const produtoId = item.produtoManual?.id || item.produtoMatch?.id;
+      const variacaoId = item.variacaoManual?.id || item.variacaoMatch?.id;
+
+      if (produtoId) {
+        // Criar pedido com quantidade customizada
+        const success = await importShopeeOrderToPedido(
+          { ...item.order, quantity: item.quantidade },
+          produtoId,
+          variacaoId
+        );
+
+        if (success) {
+          successCount++;
+        } else {
+          failCount++;
+        }
+      }
+    }
+
+    // Recarregar dados
+    await loadData();
+    const orders = await getShopeeOrders(true);
+    setShopeeOrders(orders);
+    setShopeeOrdersWithMatch([]);
+    setShopeeImporting(false);
+    setShowShopeeModal(false);
+
+    if (successCount > 0) {
+      alert(`${successCount} pedido(s) importado(s) com sucesso!${failCount > 0 ? ` (${failCount} falharam)` : ''}`);
+    } else {
+      alert('Nenhum pedido foi importado.');
+    }
+  };
+
+  // Desconectar da Shopee
+  const handleDisconnectShopee = async () => {
+    if (confirm('Deseja desconectar da Shopee?')) {
+      const success = await disconnectShopee();
+      if (success) {
+        setShopeeStatus({ connected: false });
+        setShopeeOrders([]);
+        // Recarregar URL de login para mostrar botao de conectar
+        const loginUrl = await getShopeeLoginUrl();
+        setShopeeLoginUrl(loginUrl);
       }
     }
   };
@@ -1493,139 +1729,166 @@ export function FilaProducao() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* Mercado Livre */}
-          {!mlLoaded ? (
+        <div className="flex flex-col gap-3">
+          {/* Linha 1: Botoes principais */}
+          <div className="flex items-center gap-2 justify-end">
             <button
-              disabled
-              className="flex items-center gap-2 px-3 py-2 text-sm bg-yellow-500 text-white rounded-lg opacity-50"
+              onClick={() => setShowImportModal(true)}
+              className="flex items-center gap-2 px-4 py-2 border border-indigo-600 text-indigo-600 rounded-lg hover:bg-indigo-50 transition-colors"
             >
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Mercado Livre
+              <Download className="w-4 h-4" />
+              Importar Pedidos
             </button>
-          ) : mlStatus.connected ? (
-            <>
-              <button
-                onClick={handleSyncML}
-                disabled={mlSyncing}
-                className="flex items-center gap-2 px-3 py-2 text-sm bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors disabled:opacity-50"
-              >
-                {mlSyncing ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <RefreshCw className="w-4 h-4" />
-                )}
-                Sincronizar ML
-                {mlOrders.length > 0 && (
-                  <span className="bg-white text-yellow-600 px-1.5 py-0.5 rounded-full text-xs font-bold">
-                    {mlOrders.length}
-                  </span>
-                )}
-              </button>
-              {mlOrders.length > 0 && (
-                <button
-                  onClick={handleOpenMLImport}
-                  className="flex items-center gap-2 px-3 py-2 text-sm border border-yellow-500 text-yellow-600 rounded-lg hover:bg-yellow-50 transition-colors"
-                >
-                  <ShoppingCart className="w-4 h-4" />
-                  Importar Pedidos ({mlOrders.length})
-                </button>
-              )}
-              <button
-                onClick={handleDisconnectML}
-                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                title="Desconectar Mercado Livre"
-              >
-                <Unlink className="w-4 h-4" />
-              </button>
-            </>
-          ) : mlLoginUrl ? (
-            <a
-              href={mlLoginUrl}
-              className="flex items-center gap-2 px-3 py-2 text-sm bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors"
-            >
-              <Link2 className="w-4 h-4" />
-              Conectar Mercado Livre
-            </a>
-          ) : null}
-
-          {/* TikTok Shop */}
-          {!tiktokLoaded ? (
             <button
-              disabled
-              className="flex items-center gap-2 px-3 py-2 text-sm bg-black text-white rounded-lg opacity-50"
+              onClick={() => setShowModal(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
             >
-              <Loader2 className="w-4 h-4 animate-spin" />
-              TikTok Shop
+              <Plus className="w-4 h-4" />
+              Novo Pedido
             </button>
-          ) : tiktokStatus.connected ? (
-            <>
-              <button
-                onClick={handleSyncTikTok}
-                disabled={tiktokSyncing}
-                className="flex items-center gap-2 px-3 py-2 text-sm bg-black text-white rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50"
-              >
-                {tiktokSyncing ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <RefreshCw className="w-4 h-4" />
-                )}
-                Sincronizar TikTok
-                {tiktokOrders.length > 0 && (
-                  <span className="bg-white text-black px-1.5 py-0.5 rounded-full text-xs font-bold">
-                    {tiktokOrders.length}
-                  </span>
-                )}
-              </button>
-              {tiktokOrders.length > 0 && (
-                <button
-                  onClick={handleOpenTikTokImport}
-                  className="flex items-center gap-2 px-3 py-2 text-sm border border-black text-black rounded-lg hover:bg-gray-100 transition-colors"
-                >
-                  <ShoppingCart className="w-4 h-4" />
-                  Importar TikTok ({tiktokOrders.length})
-                </button>
-              )}
-              <button
-                onClick={handleDisconnectTikTok}
-                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                title="Desconectar TikTok Shop"
-              >
-                <Unlink className="w-4 h-4" />
-              </button>
-            </>
-          ) : tiktokLoginUrl ? (
-            <a
-              href={tiktokLoginUrl}
-              className="flex items-center gap-2 px-3 py-2 text-sm bg-black text-white rounded-lg hover:bg-gray-800 transition-colors"
+            <button
+              onClick={handleOpenHistorico}
+              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              title="Historico de pedidos"
             >
-              <Link2 className="w-4 h-4" />
-              Conectar TikTok
-            </a>
-          ) : null}
+              <History className="w-4 h-4" />
+              Historico
+            </button>
+          </div>
 
-          <button
-            onClick={() => setShowImportModal(true)}
-            className="flex items-center gap-2 px-4 py-2 border border-indigo-600 text-indigo-600 rounded-lg hover:bg-indigo-50 transition-colors"
-          >
-            <Download className="w-4 h-4" />
-            Importar Pedidos
-          </button>
-          <button
-            onClick={() => setShowModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            Novo Pedido
-          </button>
-          <button
-            onClick={handleOpenHistorico}
-            className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-            title="Historico de pedidos"
-          >
-            <History className="w-4 h-4" />
-            Historico
-          </button>
+          {/* Linha 2: Marketplaces */}
+          <div className="flex items-center gap-1 justify-end bg-gray-50 rounded-lg p-1.5">
+            <span className="text-xs text-gray-400 px-2">Marketplaces:</span>
+
+            {/* Mercado Livre */}
+            {!mlLoaded ? (
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-yellow-500 text-white rounded-md opacity-50">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ML
+              </button>
+            ) : mlStatus.connected ? (
+              <div className="flex items-center">
+                <button
+                  onClick={mlOrders.length > 0 ? handleOpenMLImport : handleSyncML}
+                  disabled={mlSyncing}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-yellow-500 text-white rounded-l-md hover:bg-yellow-600 transition-colors disabled:opacity-50"
+                  title={mlOrders.length > 0 ? 'Importar pedidos do Mercado Livre' : 'Sincronizar Mercado Livre'}
+                >
+                  {mlSyncing ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : mlOrders.length > 0 ? (
+                    <ShoppingCart className="w-3.5 h-3.5" />
+                  ) : (
+                    <RefreshCw className="w-3.5 h-3.5" />
+                  )}
+                  ML
+                  {mlOrders.length > 0 && (
+                    <span className="bg-white text-yellow-600 px-1 py-0.5 rounded text-[10px] font-bold leading-none">
+                      {mlOrders.length}
+                    </span>
+                  )}
+                </button>
+                <button
+                  onClick={handleDisconnectML}
+                  className="p-1.5 text-yellow-100 bg-yellow-500 hover:bg-red-500 rounded-r-md transition-colors"
+                  title="Desconectar Mercado Livre"
+                >
+                  <Unlink className="w-3 h-3" />
+                </button>
+              </div>
+            ) : mlLoginUrl ? (
+              <a href={mlLoginUrl} className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-gray-200 text-gray-600 rounded-md hover:bg-yellow-500 hover:text-white transition-colors">
+                <Link2 className="w-3.5 h-3.5" />
+                ML
+              </a>
+            ) : null}
+
+            {/* Shopee */}
+            {!shopeeLoaded ? (
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-orange-500 text-white rounded-md opacity-50">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                Shopee
+              </button>
+            ) : shopeeStatus.connected ? (
+              <div className="flex items-center">
+                <button
+                  onClick={shopeeOrders.length > 0 ? handleOpenShopeeImport : handleSyncShopee}
+                  disabled={shopeeSyncing}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-orange-500 text-white rounded-l-md hover:bg-orange-600 transition-colors disabled:opacity-50"
+                  title={shopeeOrders.length > 0 ? 'Importar pedidos da Shopee' : 'Sincronizar Shopee'}
+                >
+                  {shopeeSyncing ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : shopeeOrders.length > 0 ? (
+                    <ShoppingCart className="w-3.5 h-3.5" />
+                  ) : (
+                    <RefreshCw className="w-3.5 h-3.5" />
+                  )}
+                  Shopee
+                  {shopeeOrders.length > 0 && (
+                    <span className="bg-white text-orange-600 px-1 py-0.5 rounded text-[10px] font-bold leading-none">
+                      {shopeeOrders.length}
+                    </span>
+                  )}
+                </button>
+                <button
+                  onClick={handleDisconnectShopee}
+                  className="p-1.5 text-orange-100 bg-orange-500 hover:bg-red-500 rounded-r-md transition-colors"
+                  title="Desconectar Shopee"
+                >
+                  <Unlink className="w-3 h-3" />
+                </button>
+              </div>
+            ) : shopeeLoginUrl ? (
+              <a href={shopeeLoginUrl} className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-gray-200 text-gray-600 rounded-md hover:bg-orange-500 hover:text-white transition-colors">
+                <Link2 className="w-3.5 h-3.5" />
+                Shopee
+              </a>
+            ) : null}
+
+            {/* TikTok */}
+            {!tiktokLoaded ? (
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-gray-900 text-white rounded-md opacity-50">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                TikTok
+              </button>
+            ) : tiktokStatus.connected ? (
+              <div className="flex items-center">
+                <button
+                  onClick={tiktokOrders.length > 0 ? handleOpenTikTokImport : handleSyncTikTok}
+                  disabled={tiktokSyncing}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-gray-900 text-white rounded-l-md hover:bg-gray-700 transition-colors disabled:opacity-50"
+                  title={tiktokOrders.length > 0 ? 'Importar pedidos do TikTok' : 'Sincronizar TikTok'}
+                >
+                  {tiktokSyncing ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : tiktokOrders.length > 0 ? (
+                    <ShoppingCart className="w-3.5 h-3.5" />
+                  ) : (
+                    <RefreshCw className="w-3.5 h-3.5" />
+                  )}
+                  TikTok
+                  {tiktokOrders.length > 0 && (
+                    <span className="bg-white text-gray-900 px-1 py-0.5 rounded text-[10px] font-bold leading-none">
+                      {tiktokOrders.length}
+                    </span>
+                  )}
+                </button>
+                <button
+                  onClick={handleDisconnectTikTok}
+                  className="p-1.5 text-gray-400 bg-gray-900 hover:bg-red-500 hover:text-white rounded-r-md transition-colors"
+                  title="Desconectar TikTok"
+                >
+                  <Unlink className="w-3 h-3" />
+                </button>
+              </div>
+            ) : tiktokLoginUrl ? (
+              <a href={tiktokLoginUrl} className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-gray-200 text-gray-600 rounded-md hover:bg-gray-900 hover:text-white transition-colors">
+                <Link2 className="w-3.5 h-3.5" />
+                TikTok
+              </a>
+            ) : null}
+          </div>
         </div>
       </div>
 
@@ -3604,6 +3867,311 @@ export function FilaProducao() {
                     hover:bg-gray-800 transition-colors disabled:opacity-50"
                 >
                   {tiktokImporting ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Download className="w-4 h-4" />
+                  )}
+                  Importar Selecionados
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Pedidos Shopee */}
+      {showShopeeModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl mx-4 max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-orange-100 rounded-lg">
+                  <ShoppingCart className="w-5 h-5 text-orange-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Importar Pedidos da Shopee
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    {shopeeOrdersWithMatch.length} pedido(s) para revisar
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowShopeeModal(false);
+                  setShopeeOrdersWithMatch([]);
+                }}
+                className="p-1 text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4">
+              {shopeeAnalyzing ? (
+                <div className="text-center py-12">
+                  <Loader2 className="w-8 h-8 text-orange-500 animate-spin mx-auto mb-3" />
+                  <p className="text-gray-500">Analisando pedidos e buscando correspondencias...</p>
+                </div>
+              ) : shopeeOrdersWithMatch.length === 0 ? (
+                <div className="text-center py-8">
+                  <CheckCircle2 className="w-12 h-12 text-green-400 mx-auto mb-3" />
+                  <p className="text-gray-500">Nenhum pedido pendente para importar!</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {/* Selecionar todos */}
+                  <div className="flex items-center justify-between pb-3 border-b">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={shopeeOrdersWithMatch.every(item => item.selecionado)}
+                        onChange={(e) => {
+                          setShopeeOrdersWithMatch(prev => prev.map(item => ({
+                            ...item,
+                            selecionado: e.target.checked && (item.produtoMatch || item.produtoManual) !== undefined
+                          })));
+                        }}
+                        className="w-4 h-4 text-orange-600 rounded"
+                      />
+                      <span className="text-sm text-gray-600">Selecionar todos com produto</span>
+                    </div>
+                    <div className="flex items-center gap-4 text-xs">
+                      <span className="flex items-center gap-1 text-green-600">
+                        <Check className="w-3 h-3" /> SKU
+                      </span>
+                      <span className="flex items-center gap-1 text-blue-600">
+                        <Search className="w-3 h-3" /> Nome
+                      </span>
+                      <span className="flex items-center gap-1 text-red-600">
+                        <AlertCircle className="w-3 h-3" /> Nao encontrado
+                      </span>
+                    </div>
+                  </div>
+
+                  {shopeeOrdersWithMatch.map((item) => {
+                    const produtoFinal = item.produtoManual || item.produtoMatch;
+                    const variacaoFinal = item.variacaoManual || item.variacaoMatch;
+                    const temVariacoes = item.order.variation || (produtoFinal?.variacoes && produtoFinal.variacoes.length > 0);
+
+                    return (
+                      <div
+                        key={item.order.id}
+                        className={`rounded-lg border-2 transition-colors ${
+                          item.selecionado
+                            ? 'border-orange-500 bg-orange-50'
+                            : 'border-gray-200'
+                        }`}
+                      >
+                        {/* Linha principal */}
+                        <div className="p-3 flex items-center gap-3">
+                          <input
+                            type="checkbox"
+                            checked={item.selecionado}
+                            onChange={() => toggleShopeeOrderSelection(item.order.id!)}
+                            className="w-4 h-4 text-orange-600 rounded"
+                          />
+
+                          <button
+                            onClick={() => toggleShopeeOrderExpand(item.order.id!)}
+                            className="p-1 text-gray-400 hover:text-gray-600"
+                          >
+                            {item.expanded ? (
+                              <ChevronDown className="w-4 h-4" />
+                            ) : (
+                              <ChevronRight className="w-4 h-4" />
+                            )}
+                          </button>
+
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-medium text-gray-900 truncate">
+                                {item.order.product_title}
+                              </p>
+                              {temVariacoes && (
+                                <span className="px-1.5 py-0.5 text-xs bg-purple-100 text-purple-700 rounded">
+                                  Com variacoes
+                                </span>
+                              )}
+                            </div>
+                            {item.order.variation && (
+                              <p className="text-sm text-gray-500 truncate">
+                                Shopee: {item.order.variation}
+                              </p>
+                            )}
+                            {produtoFinal && (
+                              <p className="text-sm text-green-600 truncate">
+                                → {produtoFinal.nome}{variacaoFinal ? ` - ${variacaoFinal.nome_variacao}` : ''}
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Quantidade editavel */}
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => updateShopeeOrderQuantity(item.order.id!, item.quantidade - 1)}
+                              className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
+                              disabled={item.quantidade <= 1}
+                            >
+                              <Minus className="w-3 h-3" />
+                            </button>
+                            <input
+                              type="number"
+                              min="1"
+                              value={item.quantidade}
+                              onChange={(e) => updateShopeeOrderQuantity(item.order.id!, parseInt(e.target.value) || 1)}
+                              className="w-12 text-center text-sm border rounded px-1 py-0.5"
+                            />
+                            <button
+                              onClick={() => updateShopeeOrderQuantity(item.order.id!, item.quantidade + 1)}
+                              className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
+                            >
+                              <Plus className="w-3 h-3" />
+                            </button>
+                          </div>
+
+                          {/* Badge de status */}
+                          <span className={`px-2 py-1 text-xs rounded-full whitespace-nowrap ${
+                            item.matchStatus === 'encontrado_sku'
+                              ? 'bg-green-100 text-green-700'
+                              : item.matchStatus === 'encontrado_nome'
+                              ? 'bg-blue-100 text-blue-700'
+                              : 'bg-red-100 text-red-700'
+                          }`}>
+                            {item.matchStatus === 'encontrado_sku'
+                              ? 'SKU'
+                              : item.matchStatus === 'encontrado_nome'
+                              ? 'Nome'
+                              : 'Nao encontrado'}
+                          </span>
+                        </div>
+
+                        {/* Area expandida */}
+                        {item.expanded && (
+                          <div className="px-4 pb-4 pt-2 border-t bg-gray-50 space-y-3">
+                            {/* Informacoes do pedido Shopee */}
+                            <div className="grid grid-cols-2 gap-4 text-sm">
+                              <div>
+                                <span className="text-gray-500">Pedido Shopee:</span>{' '}
+                                <span className="font-mono">{item.order.shopee_order_id}</span>
+                              </div>
+                              {item.order.seller_sku && (
+                                <div>
+                                  <span className="text-gray-500">SKU:</span>{' '}
+                                  <span className="font-mono text-blue-600">{item.order.seller_sku}</span>
+                                </div>
+                              )}
+                              {item.order.buyer_name && (
+                                <div>
+                                  <span className="text-gray-500">Comprador:</span>{' '}
+                                  {item.order.buyer_name}
+                                </div>
+                              )}
+                              {item.order.unit_price && (
+                                <div>
+                                  <span className="text-gray-500">Preco:</span>{' '}
+                                  <span className="text-green-600">R$ {item.order.unit_price.toFixed(2)}</span>
+                                </div>
+                              )}
+                              {item.order.date_created && (
+                                <div>
+                                  <span className="text-gray-500">Data:</span>{' '}
+                                  {new Date(item.order.date_created).toLocaleDateString('pt-BR', {
+                                    day: '2-digit',
+                                    month: '2-digit',
+                                    year: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                  })}
+                                </div>
+                              )}
+                              <div>
+                                <span className="text-gray-500">Qtd original:</span>{' '}
+                                <span className="font-semibold">{item.order.quantity}</span>
+                              </div>
+                            </div>
+
+                            {/* Selecao manual de produto */}
+                            <div className="pt-2 border-t">
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                <Edit3 className="w-4 h-4 inline mr-1" />
+                                Selecionar produto manualmente:
+                              </label>
+                              <div className="flex gap-2">
+                                <select
+                                  value={produtoFinal?.id || ''}
+                                  onChange={(e) => {
+                                    const prodId = e.target.value;
+                                    if (prodId) {
+                                      setShopeeOrderManualProduct(item.order.id!, prodId);
+                                    }
+                                  }}
+                                  className="flex-1 text-sm border border-gray-300 rounded-lg px-3 py-2"
+                                >
+                                  <option value="">Selecionar produto...</option>
+                                  {produtos.map(p => (
+                                    <option key={p.id} value={p.id}>
+                                      {p.nome} {p.sku ? `(${p.sku})` : ''}
+                                    </option>
+                                  ))}
+                                </select>
+
+                                {/* Selecao de variacao se o produto tiver */}
+                                {produtoFinal?.variacoes && produtoFinal.variacoes.length > 0 && (
+                                  <select
+                                    value={variacaoFinal?.id || ''}
+                                    onChange={(e) => {
+                                      const varId = e.target.value;
+                                      setShopeeOrderManualProduct(item.order.id!, produtoFinal.id!, varId || undefined);
+                                    }}
+                                    className="w-48 text-sm border border-gray-300 rounded-lg px-3 py-2"
+                                  >
+                                    <option value="">Sem variacao</option>
+                                    {produtoFinal.variacoes.map(v => (
+                                      <option key={v.id} value={v.id}>
+                                        {v.nome_variacao} {v.sku ? `(${v.sku})` : ''}
+                                      </option>
+                                    ))}
+                                  </select>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between gap-3 p-4 border-t bg-gray-50">
+              <div className="text-sm text-gray-500">
+                <span className="font-medium text-gray-900">{shopeeOrdersWithMatch.filter(i => i.selecionado).length}</span> selecionado(s) de {shopeeOrdersWithMatch.length}
+                {shopeeOrdersWithMatch.filter(i => i.matchStatus === 'nao_encontrado' && !i.produtoManual).length > 0 && (
+                  <span className="text-red-500 ml-2">
+                    ({shopeeOrdersWithMatch.filter(i => i.matchStatus === 'nao_encontrado' && !i.produtoManual).length} sem produto)
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    setShowShopeeModal(false);
+                    setShopeeOrdersWithMatch([]);
+                  }}
+                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleImportShopeeOrders}
+                  disabled={shopeeOrdersWithMatch.filter(i => i.selecionado).length === 0 || shopeeImporting}
+                  className="flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg
+                    hover:bg-orange-600 transition-colors disabled:opacity-50"
+                >
+                  {shopeeImporting ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
                     <Download className="w-4 h-4" />
