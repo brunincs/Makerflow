@@ -8,6 +8,8 @@ import { getProdutos } from '../../services/produtosService';
 import { getFilamentos } from '../../services/filamentosService';
 import { createImpressao } from '../../services/impressoesService';
 import { getImpressorasAtivas } from '../../services/impressorasService';
+import { getPrecificacaoByProduto } from '../../services/precificacoesService';
+import { deduzirEstoqueAcessorios, validarEstoqueAcessorios } from '../../services/acessoriosService';
 import {
   checkMLConnection,
   syncMLOrders,
@@ -1562,6 +1564,31 @@ export function FilaProducao() {
     setProduzindo(true);
 
     try {
+      // 0. Verificar e deduzir acessorios (se configurados na precificacao)
+      const precificacao = await getPrecificacaoByProduto(itemParaProduzir.produto_id);
+      if (precificacao?.acessorios_config && precificacao.acessorios_config.length > 0) {
+        // Validar estoque de acessorios
+        const validacao = await validarEstoqueAcessorios(precificacao.acessorios_config, qtdProduzida);
+        if (!validacao.valido) {
+          alert(`Estoque insuficiente de acessorios:\n${validacao.erros.join('\n')}`);
+          setProduzindo(false);
+          return;
+        }
+
+        // Deduzir acessorios
+        const deduzido = await deduzirEstoqueAcessorios(
+          precificacao.acessorios_config,
+          qtdProduzida,
+          itemParaProduzir.produto_id,
+          'impressao'
+        );
+        if (!deduzido) {
+          alert('Erro ao deduzir estoque de acessorios.');
+          setProduzindo(false);
+          return;
+        }
+      }
+
       // 1. Criar registro de impressao PRIMEIRO (se tem filamento selecionado)
       // A impressao automaticamente adiciona ao estoque via impressoesService
       if (filamentoId && itemParaProduzir.peso_por_peca > 0) {

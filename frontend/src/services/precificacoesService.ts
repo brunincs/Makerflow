@@ -40,6 +40,8 @@ export const createPrecificacao = async (
     imposto_aliquota: precificacao.imposto_aliquota || 0,
     outros_custos: precificacao.outros_custos || 0,
     embalagens_ids: precificacao.embalagens_ids || [],
+    acessorios_config: precificacao.acessorios_config || [],
+    custo_acessorios: precificacao.custo_acessorios || 0,
     impressora_modelo: precificacao.impressora_modelo || null,
     frete_gratis: precificacao.frete_gratis || false,
     tipo_anuncio: precificacao.tipo_anuncio || null,
@@ -200,6 +202,8 @@ export const updatePrecificacao = async (
     imposto_aliquota: precificacao.imposto_aliquota || 0,
     outros_custos: precificacao.outros_custos || 0,
     embalagens_ids: precificacao.embalagens_ids || [],
+    acessorios_config: precificacao.acessorios_config || [],
+    custo_acessorios: precificacao.custo_acessorios || 0,
     impressora_modelo: precificacao.impressora_modelo || null,
     frete_gratis: precificacao.frete_gratis || false,
     tipo_anuncio: precificacao.tipo_anuncio || null,
@@ -238,6 +242,12 @@ export const updatePrecificacao = async (
   }
 
   return data;
+};
+
+// Buscar precificação mais recente de um produto (para obter config de acessórios)
+export const getPrecificacaoByProduto = async (produtoId: string): Promise<PrecificacaoSalva | null> => {
+  const precificacoes = await getPrecificacoesPorProduto(produtoId);
+  return precificacoes.length > 0 ? precificacoes[0] : null;
 };
 
 export const deletePrecificacao = async (id: string): Promise<boolean> => {

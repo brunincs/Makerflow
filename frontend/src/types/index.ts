@@ -244,6 +244,12 @@ export interface VendaDiretaConfig {
   forma_pagamento?: FormaPagamento;
 }
 
+// Config de acessorio na precificacao
+export interface AcessorioConfigItem {
+  acessorio_id: string;
+  quantidade: number;
+}
+
 // Custos de Producao (compartilhado entre todos os marketplaces)
 export interface CustosProducaoConfig {
   // Impressora & Energia
@@ -261,6 +267,8 @@ export interface CustosProducaoConfig {
   peso_filamento_g?: number;
   // Embalagens (múltiplas)
   embalagens_ids?: string[];
+  // Acessorios
+  acessorios_config?: AcessorioConfigItem[];
   // Demais Custos
   imposto_aliquota?: number;
   outros_custos?: number;
@@ -331,6 +339,8 @@ export interface PrecificacaoSalva {
   imposto_aliquota?: number;
   outros_custos?: number;
   embalagens_ids?: string[];
+  acessorios_config?: AcessorioConfigItem[];
+  custo_acessorios?: number;
   impressora_modelo?: string | null;
   frete_gratis?: boolean;
   tipo_anuncio?: string | null;

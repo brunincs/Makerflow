@@ -4,6 +4,8 @@ import { MarketplaceState, PrecificacaoSalva, Embalagem } from '../../types';
 import { CATEGORIAS } from './MercadoLivreConfig';
 import { createPrecificacao, updatePrecificacao } from '../../services/precificacoesService';
 import { getEmbalagens } from '../../services/embalagensService';
+import { getAcessorios } from '../../services/acessoriosService';
+import { Acessorio } from '../../types/acessorio';
 import { createPedido } from '../../services/pedidosService';
 import {
   TrendingUp,
@@ -23,7 +25,8 @@ import {
   Check,
   Loader2,
   Send,
-  Layers
+  Layers,
+  Lightbulb
 } from 'lucide-react';
 
 // ========== TABELAS DE FRETE MERCADO LIVRE ==========
@@ -147,19 +150,24 @@ export function ResultadoCard({ state, canSave = true, onSaveSuccess, nomeProdut
   const [sendProductionSuccess, setSendProductionSuccess] = useState(false);
   const [nomeManual, setNomeManual] = useState('');
   const [embalagens, setEmbalagens] = useState<Embalagem[]>([]);
+  const [acessorios, setAcessorios] = useState<Acessorio[]>([]);
 
   const custos = state.custos_producao || {};
   const temProdutoSelecionado = !!state.produto_selecionado;
   const precoVenda = state.preco_venda || 0;
   const quantidadePecas = custos.quantidade_pecas || 1;
 
-  // Carregar embalagens para calcular o custo
+  // Carregar embalagens e acessorios para calcular o custo
   useEffect(() => {
-    const loadEmbalagens = async () => {
-      const data = await getEmbalagens();
-      setEmbalagens(data);
+    const loadData = async () => {
+      const [embData, acessData] = await Promise.all([
+        getEmbalagens(),
+        getAcessorios(true)
+      ]);
+      setEmbalagens(embData);
+      setAcessorios(acessData);
     };
-    loadEmbalagens();
+    loadData();
   }, []);
 
   // Pré-preencher nome quando carrega simulação
@@ -212,11 +220,17 @@ export function ResultadoCard({ state, canSave = true, onSaveSuccess, nomeProdut
     return total + (emb?.preco_unitario || 0);
   }, 0);
 
+  // Custo de acessorios
+  const custoAcessorios = (custos.acessorios_config || []).reduce((total, cfg) => {
+    const acessorio = acessorios.find(a => a.id === cfg.acessorio_id);
+    return total + (acessorio?.custo_unitario || 0) * cfg.quantidade;
+  }, 0);
+
   // Outros custos de produção
   const outrosCustos = custos.outros_custos || 0;
 
   // Total custos de produção
-  const totalCustosProducao = custoFilamento + custoEnergia + custoEmbalagem + outrosCustos;
+  const totalCustosProducao = custoFilamento + custoEnergia + custoEmbalagem + custoAcessorios + outrosCustos;
 
   // ========== CUSTOS DE VENDA ==========
 
@@ -336,6 +350,10 @@ export function ResultadoCard({ state, canSave = true, onSaveSuccess, nomeProdut
     { label: 'Embalagem', valor: custoEmbalagem, percentual: calcPercent(custoEmbalagem), icon: Package },
   ];
 
+  if (custoAcessorios > 0) {
+    custosProducaoList.push({ label: 'Acessorios', valor: custoAcessorios, percentual: calcPercent(custoAcessorios), icon: Lightbulb });
+  }
+
   if (outrosCustos > 0) {
     custosProducaoList.push({ label: 'Outros custos', valor: outrosCustos, percentual: calcPercent(outrosCustos), icon: Receipt });
   }
@@ -405,6 +423,8 @@ export function ResultadoCard({ state, canSave = true, onSaveSuccess, nomeProdut
       imposto_aliquota: custos.imposto_aliquota || 0,
       outros_custos: custos.outros_custos || 0,
       embalagens_ids: custos.embalagens_ids || [],
+      acessorios_config: custos.acessorios_config || [],
+      custo_acessorios: custoAcessorios,
       impressora_modelo: custos.impressora_modelo || null,
       frete_gratis: state.mercadolivre?.frete_gratis || false,
       tipo_anuncio: state.mercadolivre?.tipo_anuncio,

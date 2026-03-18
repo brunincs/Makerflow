@@ -6,6 +6,8 @@ import { getImpressoes, createImpressao, deleteImpressao } from '../../services/
 import { getProdutos } from '../../services/produtosService';
 import { getFilamentos } from '../../services/filamentosService';
 import { getImpressorasAtivas } from '../../services/impressorasService';
+import { getPrecificacaoByProduto } from '../../services/precificacoesService';
+import { deduzirEstoqueAcessorios, validarEstoqueAcessorios } from '../../services/acessoriosService';
 import {
   Printer,
   Plus,
@@ -275,6 +277,33 @@ export function Impressoes() {
     setSaving(true);
 
     try {
+      // Verificar e deduzir acessorios (se modo radar e produto tem acessorios configurados)
+      if (form.modo === 'radar' && form.produto_id) {
+        const precificacao = await getPrecificacaoByProduto(form.produto_id);
+        if (precificacao?.acessorios_config && precificacao.acessorios_config.length > 0) {
+          // Validar estoque de acessorios
+          const validacao = await validarEstoqueAcessorios(precificacao.acessorios_config, form.quantidade);
+          if (!validacao.valido) {
+            alert(`Estoque insuficiente de acessorios:\n${validacao.erros.join('\n')}`);
+            setSaving(false);
+            return;
+          }
+
+          // Deduzir acessorios
+          const deduzido = await deduzirEstoqueAcessorios(
+            precificacao.acessorios_config,
+            form.quantidade,
+            form.produto_id,
+            'impressao'
+          );
+          if (!deduzido) {
+            alert('Erro ao deduzir estoque de acessorios.');
+            setSaving(false);
+            return;
+          }
+        }
+      }
+
       // Calcular tempo em minutos para modo manual
       const tempoEmMinutos = form.modo === 'manual'
         ? (form.tempo_horas * 60) + form.tempo_minutos

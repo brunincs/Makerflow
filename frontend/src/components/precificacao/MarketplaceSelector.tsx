@@ -237,6 +237,8 @@ export function MarketplaceSelector({ value, onChange, canSave = true, onSaveSuc
           onImpostoAliquotaChange={(v) => handleCustosProducaoChange('imposto_aliquota', v)}
           embalagensIds={custos.embalagens_ids}
           onEmbalagensChange={(ids) => handleCustosProducaoChange('embalagens_ids', ids)}
+          acessoriosConfig={custos.acessorios_config}
+          onAcessoriosChange={(config) => handleCustosProducaoChange('acessorios_config', config)}
           outrosCustos={custos.outros_custos}
           onOutrosCustosChange={(v) => handleCustosProducaoChange('outros_custos', v)}
         />

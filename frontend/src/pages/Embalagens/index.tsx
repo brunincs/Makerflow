@@ -10,6 +10,7 @@ import {
   removerEstoqueEmbalagem
 } from '../../services/embalagensService';
 import { DecimalInput } from '../../components/ui/DecimalInput';
+import { AcessoriosList } from '../../components/acessorios/AcessoriosList';
 import {
   Package,
   Plus,
@@ -23,7 +24,8 @@ import {
   AlertTriangle,
   Mail,
   Shield,
-  BoxIcon
+  BoxIcon,
+  Lightbulb
 } from 'lucide-react';
 
 const TIPOS_EMBALAGEM: { value: TipoEmbalagem; label: string; icon: typeof Mail }[] = [
@@ -33,6 +35,8 @@ const TIPOS_EMBALAGEM: { value: TipoEmbalagem; label: string; icon: typeof Mail 
 ];
 
 const TAMANHOS_SUGERIDOS = ['P', 'M', 'G', 'GG'];
+
+type TabType = 'embalagens' | 'acessorios';
 
 interface EmbalagemForm {
   tipo: TipoEmbalagem;
@@ -51,6 +55,7 @@ const initialForm: EmbalagemForm = {
 };
 
 export function Embalagens() {
+  const [activeTab, setActiveTab] = useState<TabType>('embalagens');
   const [embalagens, setEmbalagens] = useState<Embalagem[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -201,7 +206,7 @@ export function Embalagens() {
 
   const getEmbalagemAtual = () => embalagens.find(e => e.id === estoqueEmbalagemId);
 
-  if (loading) {
+  if (loading && activeTab === 'embalagens') {
     return (
       <div>
         <div className="mb-8">
@@ -209,10 +214,10 @@ export function Embalagens() {
             <div className="p-2 bg-amber-100 rounded-lg">
               <Package className="w-6 h-6 text-amber-600" />
             </div>
-            Embalagens
+            Embalagens e Acessorios
           </h1>
           <p className="text-gray-500 mt-2">
-            Cadastre suas embalagens para usar na precificacao
+            Gerencie embalagens e acessorios para seus produtos
           </p>
         </div>
 
@@ -226,19 +231,55 @@ export function Embalagens() {
   return (
     <div>
       {/* Header */}
-      <div className="mb-8 flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-            <div className="p-2 bg-amber-100 rounded-lg">
-              <Package className="w-6 h-6 text-amber-600" />
-            </div>
-            Embalagens
-          </h1>
-          <p className="text-gray-500 mt-2">
-            Cadastre suas embalagens para usar na precificacao
-          </p>
-        </div>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+          <div className="p-2 bg-amber-100 rounded-lg">
+            <Package className="w-6 h-6 text-amber-600" />
+          </div>
+          Embalagens e Acessorios
+        </h1>
+        <p className="text-gray-500 mt-2">
+          Gerencie embalagens e acessorios para seus produtos
+        </p>
+      </div>
 
+      {/* Tabs */}
+      <div className="mb-6 border-b border-gray-200">
+        <nav className="-mb-px flex space-x-8">
+          <button
+            onClick={() => setActiveTab('embalagens')}
+            className={`flex items-center gap-2 py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+              activeTab === 'embalagens'
+                ? 'border-amber-500 text-amber-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            <Package className="w-4 h-4" />
+            Embalagens
+          </button>
+          <button
+            onClick={() => setActiveTab('acessorios')}
+            className={`flex items-center gap-2 py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+              activeTab === 'acessorios'
+                ? 'border-amber-500 text-amber-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            <Lightbulb className="w-4 h-4" />
+            Acessorios
+          </button>
+        </nav>
+      </div>
+
+      {/* Tab Acessorios */}
+      {activeTab === 'acessorios' && <AcessoriosList />}
+
+      {/* Tab Embalagens */}
+      {activeTab === 'embalagens' && (
+        <>
+      {/* Header de Embalagens */}
+      <div className="mb-8 flex items-start justify-between">
+        <div />
         {!showForm && (
           <button
             onClick={() => setShowForm(true)}
@@ -671,6 +712,8 @@ export function Embalagens() {
             </div>
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   );

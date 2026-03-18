@@ -1,14 +1,18 @@
 import { useState, useEffect, useRef } from 'react';
 import { DecimalInput } from '../ui/DecimalInput';
-import { Receipt, Percent, Package, PlusCircle, Info, Loader2, Check } from 'lucide-react';
-import { Embalagem } from '../../types';
+import { Receipt, Percent, Package, PlusCircle, Info, Loader2, Check, Lightbulb } from 'lucide-react';
+import { Embalagem, AcessorioConfigItem } from '../../types';
 import { getEmbalagens } from '../../services/embalagensService';
+import { AcessoriosConfig } from './AcessoriosConfig';
+import { AcessorioConfig } from '../../types/acessorio';
 
 interface DemaisCustosConfigProps {
   impostoAliquota?: number;
   onImpostoAliquotaChange: (value: number) => void;
   embalagensIds?: string[];
   onEmbalagensChange: (ids: string[], custoTotal: number) => void;
+  acessoriosConfig?: AcessorioConfigItem[];
+  onAcessoriosChange: (config: AcessorioConfigItem[], custoTotal: number) => void;
   outrosCustos?: number;
   onOutrosCustosChange: (value: number) => void;
 }
@@ -88,6 +92,8 @@ export function DemaisCustosConfig({
   onImpostoAliquotaChange,
   embalagensIds = [],
   onEmbalagensChange,
+  acessoriosConfig = [],
+  onAcessoriosChange,
   outrosCustos,
   onOutrosCustosChange,
 }: DemaisCustosConfigProps) {
@@ -231,6 +237,20 @@ export function DemaisCustosConfig({
               )}
             </div>
           )}
+        </div>
+
+        {/* Acessorios */}
+        <div className="border-t border-orange-200 pt-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+            <Lightbulb className="w-4 h-4" />
+            Acessorios (LEDs, parafusos, etc.)
+          </label>
+          <AcessoriosConfig
+            acessoriosConfig={acessoriosConfig as AcessorioConfig[]}
+            onAcessoriosChange={(config, custoTotal) => {
+              onAcessoriosChange(config as AcessorioConfigItem[], custoTotal);
+            }}
+          />
         </div>
 
         {/* Outros custos */}

@@ -125,6 +125,7 @@ export function Precificacao() {
           imposto_aliquota: sim.imposto_aliquota || 0,
           outros_custos: sim.outros_custos || 0,
           embalagens_ids: sim.embalagens_ids || [],
+          acessorios_config: sim.acessorios_config || [],
           impressora_modelo: sim.impressora_modelo as any || undefined,
           tempo_impressao_horas: horasInteiras,
           tempo_impressao_minutos: minutosRestantes,
