@@ -286,7 +286,7 @@ export function Filamentos() {
 
   const formatEstoque = (gramas: number) => {
     const kg = gramas / 1000;
-    return kg.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return kg.toLocaleString('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
   };
 
   // Estoque baixo = menos de 200g
