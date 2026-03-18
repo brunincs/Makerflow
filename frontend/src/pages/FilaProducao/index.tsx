@@ -62,7 +62,7 @@ interface PedidoImportado {
   quantidade: number;
   produtoEncontrado?: ProdutoConcorrente;
   variacaoEncontrada?: { id: string; nome_variacao: string };
-  status: 'encontrado' | 'nao_encontrado' | 'variacao_nao_encontrada';
+  status: 'encontrado' | 'nao_encontrado' | 'variacao_nao_encontrada' | 'selecionar_variacao';
 }
 
 // Interface para pedido ML com match
@@ -950,6 +950,17 @@ export function FilaProducao() {
         };
       }
 
+      // Se produto tem variações e não foi especificada nenhuma - precisa selecionar
+      if (!p.variacao && produtoEncontrado.variacoes?.length && produtoEncontrado.variacoes.length > 0) {
+        return {
+          textoOriginal: `${p.quantidade}x ${p.nome}`,
+          nomeProduto: produtoEncontrado.nome,
+          quantidade: p.quantidade,
+          produtoEncontrado,
+          status: 'selecionar_variacao' as const
+        };
+      }
+
       return {
         textoOriginal: `${p.quantidade}x ${p.nome}${p.variacao ? ` - ${p.variacao}` : ''}`,
         nomeProduto: produtoEncontrado.nome,
@@ -999,6 +1010,23 @@ export function FilaProducao() {
   const handleLimparImportacao = () => {
     setTextoImportacao('');
     setPedidosImportados([]);
+  };
+
+  // Selecionar variação para pedido importado
+  const handleSelecionarVariacao = (index: number, variacaoId: string) => {
+    setPedidosImportados(prev => prev.map((pedido, i) => {
+      if (i !== index || !pedido.produtoEncontrado) return pedido;
+
+      const variacao = pedido.produtoEncontrado.variacoes?.find(v => v.id === variacaoId);
+      if (!variacao) return pedido;
+
+      return {
+        ...pedido,
+        variacaoEncontrada: { id: variacao.id!, nome_variacao: variacao.nome_variacao },
+        nomeVariacao: variacao.nome_variacao,
+        status: 'encontrado' as const
+      };
+    }));
   };
 
   const handleMarcarProduzido = async () => {
@@ -2325,6 +2353,8 @@ export function FilaProducao() {
                         className={`p-3 rounded-lg border ${
                           pedido.status === 'encontrado'
                             ? 'bg-green-50 border-green-200'
+                            : pedido.status === 'selecionar_variacao'
+                            ? 'bg-purple-50 border-purple-200'
                             : pedido.status === 'variacao_nao_encontrada'
                             ? 'bg-yellow-50 border-yellow-200'
                             : 'bg-red-50 border-red-200'
@@ -2335,6 +2365,8 @@ export function FilaProducao() {
                             <div className="flex items-center gap-2">
                               {pedido.status === 'encontrado' ? (
                                 <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0" />
+                              ) : pedido.status === 'selecionar_variacao' ? (
+                                <Package className="w-4 h-4 text-purple-600 flex-shrink-0" />
                               ) : pedido.status === 'variacao_nao_encontrada' ? (
                                 <AlertCircle className="w-4 h-4 text-yellow-600 flex-shrink-0" />
                               ) : (
@@ -2343,6 +2375,8 @@ export function FilaProducao() {
                               <span className={`font-medium ${
                                 pedido.status === 'encontrado'
                                   ? 'text-green-800'
+                                  : pedido.status === 'selecionar_variacao'
+                                  ? 'text-purple-800'
                                   : pedido.status === 'variacao_nao_encontrada'
                                   ? 'text-yellow-800'
                                   : 'text-red-800'
@@ -2352,24 +2386,55 @@ export function FilaProducao() {
                                   <span className="font-normal"> - {pedido.nomeVariacao}</span>
                                 )}
                               </span>
+                              {pedido.status === 'selecionar_variacao' && (
+                                <span className="px-1.5 py-0.5 text-xs bg-purple-200 text-purple-700 rounded">
+                                  Tem variacoes
+                                </span>
+                              )}
                             </div>
                             <p className={`text-xs mt-1 ${
                               pedido.status === 'encontrado'
                                 ? 'text-green-600'
+                                : pedido.status === 'selecionar_variacao'
+                                ? 'text-purple-600'
                                 : pedido.status === 'variacao_nao_encontrada'
                                 ? 'text-yellow-600'
                                 : 'text-red-600'
                             }`}>
                               {pedido.status === 'encontrado'
                                 ? `Encontrado: ${pedido.produtoEncontrado?.nome}${pedido.variacaoEncontrada ? ` (${pedido.variacaoEncontrada.nome_variacao})` : ''}`
+                                : pedido.status === 'selecionar_variacao'
+                                ? 'Selecione a variacao do produto'
                                 : pedido.status === 'variacao_nao_encontrada'
                                 ? `Produto encontrado, mas variacao "${pedido.nomeVariacao}" nao existe`
                                 : 'Produto nao encontrado no Radar'}
                             </p>
+
+                            {/* Dropdown de variação */}
+                            {(pedido.status === 'selecionar_variacao' || pedido.status === 'variacao_nao_encontrada') &&
+                              pedido.produtoEncontrado?.variacoes && pedido.produtoEncontrado.variacoes.length > 0 && (
+                              <div className="mt-2">
+                                <select
+                                  value={pedido.variacaoEncontrada?.id || ''}
+                                  onChange={(e) => handleSelecionarVariacao(index, e.target.value)}
+                                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-1.5
+                                    focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                >
+                                  <option value="">Selecionar variacao...</option>
+                                  {pedido.produtoEncontrado.variacoes.map(v => (
+                                    <option key={v.id} value={v.id}>
+                                      {v.nome_variacao} {v.sku ? `(${v.sku})` : ''}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            )}
                           </div>
                           <span className={`px-2 py-1 rounded text-sm font-bold ${
                             pedido.status === 'encontrado'
                               ? 'bg-green-200 text-green-800'
+                              : pedido.status === 'selecionar_variacao'
+                              ? 'bg-purple-200 text-purple-800'
                               : pedido.status === 'variacao_nao_encontrada'
                               ? 'bg-yellow-200 text-yellow-800'
                               : 'bg-red-200 text-red-800'
@@ -2382,18 +2447,26 @@ export function FilaProducao() {
                   </div>
 
                   {/* Resumo */}
-                  <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 space-y-1">
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-gray-600">Prontos para importar:</span>
                       <span className="font-bold text-green-600">
                         {pedidosImportados.filter(p => p.status === 'encontrado').length} pedidos
                       </span>
                     </div>
-                    {pedidosImportados.some(p => p.status !== 'encontrado') && (
-                      <div className="flex items-center justify-between text-sm mt-1">
+                    {pedidosImportados.some(p => p.status === 'selecionar_variacao') && (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-600">Selecionar variacao:</span>
+                        <span className="font-bold text-purple-600">
+                          {pedidosImportados.filter(p => p.status === 'selecionar_variacao').length} pedidos
+                        </span>
+                      </div>
+                    )}
+                    {pedidosImportados.some(p => p.status === 'nao_encontrado' || p.status === 'variacao_nao_encontrada') && (
+                      <div className="flex items-center justify-between text-sm">
                         <span className="text-gray-600">Com problemas:</span>
                         <span className="font-bold text-red-600">
-                          {pedidosImportados.filter(p => p.status !== 'encontrado').length} pedidos
+                          {pedidosImportados.filter(p => p.status === 'nao_encontrado' || p.status === 'variacao_nao_encontrada').length} pedidos
                         </span>
                       </div>
                     )}
