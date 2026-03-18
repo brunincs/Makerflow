@@ -407,6 +407,9 @@ export function FilaProducao() {
       if (success) {
         setMlStatus({ connected: false });
         setMlOrders([]);
+        // Recarregar URL de login para mostrar botao de conectar
+        const loginUrl = await getMLLoginUrl();
+        setMlLoginUrl(loginUrl);
       }
     }
   };
