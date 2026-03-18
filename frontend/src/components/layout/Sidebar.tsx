@@ -23,9 +23,9 @@ const menuItems = [
   { to: '/simulacoes', icon: LineChart, label: 'Precificados' },
   { to: '/fila-producao', icon: ClipboardList, label: 'Fila de Producao' },
   { to: '/impressoes', icon: Printer, label: 'Impressoes' },
+  { to: '/estoque', icon: BoxIcon, label: 'Estoque' },
   { to: '/filamentos', icon: Cylinder, label: 'Filamentos' },
   { to: '/embalagens', icon: Package, label: 'Embalagens' },
-  { to: '/estoque', icon: BoxIcon, label: 'Estoque' },
 ];
 
 export function Sidebar() {
