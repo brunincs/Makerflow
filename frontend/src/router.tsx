@@ -15,6 +15,7 @@ import { Estoque } from './pages/Estoque';
 import { Login, Register, ForgotPassword } from './pages/Auth';
 import { Admin } from './pages/Admin';
 import { Perfil } from './pages/Perfil';
+import { PoliticaPrivacidade } from './pages/PoliticaPrivacidade';
 
 export const router = createBrowserRouter([
   {
@@ -32,6 +33,10 @@ export const router = createBrowserRouter([
       {
         path: '/forgot-password',
         element: <ForgotPassword />,
+      },
+      {
+        path: '/privacidade',
+        element: <PoliticaPrivacidade />,
       },
       // Rotas Protegidas
       {
