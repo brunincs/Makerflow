@@ -292,10 +292,20 @@ export const adicionarEstoqueComMovimentacao = async (
   observacao?: string
 ): Promise<EstoqueProduto | null> => {
   // Registrar movimentacao
-  await registrarMovimentacao(produtoId, variacaoId, 'entrada', quantidade, origem, observacao);
+  const movimentacao = await registrarMovimentacao(produtoId, variacaoId, 'entrada', quantidade, origem, observacao);
+  if (!movimentacao) {
+    console.error('Erro ao registrar movimentacao de entrada');
+    return null;
+  }
 
   // Adicionar ao estoque
-  return adicionarEstoque(produtoId, variacaoId, quantidade);
+  const resultado = await adicionarEstoque(produtoId, variacaoId, quantidade);
+  if (!resultado) {
+    console.error('Erro ao adicionar ao estoque');
+    return null;
+  }
+
+  return resultado;
 };
 
 // Remover estoque COM movimentacao
@@ -309,15 +319,25 @@ export const removerEstoqueComMovimentacao = async (
   // Verificar se tem estoque suficiente
   const existente = await getEstoquePorProduto(produtoId, variacaoId);
   if (!existente || existente.quantidade < quantidade) {
-    console.error('Estoque insuficiente');
+    console.warn(`Estoque insuficiente para produto ${produtoId}: disponivel=${existente?.quantidade || 0}, solicitado=${quantidade}`);
     return null;
   }
 
   // Registrar movimentacao
-  await registrarMovimentacao(produtoId, variacaoId, 'saida', quantidade, origem, observacao);
+  const movimentacao = await registrarMovimentacao(produtoId, variacaoId, 'saida', quantidade, origem, observacao);
+  if (!movimentacao) {
+    console.error('Erro ao registrar movimentacao de saida');
+    return null;
+  }
 
   // Remover do estoque
-  return removerDoEstoque(produtoId, variacaoId, quantidade);
+  const resultado = await removerDoEstoque(produtoId, variacaoId, quantidade);
+  if (!resultado) {
+    console.error('Erro ao remover do estoque');
+    return null;
+  }
+
+  return resultado;
 };
 
 // Buscar estoque agrupado por produto

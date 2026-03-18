@@ -1,6 +1,6 @@
 import { supabase, isSupabaseConfigured, getCurrentUserId } from './supabaseClient';
 import { Pedido } from '../types';
-import { getEstoquePorProduto, removerEstoqueComMovimentacao } from './estoqueProdutosService';
+import { getEstoquePorProduto, removerEstoqueComMovimentacao, adicionarEstoqueComMovimentacao } from './estoqueProdutosService';
 
 const STORAGE_KEY = 'makerflow_pedidos';
 
@@ -184,14 +184,29 @@ export const updatePedido = async (
 };
 
 export const deletePedido = async (id: string): Promise<boolean> => {
+  // Buscar pedido para restaurar estoque se necessario
+  const pedidos = await getPedidos();
+  const pedido = pedidos.find(p => p.id === id);
+
+  // Restaurar estoque se havia quantidade produzida/entregue
+  if (pedido && pedido.quantidade_produzida && pedido.quantidade_produzida > 0) {
+    await adicionarEstoqueComMovimentacao(
+      pedido.produto_id,
+      pedido.variacao_id || null,
+      pedido.quantidade_produzida,
+      'ajuste',
+      `Pedido excluido - ${pedido.quantidade_produzida} unidade(s) retornaram ao estoque`
+    );
+  }
+
   if (!isSupabaseConfigured() || !supabase) {
-    const pedidos = getLocalPedidos();
-    const filtered = pedidos.filter(p => p.id !== id);
+    const localPedidos = getLocalPedidos();
+    const filtered = localPedidos.filter(p => p.id !== id);
     setLocalPedidos(filtered);
     return true;
   }
 
-  // Primeiro, verificar se este pedido veio do Mercado Livre
+  // Verificar se este pedido veio do Mercado Livre
   // Se sim, resetar o ml_order para poder importar novamente
   await supabase
     .from('ml_orders')
@@ -261,8 +276,26 @@ export const getPedidosConcluidos = async (): Promise<Pedido[]> => {
   return data || [];
 };
 
-// Reverter pedido para pendente
+// Reverter pedido para pendente (restaura estoque se houver quantidade produzida)
 export const reverterPedido = async (id: string): Promise<Pedido | null> => {
+  // Buscar pedido atual para saber quantidade que foi entregue/consumida
+  const pedidos = await getPedidos();
+  const pedido = pedidos.find(p => p.id === id);
+
+  if (!pedido) return null;
+
+  // Se havia quantidade produzida/entregue, restaurar ao estoque
+  const qtdParaRestaurar = pedido.quantidade_produzida || 0;
+  if (qtdParaRestaurar > 0) {
+    await adicionarEstoqueComMovimentacao(
+      pedido.produto_id,
+      pedido.variacao_id || null,
+      qtdParaRestaurar,
+      'ajuste',
+      `Pedido revertido - ${qtdParaRestaurar} unidade(s) retornaram ao estoque`
+    );
+  }
+
   return updatePedido(id, {
     quantidade_produzida: 0,
     status: 'pendente',

@@ -839,7 +839,44 @@ export function FilaProducao() {
     setProduzindo(true);
 
     try {
-      // 1. Marcar pedidos como produzidos (distribuir quantidade entre pedidos)
+      // 1. Criar registro de impressao PRIMEIRO (se tem filamento selecionado)
+      // A impressao automaticamente adiciona ao estoque via impressoesService
+      if (filamentoId && itemParaProduzir.peso_por_peca > 0) {
+        const impressao = await createImpressao({
+          produto_id: itemParaProduzir.produto_id,
+          variacao_id: itemParaProduzir.variacao_id || undefined,
+          filamento_id: filamentoId,
+          quantidade: qtdProduzida,
+          peso_peca_g: itemParaProduzir.peso_por_peca,
+          tempo_peca_min: itemParaProduzir.tempo_por_peca ? itemParaProduzir.tempo_por_peca * 60 : undefined,
+        });
+
+        if (!impressao) {
+          alert('Erro ao registrar impressao. Tente novamente.');
+          setProduzindo(false);
+          return;
+        }
+      }
+
+      // 2. Consumir estoque para atender os pedidos
+      // O estoque foi adicionado automaticamente pela impressao
+      const qtdParaEntregar = Math.min(qtdProduzida, itemParaProduzir.quantidade_produzir);
+      if (qtdParaEntregar > 0) {
+        const resultado = await removerEstoqueComMovimentacao(
+          itemParaProduzir.produto_id,
+          itemParaProduzir.variacao_id || null,
+          qtdParaEntregar,
+          'venda',
+          `Entrega de ${qtdParaEntregar} unidade(s) para pedido`
+        );
+
+        if (!resultado) {
+          console.warn('Nao foi possivel remover estoque - pode nao haver estoque suficiente');
+          // Continua mesmo assim - o estoque pode ter sido adicionado corretamente
+        }
+      }
+
+      // 3. Marcar pedidos como produzidos (distribuir quantidade entre pedidos)
       let qtdRestante = qtdProduzida;
       for (const pedido of itemParaProduzir.pedidos) {
         if (qtdRestante <= 0) break;
@@ -853,32 +890,6 @@ export function FilaProducao() {
         }
       }
 
-      // 2. Criar registro de impressao (se tem filamento selecionado)
-      // A impressao automaticamente adiciona ao estoque via impressoesService
-      if (filamentoId && itemParaProduzir.peso_por_peca > 0) {
-        await createImpressao({
-          produto_id: itemParaProduzir.produto_id,
-          variacao_id: itemParaProduzir.variacao_id || undefined,
-          filamento_id: filamentoId,
-          quantidade: qtdProduzida,
-          peso_peca_g: itemParaProduzir.peso_por_peca,
-          tempo_peca_min: itemParaProduzir.tempo_por_peca ? itemParaProduzir.tempo_por_peca * 60 : undefined,
-        });
-      }
-
-      // 3. Consumir estoque para atender os pedidos
-      // O estoque foi adicionado automaticamente pela impressao
-      const qtdParaEntregar = Math.min(qtdProduzida, itemParaProduzir.quantidade_produzir);
-      if (qtdParaEntregar > 0) {
-        await removerEstoqueComMovimentacao(
-          itemParaProduzir.produto_id,
-          itemParaProduzir.variacao_id || null,
-          qtdParaEntregar,
-          'venda',
-          `Entrega de ${qtdParaEntregar} unidade(s) para pedido`
-        );
-      }
-
       await loadData();
       setShowProduzidoModal(false);
       setItemParaProduzir(null);
@@ -890,11 +901,34 @@ export function FilaProducao() {
     setProduzindo(false);
   };
 
-  // Concluir pedido que ja foi atendido pelo estoque (apenas mover para historico)
+  // Concluir pedido que ja foi atendido pelo estoque
   const handleConcluirPedido = async (item: ItemFilaProducao) => {
     setProduzindo(true);
 
     try {
+      // Calcular quantidade restante que precisa consumir do estoque
+      const qtdRestanteTotal = item.pedidos.reduce((acc, pedido) => {
+        return acc + (pedido.quantidade - (pedido.quantidade_produzida || 0));
+      }, 0);
+
+      // Consumir estoque para atender os pedidos restantes
+      if (qtdRestanteTotal > 0 && item.quantidade_estoque_disponivel > 0) {
+        const qtdConsumir = Math.min(qtdRestanteTotal, item.quantidade_estoque_disponivel);
+        const resultado = await removerEstoqueComMovimentacao(
+          item.produto_id,
+          item.variacao_id || null,
+          qtdConsumir,
+          'venda',
+          `Entrega de ${qtdConsumir} unidade(s) para pedido (do estoque)`
+        );
+
+        if (!resultado) {
+          alert('Erro ao consumir estoque. Verifique se ha estoque suficiente.');
+          setProduzindo(false);
+          return;
+        }
+      }
+
       // Marcar todos os pedidos como concluidos
       for (const pedido of item.pedidos) {
         const qtdPedidoRestante = pedido.quantidade - (pedido.quantidade_produzida || 0);
