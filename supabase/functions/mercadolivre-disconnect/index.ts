@@ -43,13 +43,27 @@ serve(async (req) => {
       )
     }
 
-    // Deletar apenas os tokens deste usuario
-    const { error } = await supabase
+    // Deletar tokens deste usuario
+    const { error: tokenError } = await supabase
       .from('mercadolivre_tokens')
       .delete()
       .eq('user_id', userId)
 
-    if (error) {
+    if (tokenError) {
+      console.error('Erro ao deletar tokens:', tokenError)
+    }
+
+    // Deletar pedidos ML deste usuario (limpa historico de sincronizacao)
+    const { error: ordersError } = await supabase
+      .from('ml_orders')
+      .delete()
+      .eq('user_id', userId)
+
+    if (ordersError) {
+      console.error('Erro ao deletar ml_orders:', ordersError)
+    }
+
+    if (tokenError && ordersError) {
       return new Response(
         JSON.stringify({ error: 'Failed to disconnect' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
