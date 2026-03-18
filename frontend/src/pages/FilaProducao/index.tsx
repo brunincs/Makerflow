@@ -150,13 +150,14 @@ interface ItemPlanejado extends ItemFilaProducao {
   impressoraId?: string;
 }
 
-// Distribuir itens entre impressoras de forma inteligente (balanceada por tempo)
+// Distribuir itens entre impressoras de forma equilibrada (dividindo pecas)
 function distribuirEntreImpressoras(
   itens: ItemFilaProducao[],
   impressoras: string[]
 ): Map<string, ItemPlanejado[]> {
   const distribuicao = new Map<string, ItemPlanejado[]>();
   const temposPorImpressora = new Map<string, number>();
+  const numImpressoras = impressoras.length;
 
   // Inicializar
   impressoras.forEach(imp => {
@@ -164,43 +165,53 @@ function distribuirEntreImpressoras(
     temposPorImpressora.set(imp, 0);
   });
 
-  // Ordenar itens por tempo total (maior primeiro para melhor balanceamento)
-  const itensOrdenados = [...itens].sort((a, b) => b.tempo_total - a.tempo_total);
+  // Para cada item, dividir as pecas entre as impressoras
+  itens.forEach(item => {
+    if (item.quantidade_produzir === 0) return;
 
-  // Distribuir usando algoritmo de balanceamento (atribuir ao menos carregado)
-  itensOrdenados.forEach(item => {
-    // Encontrar impressora com menor tempo acumulado
-    let impressoraMenosCarregada = impressoras[0];
-    let menorTempo = temposPorImpressora.get(impressoras[0]) || 0;
+    const qtdTotal = item.quantidade_produzir;
+    const pecasPorImpressora = Math.ceil(qtdTotal / numImpressoras);
+    let qtdRestante = qtdTotal;
 
-    impressoras.forEach(imp => {
-      const tempo = temposPorImpressora.get(imp) || 0;
-      if (tempo < menorTempo) {
-        menorTempo = tempo;
-        impressoraMenosCarregada = imp;
-      }
+    // Distribuir pecas entre impressoras (priorizando as menos carregadas)
+    // Criar lista ordenada por tempo acumulado
+    const impressorasOrdenadas = [...impressoras].sort((a, b) => {
+      return (temposPorImpressora.get(a) || 0) - (temposPorImpressora.get(b) || 0);
     });
 
-    // Adicionar item à impressora
-    const lista = distribuicao.get(impressoraMenosCarregada)!;
-    const tempoAtual = temposPorImpressora.get(impressoraMenosCarregada) || 0;
+    impressorasOrdenadas.forEach(impId => {
+      if (qtdRestante <= 0) return;
 
-    const itemPlanejado: ItemPlanejado = {
-      ...item,
-      ordem: lista.length + 1,
-      horarioInicio: calcularPrevisaoTermino(tempoAtual),
-      horarioTermino: calcularPrevisaoTermino(tempoAtual + item.tempo_total),
-      impressoraId: impressoraMenosCarregada,
-    };
+      // Quantidade para esta impressora
+      const qtdParaImpressora = Math.min(pecasPorImpressora, qtdRestante);
+      qtdRestante -= qtdParaImpressora;
 
-    lista.push(itemPlanejado);
-    temposPorImpressora.set(impressoraMenosCarregada, tempoAtual + item.tempo_total);
+      // Calcular tempo e peso proporcionais
+      const tempoItem = qtdParaImpressora * item.tempo_por_peca;
+      const pesoItem = qtdParaImpressora * item.peso_por_peca;
+
+      const lista = distribuicao.get(impId)!;
+      const tempoAtual = temposPorImpressora.get(impId) || 0;
+
+      const itemPlanejado: ItemPlanejado = {
+        ...item,
+        quantidade_produzir: qtdParaImpressora,
+        tempo_total: tempoItem,
+        peso_total: pesoItem,
+        ordem: lista.length + 1,
+        horarioInicio: calcularPrevisaoTermino(tempoAtual),
+        horarioTermino: calcularPrevisaoTermino(tempoAtual + tempoItem),
+        impressoraId: impId,
+      };
+
+      lista.push(itemPlanejado);
+      temposPorImpressora.set(impId, tempoAtual + tempoItem);
+    });
   });
 
-  // Reordenar cada lista por tempo (menor primeiro)
+  // Reordenar cada lista por tempo (menor primeiro) e recalcular horarios
   distribuicao.forEach((lista) => {
     lista.sort((a, b) => a.tempo_total - b.tempo_total);
-    // Recalcular horários após reordenação
     let tempoAcumulado = 0;
     lista.forEach((item, idx) => {
       item.ordem = idx + 1;
