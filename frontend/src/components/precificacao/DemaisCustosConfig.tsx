@@ -189,33 +189,43 @@ export function DemaisCustosConfig({
             <div className="space-y-2">
               {embalagens.map((embalagem) => {
                 const isSelected = embalagensIds.includes(embalagem.id);
+                const semEstoque = (embalagem.quantidade || 0) <= 0;
                 return (
                   <button
                     key={embalagem.id}
                     type="button"
-                    onClick={() => handleEmbalagemToggle(embalagem.id)}
+                    onClick={() => !semEstoque && handleEmbalagemToggle(embalagem.id)}
+                    disabled={semEstoque}
                     className={`w-full flex items-center gap-3 p-3 rounded-lg border-2 transition-all text-left ${
-                      isSelected
+                      semEstoque
+                        ? 'border-gray-200 bg-gray-100 opacity-60 cursor-not-allowed'
+                        : isSelected
                         ? 'border-orange-500 bg-orange-100'
                         : 'border-gray-200 bg-white hover:border-gray-300'
                     }`}
                   >
                     <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${
-                      isSelected
+                      semEstoque
+                        ? 'border-gray-300 bg-gray-200'
+                        : isSelected
                         ? 'bg-orange-500 border-orange-500'
                         : 'border-gray-300 bg-white'
                     }`}>
-                      {isSelected && <Check className="w-3 h-3 text-white" />}
+                      {isSelected && !semEstoque && <Check className="w-3 h-3 text-white" />}
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">
+                      <p className={`text-sm font-medium truncate ${semEstoque ? 'text-gray-400' : 'text-gray-900'}`}>
                         {embalagem.nome_embalagem}
                       </p>
-                      <p className="text-xs text-gray-500">{embalagem.tipo}</p>
+                      <p className="text-xs text-gray-500">
+                        {embalagem.tipo}
+                        {semEstoque && <span className="ml-2 text-red-500 font-medium">Sem estoque</span>}
+                        {!semEstoque && <span className="ml-2 text-green-600">({embalagem.quantidade} un)</span>}
+                      </p>
                     </div>
 
-                    <p className="text-sm font-semibold text-orange-700 flex-shrink-0">
+                    <p className={`text-sm font-semibold flex-shrink-0 ${semEstoque ? 'text-gray-400' : 'text-orange-700'}`}>
                       R$ {formatCurrency(embalagem.preco_unitario)}
                     </p>
                   </button>

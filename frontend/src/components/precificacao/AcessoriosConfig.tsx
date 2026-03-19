@@ -31,8 +31,15 @@ export function AcessoriosConfig({
   };
 
   const handleQuantidadeChange = (acessorioId: string, delta: number) => {
+    const acessorio = acessorios.find(a => a.id === acessorioId);
+    const estoqueDisponivel = acessorio?.estoque_atual || 0;
+
+    // Se não tem estoque, não permite adicionar
+    if (estoqueDisponivel <= 0 && delta > 0) return;
+
     const atual = getQuantidade(acessorioId);
-    const novaQuantidade = Math.max(0, atual + delta);
+    // Limita ao estoque disponível
+    const novaQuantidade = Math.min(Math.max(0, atual + delta), estoqueDisponivel);
 
     let newConfig: AcessorioConfig[];
 
@@ -61,7 +68,11 @@ export function AcessoriosConfig({
   };
 
   const handleQuantidadeInputChange = (acessorioId: string, value: string) => {
-    const novaQuantidade = Math.max(0, parseInt(value) || 0);
+    const acessorio = acessorios.find(a => a.id === acessorioId);
+    const estoqueDisponivel = acessorio?.estoque_atual || 0;
+
+    // Limita ao estoque disponível
+    const novaQuantidade = Math.min(Math.max(0, parseInt(value) || 0), estoqueDisponivel);
 
     let newConfig: AcessorioConfig[];
 
@@ -83,6 +94,10 @@ export function AcessoriosConfig({
     }, 0);
 
     onAcessoriosChange(newConfig, custoTotal);
+  };
+
+  const semEstoque = (acessorio: Acessorio) => {
+    return (acessorio.estoque_atual || 0) <= 0;
   };
 
   // Calcular custo total atual
@@ -127,31 +142,39 @@ export function AcessoriosConfig({
         const quantidade = getQuantidade(acessorio.id);
         const isSelected = quantidade > 0;
         const baixoEstoque = isEstoqueBaixo(acessorio);
+        const estoqueZero = semEstoque(acessorio);
         const custoItem = acessorio.custo_unitario * quantidade;
+        const atingiuLimite = quantidade >= (acessorio.estoque_atual || 0);
 
         return (
           <div
             key={acessorio.id}
             className={`flex items-center gap-3 p-3 rounded-lg border-2 transition-all ${
-              isSelected
+              estoqueZero
+                ? 'border-gray-200 bg-gray-100 opacity-60'
+                : isSelected
                 ? 'border-purple-500 bg-purple-50'
                 : 'border-gray-200 bg-white hover:border-gray-300'
             }`}
           >
             <div className={`p-2 rounded-lg flex-shrink-0 ${
-              isSelected ? 'bg-purple-100' : 'bg-gray-100'
+              estoqueZero ? 'bg-gray-200' : isSelected ? 'bg-purple-100' : 'bg-gray-100'
             }`}>
               <Lightbulb className={`w-4 h-4 ${
-                isSelected ? 'text-purple-600' : 'text-gray-400'
+                estoqueZero ? 'text-gray-400' : isSelected ? 'text-purple-600' : 'text-gray-400'
               }`} />
             </div>
 
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <p className="text-sm font-medium text-gray-900 truncate">
+                <p className={`text-sm font-medium truncate ${estoqueZero ? 'text-gray-400' : 'text-gray-900'}`}>
                   {acessorio.nome}
                 </p>
-                {baixoEstoque && (
+                {estoqueZero ? (
+                  <span className="flex items-center gap-1 px-1.5 py-0.5 bg-red-100 text-red-700 rounded text-xs">
+                    Sem estoque
+                  </span>
+                ) : baixoEstoque && (
                   <span className="flex items-center gap-1 px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-xs">
                     <AlertTriangle className="w-3 h-3" />
                     Baixo
@@ -181,17 +204,25 @@ export function AcessoriosConfig({
               <input
                 type="number"
                 min="0"
+                max={acessorio.estoque_atual || 0}
                 value={quantidade || ''}
                 onChange={(e) => handleQuantidadeInputChange(acessorio.id, e.target.value)}
                 placeholder="0"
-                className="w-12 text-center px-1 py-1 border border-gray-300 rounded-lg text-sm
-                  focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                disabled={estoqueZero}
+                className={`w-12 text-center px-1 py-1 border border-gray-300 rounded-lg text-sm
+                  focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500
+                  ${estoqueZero ? 'bg-gray-100 cursor-not-allowed' : ''}`}
               />
 
               <button
                 type="button"
                 onClick={() => handleQuantidadeChange(acessorio.id, 1)}
-                className="p-1.5 text-purple-600 hover:bg-purple-100 rounded-lg transition-colors"
+                disabled={estoqueZero || atingiuLimite}
+                className={`p-1.5 rounded-lg transition-colors ${
+                  estoqueZero || atingiuLimite
+                    ? 'text-gray-300 cursor-not-allowed'
+                    : 'text-purple-600 hover:bg-purple-100'
+                }`}
               >
                 <Plus className="w-4 h-4" />
               </button>
