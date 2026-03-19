@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Card, CardBody } from '../../components/ui';
 import { Pedido, ProdutoConcorrente, ItemFilaProducao, EstoqueProduto, Filamento, Impressora, MLOrder, MLConnectionStatus, TikTokOrder, TikTokConnectionStatus, ShopeeOrder, ShopeeConnectionStatus, PrioridadePedido } from '../../types';
-import { getPedidosPendentes, createPedido, deletePedido, marcarProduzido, concluirPedido, getPedidosConcluidos, cancelarPedido, devolverPedido, calcularPrioridade, getPrioridadeValor } from '../../services/pedidosService';
+import { getPedidosPendentes, createPedido, deletePedido, marcarProduzido, concluirPedido, getPedidosConcluidos, reverterPedido, calcularPrioridade, getPrioridadeValor } from '../../services/pedidosService';
 import { getEstoqueProdutos, removerEstoqueComMovimentacao } from '../../services/estoqueProdutosService';
 import { getProdutos } from '../../services/produtosService';
 import { getFilamentos } from '../../services/filamentosService';
@@ -404,7 +404,6 @@ export function FilaProducao() {
   const [selectedHistorico, setSelectedHistorico] = useState<string[]>([]);
   const [loadingHistorico, setLoadingHistorico] = useState(false);
   const [revertendo, setRevertendo] = useState<string | null>(null); // ID do pedido sendo revertido
-  const [menuAbertoId, setMenuAbertoId] = useState<string | null>(null); // ID do pedido com menu aberto
 
   // Verificar conexao ML ao carregar
   useEffect(() => {
@@ -1050,93 +1049,29 @@ export function FilaProducao() {
     }
   };
 
-  // Cancelar pedido (não entregue)
-  const handleCancelarPedido = (id: string) => {
-    if (revertendo) return;
-    setMenuAbertoId(null);
-
-    const executar = async () => {
-      if (!window.confirm('Cancelar este pedido? O estoque será devolvido.')) return;
-
-      setRevertendo(id);
-      try {
-        await cancelarPedido(id);
-        const concluidos = await getPedidosConcluidos();
-        setPedidosConcluidos(concluidos);
-        setSelectedHistorico([]);
-        await loadData();
-      } catch (error) {
-        console.error('Erro ao cancelar pedido:', error);
-        alert('Erro ao cancelar pedido');
-      } finally {
-        setRevertendo(null);
-      }
-    };
-
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        executar();
-      });
-    });
-  };
-
-  // Devolver pedido (foi entregue e devolvido)
-  const handleDevolverPedido = (id: string) => {
-    if (revertendo) return;
-    setMenuAbertoId(null);
-
-    const executar = async () => {
-      if (!window.confirm('Marcar como devolvido? O estoque será devolvido.')) return;
-
-      setRevertendo(id);
-      try {
-        await devolverPedido(id);
-        const concluidos = await getPedidosConcluidos();
-        setPedidosConcluidos(concluidos);
-        setSelectedHistorico([]);
-        await loadData();
-      } catch (error) {
-        console.error('Erro ao devolver pedido:', error);
-        alert('Erro ao devolver pedido');
-      } finally {
-        setRevertendo(null);
-      }
-    };
-
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        executar();
-      });
-    });
-  };
-
-  // Ação em lote nos selecionados
-  const handleAcaoSelecionados = async (acao: 'cancelar' | 'devolver') => {
+  // Reverter pedidos selecionados (volta para pendente e sai do histórico)
+  const handleReverterSelecionados = async (motivo: 'cancelado' | 'devolvido') => {
     if (selectedHistorico.length === 0) return;
     if (revertendo) return;
 
-    const mensagem = acao === 'cancelar'
-      ? `Cancelar ${selectedHistorico.length} pedido(s)? O estoque será devolvido.`
-      : `Marcar ${selectedHistorico.length} pedido(s) como devolvido(s)? O estoque será devolvido.`;
+    const mensagem = motivo === 'cancelado'
+      ? `Marcar ${selectedHistorico.length} pedido(s) como cancelado(s)? Voltarão para a fila de produção.`
+      : `Marcar ${selectedHistorico.length} pedido(s) como devolvido(s)? Voltarão para a fila de produção.`;
 
     if (!confirm(mensagem)) return;
 
     setRevertendo('multiple');
     try {
       for (const id of selectedHistorico) {
-        if (acao === 'cancelar') {
-          await cancelarPedido(id);
-        } else {
-          await devolverPedido(id);
-        }
+        await reverterPedido(id);
       }
       const concluidos = await getPedidosConcluidos();
       setPedidosConcluidos(concluidos);
       setSelectedHistorico([]);
       await loadData();
     } catch (error) {
-      console.error(`Erro ao ${acao} pedidos:`, error);
-      alert(`Erro ao ${acao} pedidos`);
+      console.error('Erro ao reverter pedidos:', error);
+      alert('Erro ao reverter pedidos');
     } finally {
       setRevertendo(null);
     }
@@ -4618,7 +4553,7 @@ export function FilaProducao() {
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-gray-600">{selectedHistorico.length} selecionado(s)</span>
                     <button
-                      onClick={() => handleAcaoSelecionados('cancelar')}
+                      onClick={() => handleReverterSelecionados('cancelado')}
                       disabled={revertendo !== null}
                       className="flex items-center gap-1 px-3 py-1.5 text-sm text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
@@ -4630,7 +4565,7 @@ export function FilaProducao() {
                       Cancelado
                     </button>
                     <button
-                      onClick={() => handleAcaoSelecionados('devolver')}
+                      onClick={() => handleReverterSelecionados('devolvido')}
                       disabled={revertendo !== null}
                       className="flex items-center gap-1 px-3 py-1.5 text-sm text-white bg-orange-500 hover:bg-orange-600 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
@@ -4736,59 +4671,6 @@ export function FilaProducao() {
                               )}
                             </span>
                           </div>
-                        </div>
-                        {/* Menu de ações */}
-                        <div className="relative">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setMenuAbertoId(menuAbertoId === pedido.id ? null : pedido.id!);
-                            }}
-                            disabled={revertendo !== null}
-                            className="flex items-center gap-1 px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
-                          >
-                            {revertendo === pedido.id ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <>
-                                Ações
-                                <ChevronDown className="w-4 h-4" />
-                              </>
-                            )}
-                          </button>
-                          {menuAbertoId === pedido.id && (
-                            <div className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10 min-w-[140px]">
-                              {pedido.status === 'concluido' && (
-                                <>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleCancelarPedido(pedido.id!);
-                                    }}
-                                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
-                                  >
-                                    <XCircle className="w-4 h-4" />
-                                    Cancelado
-                                  </button>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDevolverPedido(pedido.id!);
-                                    }}
-                                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-orange-600 hover:bg-orange-50 transition-colors"
-                                  >
-                                    <RotateCcw className="w-4 h-4" />
-                                    Devolvido
-                                  </button>
-                                </>
-                              )}
-                              {(pedido.status === 'cancelado' || pedido.status === 'devolvido') && (
-                                <p className="px-3 py-2 text-sm text-gray-500">
-                                  {pedido.status === 'cancelado' ? 'Pedido cancelado' : 'Pedido devolvido'}
-                                </p>
-                              )}
-                            </div>
-                          )}
                         </div>
                       </div>
                     </div>
