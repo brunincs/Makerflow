@@ -15,6 +15,8 @@ import {
   Power,
   Upload,
   Zap,
+  Moon,
+  Sun,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../services/supabaseClient';
@@ -61,6 +63,12 @@ export function Perfil() {
   const [logoUrl, setLogoUrl] = useState(profile?.logo_url || '');
   const [valorKwh, setValorKwh] = useState(profile?.valor_kwh || 0.85);
 
+  // Tema
+  const [tema, setTema] = useState<'claro' | 'noturno'>(() => {
+    const saved = localStorage.getItem('makerflow_tema');
+    return (saved as 'claro' | 'noturno') || 'claro';
+  });
+
   // Impressoras
   const [impressoras, setImpressoras] = useState<Impressora[]>([]);
   const [loadingImpressoras, setLoadingImpressoras] = useState(true);
@@ -74,6 +82,16 @@ export function Perfil() {
   const [consumoKwh, setConsumoKwh] = useState(0.12);
   const [statusImpressora, setStatusImpressora] = useState<StatusImpressora>('ativa');
   const [notasImpressora, setNotasImpressora] = useState('');
+
+  // Aplicar tema
+  useEffect(() => {
+    localStorage.setItem('makerflow_tema', tema);
+    if (tema === 'noturno') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [tema]);
 
   useEffect(() => {
     if (profile) {
@@ -624,6 +642,50 @@ export function Perfil() {
               ))}
             </div>
           )}
+        </div>
+
+        {/* Aparencia */}
+        <div className="bg-gray-900 rounded-xl p-6 border border-gray-800">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 bg-purple-500/20 rounded-lg">
+              <Moon className="w-5 h-5 text-purple-400" />
+            </div>
+            <h2 className="text-lg font-semibold text-white">Aparencia</h2>
+          </div>
+
+          <div className="space-y-3">
+            <p className="text-sm text-gray-400">Escolha o tema da interface</p>
+
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => setTema('claro')}
+                className={`flex items-center justify-center gap-2 p-4 rounded-lg border-2 transition-all ${
+                  tema === 'claro'
+                    ? 'border-blue-500 bg-blue-500/10'
+                    : 'border-gray-700 hover:border-gray-600'
+                }`}
+              >
+                <Sun className={`w-5 h-5 ${tema === 'claro' ? 'text-blue-400' : 'text-gray-400'}`} />
+                <span className={`font-medium ${tema === 'claro' ? 'text-blue-400' : 'text-gray-300'}`}>
+                  Claro
+                </span>
+              </button>
+
+              <button
+                onClick={() => setTema('noturno')}
+                className={`flex items-center justify-center gap-2 p-4 rounded-lg border-2 transition-all ${
+                  tema === 'noturno'
+                    ? 'border-purple-500 bg-purple-500/10'
+                    : 'border-gray-700 hover:border-gray-600'
+                }`}
+              >
+                <Moon className={`w-5 h-5 ${tema === 'noturno' ? 'text-purple-400' : 'text-gray-400'}`} />
+                <span className={`font-medium ${tema === 'noturno' ? 'text-purple-400' : 'text-gray-300'}`}>
+                  Noturno
+                </span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 

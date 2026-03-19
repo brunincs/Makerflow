@@ -289,44 +289,6 @@ export function ImpressoraEnergiaConfig({
             </div>
           </div>
 
-          {/* Toggle para dividir energia (multiplas na mesa) */}
-          <div className="mt-4">
-            <Toggle
-              checked={multiplasPecas || false}
-              onChange={onMultiplasPecasChange}
-              label="Imprimir todas de uma vez"
-              description="Dividir o custo de energia entre as pecas (mesa cheia)"
-            />
-          </div>
-
-          {/* Resumo visual */}
-          {(quantidadePecas || 1) > 1 && tempoProduto && (
-            <div className="mt-4 p-3 bg-white border border-blue-200 rounded-lg">
-              <p className="text-xs font-medium text-gray-500 uppercase mb-2">Resumo</p>
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <p className="text-gray-500">1 peca:</p>
-                  <p className="font-medium text-gray-900">
-                    {formatarTempo(tempoProduto.horas, tempoProduto.minutos)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-gray-500">{quantidadePecas} pecas:</p>
-                  <p className="font-bold text-blue-700">
-                    {multiplasPecas
-                      ? formatarTempo(tempoProduto.horas, tempoProduto.minutos) + ' (mesa)'
-                      : (() => {
-                          const totalHoras = (tempoProduto.horas + tempoProduto.minutos / 60) * (quantidadePecas || 1);
-                          const h = Math.floor(totalHoras);
-                          const m = Math.round((totalHoras - h) * 60);
-                          return formatarTempo(h, m);
-                        })()
-                    }
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Valor do kWh */}
