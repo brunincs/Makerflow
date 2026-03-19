@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Card, CardBody } from '../../components/ui';
 import { Pedido, ProdutoConcorrente, ItemFilaProducao, EstoqueProduto, Filamento, Impressora, MLOrder, MLConnectionStatus, TikTokOrder, TikTokConnectionStatus, ShopeeOrder, ShopeeConnectionStatus, PrioridadePedido } from '../../types';
-import { getPedidosPendentes, createPedido, deletePedido, marcarProduzido, concluirPedido, getPedidosConcluidos, reverterPedido, calcularPrioridade, getPrioridadeValor } from '../../services/pedidosService';
+import { getPedidosPendentes, createPedido, deletePedido, marcarProduzido, concluirPedido, getPedidosConcluidos, calcularPrioridade, getPrioridadeValor } from '../../services/pedidosService';
 import { getEstoqueProdutos, removerEstoqueComMovimentacao } from '../../services/estoqueProdutosService';
 import { getProdutos } from '../../services/produtosService';
 import { getFilamentos } from '../../services/filamentosService';
@@ -1049,29 +1049,29 @@ export function FilaProducao() {
     }
   };
 
-  // Reverter pedidos selecionados (volta para pendente e sai do histórico)
-  const handleReverterSelecionados = async (motivo: 'cancelado' | 'devolvido') => {
+  // Excluir pedidos selecionados (retorna estoque e remove do histórico)
+  const handleExcluirSelecionados = async (motivo: 'cancelado' | 'devolvido') => {
     if (selectedHistorico.length === 0) return;
     if (revertendo) return;
 
     const mensagem = motivo === 'cancelado'
-      ? `Marcar ${selectedHistorico.length} pedido(s) como cancelado(s)? Voltarão para a fila de produção.`
-      : `Marcar ${selectedHistorico.length} pedido(s) como devolvido(s)? Voltarão para a fila de produção.`;
+      ? `Excluir ${selectedHistorico.length} pedido(s) cancelado(s)? O estoque será devolvido.`
+      : `Excluir ${selectedHistorico.length} pedido(s) devolvido(s)? O estoque será devolvido.`;
 
     if (!confirm(mensagem)) return;
 
     setRevertendo('multiple');
     try {
       for (const id of selectedHistorico) {
-        await reverterPedido(id);
+        await deletePedido(id);
       }
       const concluidos = await getPedidosConcluidos();
       setPedidosConcluidos(concluidos);
       setSelectedHistorico([]);
       await loadData();
     } catch (error) {
-      console.error('Erro ao reverter pedidos:', error);
-      alert('Erro ao reverter pedidos');
+      console.error('Erro ao excluir pedidos:', error);
+      alert('Erro ao excluir pedidos');
     } finally {
       setRevertendo(null);
     }
@@ -4553,7 +4553,7 @@ export function FilaProducao() {
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-gray-600">{selectedHistorico.length} selecionado(s)</span>
                     <button
-                      onClick={() => handleReverterSelecionados('cancelado')}
+                      onClick={() => handleExcluirSelecionados('cancelado')}
                       disabled={revertendo !== null}
                       className="flex items-center gap-1 px-3 py-1.5 text-sm text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
@@ -4565,7 +4565,7 @@ export function FilaProducao() {
                       Cancelado
                     </button>
                     <button
-                      onClick={() => handleReverterSelecionados('devolvido')}
+                      onClick={() => handleExcluirSelecionados('devolvido')}
                       disabled={revertendo !== null}
                       className="flex items-center gap-1 px-3 py-1.5 text-sm text-white bg-orange-500 hover:bg-orange-600 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
