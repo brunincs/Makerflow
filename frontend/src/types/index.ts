@@ -374,7 +374,7 @@ export interface Pedido {
   variacao_id?: string | null;
   quantidade: number;
   quantidade_produzida: number;
-  status: 'pendente' | 'em_producao' | 'concluido';
+  status: 'pendente' | 'em_producao' | 'concluido' | 'cancelado' | 'devolvido';
   prioridade?: PrioridadePedido;
   data_entrega?: string;
   observacao?: string;

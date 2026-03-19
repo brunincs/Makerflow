@@ -288,10 +288,12 @@ export const concluirPedido = async (id: string): Promise<Pedido | null> => {
   });
 };
 
-// Buscar pedidos concluidos (historico)
+// Buscar pedidos concluidos (historico) - inclui concluidos, cancelados e devolvidos
 export const getPedidosConcluidos = async (): Promise<Pedido[]> => {
   if (!isSupabaseConfigured() || !supabase) {
-    return getLocalPedidos().filter(p => p.status === 'concluido');
+    return getLocalPedidos().filter(p =>
+      p.status === 'concluido' || p.status === 'cancelado' || p.status === 'devolvido'
+    );
   }
 
   const { data, error } = await supabase
@@ -301,7 +303,7 @@ export const getPedidosConcluidos = async (): Promise<Pedido[]> => {
       produto:produtos_concorrentes(nome, imagem_url, peso_filamento, tempo_impressao),
       variacao:variacoes_produto(nome_variacao, peso_filamento, tempo_impressao)
     `)
-    .eq('status', 'concluido')
+    .in('status', ['concluido', 'cancelado', 'devolvido'])
     .order('updated_at', { ascending: false });
 
   if (error) {
@@ -335,5 +337,53 @@ export const reverterPedido = async (id: string): Promise<Pedido | null> => {
   return updatePedido(id, {
     quantidade_produzida: 0,
     status: 'pendente',
+  });
+};
+
+// Cancelar pedido (produto não foi entregue, volta ao estoque)
+export const cancelarPedido = async (id: string): Promise<Pedido | null> => {
+  const pedidos = await getPedidos();
+  const pedido = pedidos.find(p => p.id === id);
+
+  if (!pedido) return null;
+
+  // Restaurar estoque (produto foi produzido mas não entregue)
+  const qtdParaRestaurar = pedido.quantidade_produzida || 0;
+  if (qtdParaRestaurar > 0) {
+    await adicionarEstoqueComMovimentacao(
+      pedido.produto_id,
+      pedido.variacao_id || null,
+      qtdParaRestaurar,
+      'ajuste',
+      `Pedido cancelado - ${qtdParaRestaurar} unidade(s) retornaram ao estoque`
+    );
+  }
+
+  return updatePedido(id, {
+    status: 'cancelado',
+  });
+};
+
+// Devolver pedido (produto foi entregue e devolvido, volta ao estoque)
+export const devolverPedido = async (id: string): Promise<Pedido | null> => {
+  const pedidos = await getPedidos();
+  const pedido = pedidos.find(p => p.id === id);
+
+  if (!pedido) return null;
+
+  // Restaurar estoque (produto foi devolvido)
+  const qtdParaRestaurar = pedido.quantidade_produzida || pedido.quantidade;
+  if (qtdParaRestaurar > 0) {
+    await adicionarEstoqueComMovimentacao(
+      pedido.produto_id,
+      pedido.variacao_id || null,
+      qtdParaRestaurar,
+      'ajuste',
+      `Pedido devolvido - ${qtdParaRestaurar} unidade(s) retornaram ao estoque`
+    );
+  }
+
+  return updatePedido(id, {
+    status: 'devolvido',
   });
 };

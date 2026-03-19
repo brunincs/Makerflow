@@ -2,14 +2,17 @@ import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Card, CardBody } from '../../components/ui';
 import { Pedido, ProdutoConcorrente, ItemFilaProducao, EstoqueProduto, Filamento, Impressora, MLOrder, MLConnectionStatus, TikTokOrder, TikTokConnectionStatus, ShopeeOrder, ShopeeConnectionStatus, PrioridadePedido } from '../../types';
-import { getPedidosPendentes, createPedido, deletePedido, marcarProduzido, concluirPedido, getPedidosConcluidos, reverterPedido, calcularPrioridade, getPrioridadeValor } from '../../services/pedidosService';
+import { getPedidosPendentes, createPedido, deletePedido, marcarProduzido, concluirPedido, getPedidosConcluidos, cancelarPedido, devolverPedido, calcularPrioridade, getPrioridadeValor } from '../../services/pedidosService';
 import { getEstoqueProdutos, removerEstoqueComMovimentacao } from '../../services/estoqueProdutosService';
 import { getProdutos } from '../../services/produtosService';
 import { getFilamentos } from '../../services/filamentosService';
 import { createImpressao } from '../../services/impressoesService';
 import { getImpressorasAtivas } from '../../services/impressorasService';
 import { getPrecificacaoByProduto } from '../../services/precificacoesService';
-import { deduzirEstoqueAcessorios, validarEstoqueAcessorios } from '../../services/acessoriosService';
+import { getAcessorios, deduzirEstoqueAcessorios, validarEstoqueAcessorios, registrarSaida as registrarSaidaAcessorio } from '../../services/acessoriosService';
+import { getEmbalagens, registrarMovimentacaoEmbalagem } from '../../services/embalagensService';
+import { Embalagem } from '../../types';
+import { Acessorio } from '../../types/acessorio';
 import {
   checkMLConnection,
   syncMLOrders,
@@ -65,13 +68,14 @@ import {
   RefreshCw,
   Unlink,
   History,
-  Undo2,
   Calendar,
   Flame,
   Circle,
   ChevronDown,
   ChevronRight,
   Edit3,
+  XCircle,
+  RotateCcw,
 } from 'lucide-react';
 
 // Interface para variação selecionada com quantidade
@@ -342,6 +346,17 @@ export function FilaProducao() {
   const [impressoraId, setImpressoraId] = useState<string>('');
   const [produzindo, setProduzindo] = useState(false);
 
+  // Embalagens e Acessórios para produção/conclusão
+  const [embalagensDisponiveis, setEmbalagensDisponiveis] = useState<Embalagem[]>([]);
+  const [acessoriosDisponiveis, setAcessoriosDisponiveis] = useState<Acessorio[]>([]);
+  const [embalagensSelecionadas, setEmbalagensSelecionadas] = useState<{id: string, quantidade: number}[]>([]);
+  const [acessoriosSelecionados, setAcessoriosSelecionados] = useState<{id: string, quantidade: number}[]>([]);
+
+  // Modal de concluir (do estoque)
+  const [showConcluirModal, setShowConcluirModal] = useState(false);
+  const [itemParaConcluir, setItemParaConcluir] = useState<ItemFilaProducao | null>(null);
+  const [concluindo, setConcluindo] = useState(false);
+
   // Modal de importar pedidos
   const [showImportModal, setShowImportModal] = useState(false);
   const [textoImportacao, setTextoImportacao] = useState('');
@@ -388,6 +403,8 @@ export function FilaProducao() {
   const [pedidosConcluidos, setPedidosConcluidos] = useState<Pedido[]>([]);
   const [selectedHistorico, setSelectedHistorico] = useState<string[]>([]);
   const [loadingHistorico, setLoadingHistorico] = useState(false);
+  const [revertendo, setRevertendo] = useState<string | null>(null); // ID do pedido sendo revertido
+  const [menuAbertoId, setMenuAbertoId] = useState<string | null>(null); // ID do pedido com menu aberto
 
   // Verificar conexao ML ao carregar
   useEffect(() => {
@@ -524,18 +541,22 @@ export function FilaProducao() {
 
   const loadData = async () => {
     setLoading(true);
-    const [pedidosData, estoqueData, produtosData, filamentosData, impressorasData] = await Promise.all([
+    const [pedidosData, estoqueData, produtosData, filamentosData, impressorasData, embalagensData, acessoriosData] = await Promise.all([
       getPedidosPendentes(),
       getEstoqueProdutos(),
       getProdutos(),
       getFilamentos(),
       getImpressorasAtivas(),
+      getEmbalagens(),
+      getAcessorios(),
     ]);
     setPedidos(pedidosData);
     setEstoque(estoqueData);
     setProdutos(produtosData);
     setFilamentos(filamentosData);
     setImpressorasDisponiveis(impressorasData);
+    setEmbalagensDisponiveis(embalagensData);
+    setAcessoriosDisponiveis(acessoriosData);
 
     // Atualizar IDs selecionados para remover impressoras que nao existem mais
     setImpressorasSelecionadasIds(prev => {
@@ -1029,44 +1050,95 @@ export function FilaProducao() {
     }
   };
 
-  // Reverter pedido para pendente
-  const handleReverterPedido = async (id: string) => {
-    if (!confirm('Deseja reverter este pedido para pendente?')) return;
+  // Cancelar pedido (não entregue)
+  const handleCancelarPedido = (id: string) => {
+    if (revertendo) return;
+    setMenuAbertoId(null);
 
-    try {
-      await reverterPedido(id);
-      // Atualizar lista de concluidos
-      const concluidos = await getPedidosConcluidos();
-      setPedidosConcluidos(concluidos);
-      setSelectedHistorico([]);
-      // Recarregar dados da fila
-      await loadData();
-      alert('Pedido revertido com sucesso!');
-    } catch (error) {
-      console.error('Erro ao reverter pedido:', error);
-      alert('Erro ao reverter pedido');
-    }
+    const executar = async () => {
+      if (!window.confirm('Cancelar este pedido? O estoque será devolvido.')) return;
+
+      setRevertendo(id);
+      try {
+        await cancelarPedido(id);
+        const concluidos = await getPedidosConcluidos();
+        setPedidosConcluidos(concluidos);
+        setSelectedHistorico([]);
+        await loadData();
+      } catch (error) {
+        console.error('Erro ao cancelar pedido:', error);
+        alert('Erro ao cancelar pedido');
+      } finally {
+        setRevertendo(null);
+      }
+    };
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        executar();
+      });
+    });
   };
 
-  // Reverter múltiplos pedidos selecionados
-  const handleReverterSelecionados = async () => {
-    if (selectedHistorico.length === 0) return;
-    if (!confirm(`Deseja reverter ${selectedHistorico.length} pedido(s) para pendente?`)) return;
+  // Devolver pedido (foi entregue e devolvido)
+  const handleDevolverPedido = (id: string) => {
+    if (revertendo) return;
+    setMenuAbertoId(null);
 
+    const executar = async () => {
+      if (!window.confirm('Marcar como devolvido? O estoque será devolvido.')) return;
+
+      setRevertendo(id);
+      try {
+        await devolverPedido(id);
+        const concluidos = await getPedidosConcluidos();
+        setPedidosConcluidos(concluidos);
+        setSelectedHistorico([]);
+        await loadData();
+      } catch (error) {
+        console.error('Erro ao devolver pedido:', error);
+        alert('Erro ao devolver pedido');
+      } finally {
+        setRevertendo(null);
+      }
+    };
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        executar();
+      });
+    });
+  };
+
+  // Ação em lote nos selecionados
+  const handleAcaoSelecionados = async (acao: 'cancelar' | 'devolver') => {
+    if (selectedHistorico.length === 0) return;
+    if (revertendo) return;
+
+    const mensagem = acao === 'cancelar'
+      ? `Cancelar ${selectedHistorico.length} pedido(s)? O estoque será devolvido.`
+      : `Marcar ${selectedHistorico.length} pedido(s) como devolvido(s)? O estoque será devolvido.`;
+
+    if (!confirm(mensagem)) return;
+
+    setRevertendo('multiple');
     try {
       for (const id of selectedHistorico) {
-        await reverterPedido(id);
+        if (acao === 'cancelar') {
+          await cancelarPedido(id);
+        } else {
+          await devolverPedido(id);
+        }
       }
-      // Atualizar lista de concluidos
       const concluidos = await getPedidosConcluidos();
       setPedidosConcluidos(concluidos);
       setSelectedHistorico([]);
-      // Recarregar dados da fila
       await loadData();
-      alert(`${selectedHistorico.length} pedido(s) revertido(s) com sucesso!`);
     } catch (error) {
-      console.error('Erro ao reverter pedidos:', error);
-      alert('Erro ao reverter pedidos');
+      console.error(`Erro ao ${acao} pedidos:`, error);
+      alert(`Erro ao ${acao} pedidos`);
+    } finally {
+      setRevertendo(null);
     }
   };
 
@@ -1358,6 +1430,8 @@ export function FilaProducao() {
     setQtdProduzida(item.quantidade_produzir);
     setFilamentoId('');
     setImpressoraId('');
+    setEmbalagensSelecionadas([]);
+    setAcessoriosSelecionados([]);
     setShowProduzidoModal(true);
   };
 
@@ -1627,7 +1701,30 @@ export function FilaProducao() {
         }
       }
 
-      // 3. Marcar pedidos como produzidos (distribuir quantidade entre pedidos)
+      // 3. Deduzir embalagens selecionadas manualmente
+      for (const emb of embalagensSelecionadas) {
+        if (emb.quantidade > 0) {
+          await registrarMovimentacaoEmbalagem(
+            emb.id,
+            'saida',
+            emb.quantidade * qtdProduzida,
+            `Produção de ${qtdProduzida} unidade(s) - ${itemParaProduzir.nome_produto}`
+          );
+        }
+      }
+
+      // 4. Deduzir acessórios selecionados manualmente
+      for (const acess of acessoriosSelecionados) {
+        if (acess.quantidade > 0) {
+          await registrarSaidaAcessorio(
+            acess.id,
+            acess.quantidade * qtdProduzida,
+            `Produção de ${qtdProduzida} unidade(s) - ${itemParaProduzir.nome_produto}`
+          );
+        }
+      }
+
+      // 5. Marcar pedidos como produzidos (distribuir quantidade entre pedidos)
       let qtdRestante = qtdProduzida;
       for (const pedido of itemParaProduzir.pedidos) {
         if (qtdRestante <= 0) break;
@@ -1644,6 +1741,8 @@ export function FilaProducao() {
       await loadData();
       setShowProduzidoModal(false);
       setItemParaProduzir(null);
+      setEmbalagensSelecionadas([]);
+      setAcessoriosSelecionados([]);
     } catch (error) {
       console.error('Erro ao marcar produzido:', error);
       alert('Erro ao processar produção. Tente novamente.');
@@ -1652,22 +1751,32 @@ export function FilaProducao() {
     setProduzindo(false);
   };
 
-  // Concluir pedido que ja foi atendido pelo estoque
-  const handleConcluirPedido = async (item: ItemFilaProducao) => {
-    setProduzindo(true);
+  // Abrir modal para concluir pedido do estoque
+  const handleAbrirConcluir = (item: ItemFilaProducao) => {
+    setItemParaConcluir(item);
+    setEmbalagensSelecionadas([]);
+    setAcessoriosSelecionados([]);
+    setShowConcluirModal(true);
+  };
+
+  // Concluir pedido que ja foi atendido pelo estoque (com embalagens/acessórios opcionais)
+  const handleConcluirComEmbalagens = async () => {
+    if (!itemParaConcluir) return;
+
+    setConcluindo(true);
 
     try {
       // Calcular quantidade restante que precisa consumir do estoque
-      const qtdRestanteTotal = item.pedidos.reduce((acc, pedido) => {
+      const qtdRestanteTotal = itemParaConcluir.pedidos.reduce((acc, pedido) => {
         return acc + (pedido.quantidade - (pedido.quantidade_produzida || 0));
       }, 0);
 
       // Consumir estoque para atender os pedidos restantes
-      if (qtdRestanteTotal > 0 && item.quantidade_estoque_disponivel > 0) {
-        const qtdConsumir = Math.min(qtdRestanteTotal, item.quantidade_estoque_disponivel);
+      if (qtdRestanteTotal > 0 && itemParaConcluir.quantidade_estoque_disponivel > 0) {
+        const qtdConsumir = Math.min(qtdRestanteTotal, itemParaConcluir.quantidade_estoque_disponivel);
         const resultado = await removerEstoqueComMovimentacao(
-          item.produto_id,
-          item.variacao_id || null,
+          itemParaConcluir.produto_id,
+          itemParaConcluir.variacao_id || null,
           qtdConsumir,
           'venda',
           `Entrega de ${qtdConsumir} unidade(s) para pedido (do estoque)`
@@ -1675,30 +1784,55 @@ export function FilaProducao() {
 
         if (!resultado) {
           alert('Erro ao consumir estoque. Verifique se ha estoque suficiente.');
-          setProduzindo(false);
+          setConcluindo(false);
           return;
         }
       }
 
+      // Deduzir embalagens selecionadas
+      for (const emb of embalagensSelecionadas) {
+        if (emb.quantidade > 0) {
+          await registrarMovimentacaoEmbalagem(
+            emb.id,
+            'saida',
+            emb.quantidade * qtdRestanteTotal,
+            `Conclusão de ${qtdRestanteTotal} unidade(s) - ${itemParaConcluir.nome_produto}`
+          );
+        }
+      }
+
+      // Deduzir acessórios selecionados
+      for (const acess of acessoriosSelecionados) {
+        if (acess.quantidade > 0) {
+          await registrarSaidaAcessorio(
+            acess.id,
+            acess.quantidade * qtdRestanteTotal,
+            `Conclusão de ${qtdRestanteTotal} unidade(s) - ${itemParaConcluir.nome_produto}`
+          );
+        }
+      }
+
       // Marcar todos os pedidos como concluidos
-      for (const pedido of item.pedidos) {
+      for (const pedido of itemParaConcluir.pedidos) {
         const qtdPedidoRestante = pedido.quantidade - (pedido.quantidade_produzida || 0);
         if (qtdPedidoRestante > 0) {
-          // Ainda tem quantidade restante - marcar como produzido
           await marcarProduzido(pedido.id!, qtdPedidoRestante);
         } else {
-          // Ja foi totalmente atendido - apenas concluir
           await concluirPedido(pedido.id!);
         }
       }
 
       await loadData();
+      setShowConcluirModal(false);
+      setItemParaConcluir(null);
+      setEmbalagensSelecionadas([]);
+      setAcessoriosSelecionados([]);
     } catch (error) {
       console.error('Erro ao concluir pedido:', error);
       alert('Erro ao processar. Tente novamente.');
     }
 
-    setProduzindo(false);
+    setConcluindo(false);
   };
 
   if (loading) {
@@ -2508,8 +2642,8 @@ export function FilaProducao() {
 
                         {/* Botão */}
                         <button
-                          onClick={() => handleConcluirPedido(item)}
-                          disabled={produzindo}
+                          onClick={() => handleAbrirConcluir(item)}
+                          disabled={concluindo}
                           className="flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50"
                         >
                           <CheckCircle2 className="w-4 h-4" />
@@ -2829,20 +2963,11 @@ export function FilaProducao() {
               {/* Quantidade */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Quantidade produzida
+                  Quantidade a produzir
                 </label>
-                <input
-                  type="number"
-                  min="1"
-                  max={itemParaProduzir.quantidade_produzir}
-                  value={qtdProduzida}
-                  onChange={(e) => setQtdProduzida(parseInt(e.target.value) || 1)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg
-                    focus:outline-none focus:ring-2 focus:ring-green-500"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Maximo: {itemParaProduzir.quantidade_produzir} pecas
-                </p>
+                <div className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-100 text-gray-700 font-medium">
+                  {itemParaProduzir.quantidade_produzir} peças
+                </div>
               </div>
 
               {/* Selecionar impressora */}
@@ -2868,7 +2993,7 @@ export function FilaProducao() {
               {/* Selecionar filamento */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Filamento utilizado (opcional)
+                  Filamento utilizado
                 </label>
                 <select
                   value={filamentoId}
@@ -2876,17 +3001,126 @@ export function FilaProducao() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white
                     focus:outline-none focus:ring-2 focus:ring-green-500"
                 >
-                  <option value="">Nao descontar filamento</option>
+                  <option value="">Selecione um filamento</option>
                   {filamentos.map((fil) => (
                     <option key={fil.id} value={fil.id}>
                       {fil.marca} {fil.nome_filamento} - {fil.cor} ({(fil.estoque_gramas / 1000).toFixed(2)}kg em estoque)
                     </option>
                   ))}
                 </select>
-                <p className="text-xs text-gray-500 mt-1">
-                  Selecione para descontar automaticamente do estoque de filamento
-                </p>
               </div>
+
+              {/* Embalagens (opcional) */}
+              {embalagensDisponiveis.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Embalagens (opcional)
+                  </label>
+                  <div className="space-y-2 max-h-32 overflow-y-auto border border-gray-200 rounded-lg p-2">
+                    {embalagensDisponiveis.map((emb) => {
+                      const selecionada = embalagensSelecionadas.find(e => e.id === emb.id);
+                      return (
+                        <div key={emb.id} className="flex items-center justify-between gap-2 py-1">
+                          <span className="text-sm text-gray-700 flex-1">
+                            {emb.nome_embalagem} {emb.tamanho && `(${emb.tamanho})`}
+                            <span className="text-gray-400 ml-1">- {emb.quantidade} disp.</span>
+                          </span>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (selecionada && selecionada.quantidade > 0) {
+                                  setEmbalagensSelecionadas(prev =>
+                                    prev.map(e => e.id === emb.id ? {...e, quantidade: e.quantidade - 1} : e)
+                                      .filter(e => e.quantidade > 0)
+                                  );
+                                }
+                              }}
+                              className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
+                            >
+                              <Minus className="w-3 h-3" />
+                            </button>
+                            <span className="w-6 text-center text-sm font-medium">
+                              {selecionada?.quantidade || 0}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (selecionada) {
+                                  setEmbalagensSelecionadas(prev =>
+                                    prev.map(e => e.id === emb.id ? {...e, quantidade: e.quantidade + 1} : e)
+                                  );
+                                } else {
+                                  setEmbalagensSelecionadas(prev => [...prev, {id: emb.id, quantidade: 1}]);
+                                }
+                              }}
+                              className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded"
+                            >
+                              <Plus className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Acessórios (opcional) */}
+              {acessoriosDisponiveis.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Acessorios (opcional)
+                  </label>
+                  <div className="space-y-2 max-h-32 overflow-y-auto border border-gray-200 rounded-lg p-2">
+                    {acessoriosDisponiveis.map((acess) => {
+                      const selecionado = acessoriosSelecionados.find(a => a.id === acess.id);
+                      return (
+                        <div key={acess.id} className="flex items-center justify-between gap-2 py-1">
+                          <span className="text-sm text-gray-700 flex-1">
+                            {acess.nome}
+                            <span className="text-gray-400 ml-1">- {acess.estoque_atual} disp.</span>
+                          </span>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (selecionado && selecionado.quantidade > 0) {
+                                  setAcessoriosSelecionados(prev =>
+                                    prev.map(a => a.id === acess.id ? {...a, quantidade: a.quantidade - 1} : a)
+                                      .filter(a => a.quantidade > 0)
+                                  );
+                                }
+                              }}
+                              className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
+                            >
+                              <Minus className="w-3 h-3" />
+                            </button>
+                            <span className="w-6 text-center text-sm font-medium">
+                              {selecionado?.quantidade || 0}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (selecionado) {
+                                  setAcessoriosSelecionados(prev =>
+                                    prev.map(a => a.id === acess.id ? {...a, quantidade: a.quantidade + 1} : a)
+                                  );
+                                } else {
+                                  setAcessoriosSelecionados(prev => [...prev, {id: acess.id, quantidade: 1}]);
+                                }
+                              }}
+                              className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded"
+                            >
+                              <Plus className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Resumo */}
               <div className="p-3 bg-green-50 border border-green-200 rounded-lg space-y-2">
@@ -2903,8 +3137,16 @@ export function FilaProducao() {
                     </span>
                   </div>
                 )}
+                {filamentoId && (
+                  <div className="flex justify-between text-sm text-green-800">
+                    <span>Filamento:</span>
+                    <span className="font-bold">
+                      {filamentos.find(f => f.id === filamentoId)?.cor || '-'}
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between text-sm text-green-800">
-                  <span>Filamento utilizado:</span>
+                  <span>Peso a descontar:</span>
                   <span className="font-bold">{(qtdProduzida * itemParaProduzir.peso_por_peca).toFixed(0)}g</span>
                 </div>
                 <div className="flex justify-between text-sm text-green-800">
@@ -2919,9 +3161,7 @@ export function FilaProducao() {
                 <ul className="text-xs text-blue-700 space-y-1">
                   <li>• Pedidos serao atualizados como produzidos</li>
                   <li>• +{qtdProduzida} unidades adicionadas ao estoque</li>
-                  {filamentoId && (
-                    <li>• -{(qtdProduzida * itemParaProduzir.peso_por_peca).toFixed(0)}g descontados do filamento</li>
-                  )}
+                  <li>• -{(qtdProduzida * itemParaProduzir.peso_por_peca).toFixed(0)}g descontados do filamento</li>
                 </ul>
               </div>
             </div>
@@ -2935,7 +3175,7 @@ export function FilaProducao() {
               </button>
               <button
                 onClick={handleMarcarProduzido}
-                disabled={qtdProduzida < 1 || produzindo}
+                disabled={qtdProduzida < 1 || produzindo || !impressoraId || !filamentoId}
                 className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700
                   transition-colors disabled:opacity-50 disabled:cursor-not-allowed
                   flex items-center gap-2"
@@ -2946,6 +3186,195 @@ export function FilaProducao() {
                   <Check className="w-4 h-4" />
                 )}
                 Confirmar Producao
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Concluir (do estoque) */}
+      {showConcluirModal && itemParaConcluir && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-white">
+              <h3 className="text-lg font-semibold text-gray-900">Concluir do Estoque</h3>
+              <button
+                onClick={() => setShowConcluirModal(false)}
+                className="p-1 text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-4 space-y-4">
+              {/* Info do produto */}
+              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                <div className="w-12 h-12 bg-gray-200 rounded-lg overflow-hidden">
+                  {itemParaConcluir.imagem_url ? (
+                    <img
+                      src={itemParaConcluir.imagem_url}
+                      alt={itemParaConcluir.nome_produto}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <ImageOff className="w-5 h-5 text-gray-400" />
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <p className="font-medium text-gray-900">
+                    {itemParaConcluir.nome_produto}
+                  </p>
+                  {itemParaConcluir.nome_variacao && (
+                    <p className="text-sm text-indigo-600">{itemParaConcluir.nome_variacao}</p>
+                  )}
+                  <p className="text-sm text-green-600 font-medium">
+                    {itemParaConcluir.pedidos.reduce((acc, p) => acc + (p.quantidade - (p.quantidade_produzida || 0)), 0)} unidade(s) do estoque
+                  </p>
+                </div>
+              </div>
+
+              {/* Embalagens (opcional) */}
+              {embalagensDisponiveis.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Embalagens (opcional)
+                  </label>
+                  <div className="space-y-2 max-h-32 overflow-y-auto border border-gray-200 rounded-lg p-2">
+                    {embalagensDisponiveis.map((emb) => {
+                      const selecionada = embalagensSelecionadas.find(e => e.id === emb.id);
+                      return (
+                        <div key={emb.id} className="flex items-center justify-between gap-2 py-1">
+                          <span className="text-sm text-gray-700 flex-1">
+                            {emb.nome_embalagem} {emb.tamanho && `(${emb.tamanho})`}
+                            <span className="text-gray-400 ml-1">- {emb.quantidade} disp.</span>
+                          </span>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (selecionada && selecionada.quantidade > 0) {
+                                  setEmbalagensSelecionadas(prev =>
+                                    prev.map(e => e.id === emb.id ? {...e, quantidade: e.quantidade - 1} : e)
+                                      .filter(e => e.quantidade > 0)
+                                  );
+                                }
+                              }}
+                              className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
+                            >
+                              <Minus className="w-3 h-3" />
+                            </button>
+                            <span className="w-6 text-center text-sm font-medium">
+                              {selecionada?.quantidade || 0}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (selecionada) {
+                                  setEmbalagensSelecionadas(prev =>
+                                    prev.map(e => e.id === emb.id ? {...e, quantidade: e.quantidade + 1} : e)
+                                  );
+                                } else {
+                                  setEmbalagensSelecionadas(prev => [...prev, {id: emb.id, quantidade: 1}]);
+                                }
+                              }}
+                              className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded"
+                            >
+                              <Plus className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Acessórios (opcional) */}
+              {acessoriosDisponiveis.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Acessorios (opcional)
+                  </label>
+                  <div className="space-y-2 max-h-32 overflow-y-auto border border-gray-200 rounded-lg p-2">
+                    {acessoriosDisponiveis.map((acess) => {
+                      const selecionado = acessoriosSelecionados.find(a => a.id === acess.id);
+                      return (
+                        <div key={acess.id} className="flex items-center justify-between gap-2 py-1">
+                          <span className="text-sm text-gray-700 flex-1">
+                            {acess.nome}
+                            <span className="text-gray-400 ml-1">- {acess.estoque_atual} disp.</span>
+                          </span>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (selecionado && selecionado.quantidade > 0) {
+                                  setAcessoriosSelecionados(prev =>
+                                    prev.map(a => a.id === acess.id ? {...a, quantidade: a.quantidade - 1} : a)
+                                      .filter(a => a.quantidade > 0)
+                                  );
+                                }
+                              }}
+                              className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
+                            >
+                              <Minus className="w-3 h-3" />
+                            </button>
+                            <span className="w-6 text-center text-sm font-medium">
+                              {selecionado?.quantidade || 0}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (selecionado) {
+                                  setAcessoriosSelecionados(prev =>
+                                    prev.map(a => a.id === acess.id ? {...a, quantidade: a.quantidade + 1} : a)
+                                  );
+                                } else {
+                                  setAcessoriosSelecionados(prev => [...prev, {id: acess.id, quantidade: 1}]);
+                                }
+                              }}
+                              className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded"
+                            >
+                              <Plus className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Info */}
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  O produto ja esta no estoque. Selecione embalagens e acessorios se necessario.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 p-4 border-t sticky bottom-0 bg-white">
+              <button
+                onClick={() => setShowConcluirModal(false)}
+                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConcluirComEmbalagens}
+                disabled={concluindo}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700
+                  transition-colors disabled:opacity-50 disabled:cursor-not-allowed
+                  flex items-center gap-2"
+              >
+                {concluindo ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Check className="w-4 h-4" />
+                )}
+                Confirmar
               </button>
             </div>
           </div>
@@ -4186,13 +4615,33 @@ export function FilaProducao() {
                   Selecionar Todos
                 </button>
                 {selectedHistorico.length > 0 && (
-                  <button
-                    onClick={handleReverterSelecionados}
-                    className="flex items-center gap-2 px-3 py-1.5 text-sm text-white bg-orange-500 hover:bg-orange-600 rounded-lg transition-colors"
-                  >
-                    <Undo2 className="w-4 h-4" />
-                    Reverter {selectedHistorico.length} Selecionado(s)
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-600">{selectedHistorico.length} selecionado(s)</span>
+                    <button
+                      onClick={() => handleAcaoSelecionados('cancelar')}
+                      disabled={revertendo !== null}
+                      className="flex items-center gap-1 px-3 py-1.5 text-sm text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {revertendo === 'multiple' ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <XCircle className="w-4 h-4" />
+                      )}
+                      Cancelado
+                    </button>
+                    <button
+                      onClick={() => handleAcaoSelecionados('devolver')}
+                      disabled={revertendo !== null}
+                      className="flex items-center gap-1 px-3 py-1.5 text-sm text-white bg-orange-500 hover:bg-orange-600 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {revertendo === 'multiple' ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <RotateCcw className="w-4 h-4" />
+                      )}
+                      Devolvido
+                    </button>
+                  </div>
                 )}
               </div>
             )}
@@ -4267,22 +4716,80 @@ export function FilaProducao() {
                                 </span>
                               )}
                             </div>
-                            <span className="text-sm font-semibold text-green-600">
-                              {pedido.quantidade} unidade(s) entregue(s)
+                            <span className={`text-sm font-semibold ${
+                              pedido.status === 'cancelado' ? 'text-red-600' :
+                              pedido.status === 'devolvido' ? 'text-orange-600' :
+                              'text-green-600'
+                            }`}>
+                              {pedido.status === 'cancelado' ? (
+                                <span className="flex items-center gap-1">
+                                  <XCircle className="w-3 h-3" />
+                                  Cancelado ({pedido.quantidade} un)
+                                </span>
+                              ) : pedido.status === 'devolvido' ? (
+                                <span className="flex items-center gap-1">
+                                  <RotateCcw className="w-3 h-3" />
+                                  Devolvido ({pedido.quantidade} un)
+                                </span>
+                              ) : (
+                                `${pedido.quantidade} unidade(s) entregue(s)`
+                              )}
                             </span>
                           </div>
                         </div>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleReverterPedido(pedido.id!);
-                          }}
-                          className="flex items-center gap-2 px-3 py-2 text-sm text-orange-600 hover:bg-orange-100 rounded-lg transition-colors"
-                          title="Reverter para pendente"
-                        >
-                          <Undo2 className="w-4 h-4" />
-                          Reverter
-                        </button>
+                        {/* Menu de ações */}
+                        <div className="relative">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setMenuAbertoId(menuAbertoId === pedido.id ? null : pedido.id!);
+                            }}
+                            disabled={revertendo !== null}
+                            className="flex items-center gap-1 px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+                          >
+                            {revertendo === pedido.id ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <>
+                                Ações
+                                <ChevronDown className="w-4 h-4" />
+                              </>
+                            )}
+                          </button>
+                          {menuAbertoId === pedido.id && (
+                            <div className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10 min-w-[140px]">
+                              {pedido.status === 'concluido' && (
+                                <>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleCancelarPedido(pedido.id!);
+                                    }}
+                                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                                  >
+                                    <XCircle className="w-4 h-4" />
+                                    Cancelado
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDevolverPedido(pedido.id!);
+                                    }}
+                                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-orange-600 hover:bg-orange-50 transition-colors"
+                                  >
+                                    <RotateCcw className="w-4 h-4" />
+                                    Devolvido
+                                  </button>
+                                </>
+                              )}
+                              {(pedido.status === 'cancelado' || pedido.status === 'devolvido') && (
+                                <p className="px-3 py-2 text-sm text-gray-500">
+                                  {pedido.status === 'cancelado' ? 'Pedido cancelado' : 'Pedido devolvido'}
+                                </p>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))}

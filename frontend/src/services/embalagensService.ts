@@ -2,6 +2,32 @@ import { supabase, isSupabaseConfigured, getCurrentUserId } from './supabaseClie
 import { Embalagem } from '../types';
 
 const STORAGE_KEY = 'makerflow_embalagens';
+const STORAGE_KEY_MOV = 'makerflow_embalagens_movimentacoes';
+
+// Tipo para movimentação de embalagem
+export interface EmbalagemMovimentacao {
+  id: string;
+  user_id?: string;
+  embalagem_id: string;
+  tipo: 'entrada' | 'saida' | 'ajuste';
+  quantidade: number;
+  motivo?: string;
+  created_at: string;
+  embalagem?: {
+    nome_embalagem: string;
+    tipo: string;
+  };
+}
+
+// Local storage para movimentações
+const getLocalMovimentacoes = (): EmbalagemMovimentacao[] => {
+  const data = localStorage.getItem(STORAGE_KEY_MOV);
+  return data ? JSON.parse(data) : [];
+};
+
+const setLocalMovimentacoes = (movs: EmbalagemMovimentacao[]): void => {
+  localStorage.setItem(STORAGE_KEY_MOV, JSON.stringify(movs));
+};
 
 // Local storage fallback
 const getLocalEmbalagens = (): Embalagem[] => {
@@ -215,4 +241,97 @@ export const removerEstoqueEmbalagem = async (
   }
 
   return data;
+};
+
+// ============ MOVIMENTACOES ============
+
+export const registrarMovimentacaoEmbalagem = async (
+  embalagem_id: string,
+  tipo: 'entrada' | 'saida' | 'ajuste',
+  quantidade: number,
+  motivo?: string
+): Promise<EmbalagemMovimentacao | null> => {
+  const dadosMovimentacao = {
+    embalagem_id,
+    tipo,
+    quantidade: Math.abs(quantidade),
+    motivo: motivo || undefined,
+  };
+
+  if (!isSupabaseConfigured() || !supabase) {
+    const novaMovimentacao: EmbalagemMovimentacao = {
+      ...dadosMovimentacao,
+      id: crypto.randomUUID(),
+      created_at: new Date().toISOString(),
+    };
+
+    // Atualizar estoque local
+    const embalagens = getLocalEmbalagens();
+    const index = embalagens.findIndex(e => e.id === embalagem_id);
+    if (index !== -1) {
+      if (tipo === 'entrada') {
+        embalagens[index].quantidade = (embalagens[index].quantidade || 0) + Math.abs(quantidade);
+      } else if (tipo === 'saida') {
+        embalagens[index].quantidade = Math.max(0, (embalagens[index].quantidade || 0) - Math.abs(quantidade));
+      } else if (tipo === 'ajuste') {
+        embalagens[index].quantidade = (embalagens[index].quantidade || 0) + quantidade;
+      }
+      setLocalEmbalagens(embalagens);
+    }
+
+    const movs = getLocalMovimentacoes();
+    movs.unshift(novaMovimentacao);
+    setLocalMovimentacoes(movs);
+
+    return novaMovimentacao;
+  }
+
+  const user_id = await getCurrentUserId();
+  const dadosComUserId = user_id
+    ? { ...dadosMovimentacao, user_id }
+    : dadosMovimentacao;
+
+  // Atualizar estoque
+  if (tipo === 'entrada') {
+    await adicionarEstoqueEmbalagem(embalagem_id, quantidade);
+  } else if (tipo === 'saida') {
+    await removerEstoqueEmbalagem(embalagem_id, quantidade);
+  }
+
+  // Registrar movimentação
+  const { data, error } = await supabase
+    .from('embalagens_movimentacoes')
+    .insert([dadosComUserId])
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Erro ao registrar movimentacao:', error);
+    return null;
+  }
+
+  return data;
+};
+
+export const getMovimentacoesEmbalagem = async (embalagem_id: string): Promise<EmbalagemMovimentacao[]> => {
+  if (!isSupabaseConfigured() || !supabase) {
+    const movs = getLocalMovimentacoes();
+    return movs.filter(m => m.embalagem_id === embalagem_id);
+  }
+
+  const { data, error } = await supabase
+    .from('embalagens_movimentacoes')
+    .select(`
+      *,
+      embalagem:embalagens(nome_embalagem, tipo)
+    `)
+    .eq('embalagem_id', embalagem_id)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Erro ao buscar movimentacoes:', error);
+    return [];
+  }
+
+  return data || [];
 };

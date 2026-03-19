@@ -6,8 +6,9 @@ import {
   createEmbalagem,
   updateEmbalagem,
   deleteEmbalagem,
-  adicionarEstoqueEmbalagem,
-  removerEstoqueEmbalagem
+  registrarMovimentacaoEmbalagem,
+  getMovimentacoesEmbalagem,
+  EmbalagemMovimentacao
 } from '../../services/embalagensService';
 import { DecimalInput } from '../../components/ui/DecimalInput';
 import { AcessoriosList } from '../../components/acessorios/AcessoriosList';
@@ -25,7 +26,11 @@ import {
   Mail,
   Shield,
   BoxIcon,
-  Lightbulb
+  Lightbulb,
+  History,
+  ArrowUpCircle,
+  ArrowDownCircle,
+  Clock
 } from 'lucide-react';
 
 const TIPOS_EMBALAGEM: { value: TipoEmbalagem; label: string; icon: typeof Mail }[] = [
@@ -65,10 +70,13 @@ export function Embalagens() {
   const [form, setForm] = useState<EmbalagemForm>(initialForm);
 
   // Modal de estoque
-  const [showEstoqueModal, setShowEstoqueModal] = useState<'entrada' | 'saida' | null>(null);
+  const [showEstoqueModal, setShowEstoqueModal] = useState<'entrada' | 'saida' | 'historico' | null>(null);
   const [estoqueEmbalagemId, setEstoqueEmbalagemId] = useState<string | null>(null);
   const [estoqueQuantidade, setEstoqueQuantidade] = useState<number>(1);
+  const [estoqueMotivo, setEstoqueMotivo] = useState<string>('');
   const [savingEstoque, setSavingEstoque] = useState(false);
+  const [movimentacoes, setMovimentacoes] = useState<EmbalagemMovimentacao[]>([]);
+  const [loadingHistorico, setLoadingHistorico] = useState(false);
 
   useEffect(() => {
     loadEmbalagens();
@@ -154,32 +162,45 @@ export function Embalagens() {
     setShowForm(false);
   };
 
-  const handleOpenEstoqueModal = (tipo: 'entrada' | 'saida', id: string) => {
+  const handleOpenEstoqueModal = async (tipo: 'entrada' | 'saida' | 'historico', id: string) => {
     setShowEstoqueModal(tipo);
     setEstoqueEmbalagemId(id);
     setEstoqueQuantidade(1);
+    setEstoqueMotivo('');
+
+    if (tipo === 'historico') {
+      setLoadingHistorico(true);
+      const movs = await getMovimentacoesEmbalagem(id);
+      setMovimentacoes(movs);
+      setLoadingHistorico(false);
+    }
   };
 
   const handleCloseEstoqueModal = () => {
     setShowEstoqueModal(null);
     setEstoqueEmbalagemId(null);
     setEstoqueQuantidade(1);
+    setEstoqueMotivo('');
+    setMovimentacoes([]);
   };
 
   const handleSubmitEstoque = async () => {
     if (!estoqueEmbalagemId || estoqueQuantidade <= 0) return;
+    if (showEstoqueModal === 'historico') return;
 
     setSavingEstoque(true);
 
-    let resultado: Embalagem | null = null;
-    if (showEstoqueModal === 'entrada') {
-      resultado = await adicionarEstoqueEmbalagem(estoqueEmbalagemId, estoqueQuantidade);
-    } else {
-      resultado = await removerEstoqueEmbalagem(estoqueEmbalagemId, estoqueQuantidade);
-    }
+    const tipo = showEstoqueModal as 'entrada' | 'saida';
+    const resultado = await registrarMovimentacaoEmbalagem(
+      estoqueEmbalagemId,
+      tipo,
+      estoqueQuantidade,
+      estoqueMotivo || undefined
+    );
 
     if (resultado) {
-      setEmbalagens(prev => prev.map(e => e.id === estoqueEmbalagemId ? resultado! : e));
+      // Recarregar embalagens para pegar o estoque atualizado
+      await loadEmbalagens();
       handleCloseEstoqueModal();
     }
 
@@ -550,6 +571,13 @@ export function Embalagens() {
                     >
                       <Minus className="w-3.5 h-3.5" />
                     </button>
+                    <button
+                      onClick={() => handleOpenEstoqueModal('historico', embalagem.id)}
+                      className="flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                      title="Historico de movimentacoes"
+                    >
+                      <History className="w-3.5 h-3.5" />
+                    </button>
 
                     {/* Separador */}
                     <div className="w-px h-6 bg-gray-200 mx-1" />
@@ -602,19 +630,24 @@ export function Embalagens() {
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="fixed inset-0 bg-black/50" onClick={handleCloseEstoqueModal} />
           <div className="flex min-h-full items-center justify-center p-4">
-            <div className="relative bg-white rounded-xl shadow-xl w-full max-w-sm">
+            <div className={`relative bg-white rounded-xl shadow-xl w-full ${showEstoqueModal === 'historico' ? 'max-w-lg' : 'max-w-sm'}`}>
               <div className="px-6 py-4 border-b border-gray-200">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                     {showEstoqueModal === 'entrada' ? (
                       <>
-                        <Plus className="w-5 h-5 text-green-600" />
-                        Adicionar Estoque
+                        <ArrowUpCircle className="w-5 h-5 text-green-600" />
+                        Entrada de Estoque
+                      </>
+                    ) : showEstoqueModal === 'saida' ? (
+                      <>
+                        <ArrowDownCircle className="w-5 h-5 text-red-600" />
+                        Saida de Estoque
                       </>
                     ) : (
                       <>
-                        <Minus className="w-5 h-5 text-red-600" />
-                        Remover Estoque
+                        <History className="w-5 h-5 text-blue-600" />
+                        Historico de Movimentacoes
                       </>
                     )}
                   </h3>
@@ -630,85 +663,170 @@ export function Embalagens() {
                 )}
               </div>
 
-              <div className="p-6 space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Quantidade
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    max={showEstoqueModal === 'saida' ? (getEmbalagemAtual()?.quantidade || 0) : undefined}
-                    step="1"
-                    value={estoqueQuantidade}
-                    onChange={(e) => setEstoqueQuantidade(parseInt(e.target.value) || 1)}
-                    className={`w-full px-3 py-2 border border-gray-300 rounded-lg bg-white
-                      focus:outline-none focus:ring-2 ${
+              {/* Conteudo para Entrada/Saida */}
+              {(showEstoqueModal === 'entrada' || showEstoqueModal === 'saida') && (
+                <div className="p-6 space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Quantidade
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max={showEstoqueModal === 'saida' ? (getEmbalagemAtual()?.quantidade || 0) : undefined}
+                      step="1"
+                      value={estoqueQuantidade}
+                      onChange={(e) => setEstoqueQuantidade(parseInt(e.target.value) || 1)}
+                      className={`w-full px-3 py-2 border border-gray-300 rounded-lg bg-white
+                        focus:outline-none focus:ring-2 ${
+                          showEstoqueModal === 'entrada'
+                            ? 'focus:ring-green-500 focus:border-green-500'
+                            : 'focus:ring-red-500 focus:border-red-500'
+                        }`}
+                    />
+                    {showEstoqueModal === 'saida' && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Maximo: {getEmbalagemAtual()?.quantidade || 0} unidades
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Motivo (opcional)
+                    </label>
+                    <input
+                      type="text"
+                      value={estoqueMotivo}
+                      onChange={(e) => setEstoqueMotivo(e.target.value)}
+                      placeholder={showEstoqueModal === 'entrada' ? 'Ex: Compra, Reposicao...' : 'Ex: Producao, Venda...'}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white
+                        focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-gray-400"
+                    />
+                  </div>
+
+                  <div className={`p-4 rounded-lg border text-sm space-y-1 ${
+                    showEstoqueModal === 'entrada'
+                      ? 'bg-green-50 border-green-200'
+                      : 'bg-red-50 border-red-200'
+                  }`}>
+                    <div className="flex justify-between">
+                      <span className={showEstoqueModal === 'entrada' ? 'text-green-700' : 'text-red-700'}>
+                        Estoque atual:
+                      </span>
+                      <span className="font-medium">{getEmbalagemAtual()?.quantidade || 0} un</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className={showEstoqueModal === 'entrada' ? 'text-green-700' : 'text-red-700'}>
+                        {showEstoqueModal === 'entrada' ? 'Adicionando:' : 'Removendo:'}
+                      </span>
+                      <span className="font-medium">
+                        {showEstoqueModal === 'entrada' ? '+' : '-'}{estoqueQuantidade} un
+                      </span>
+                    </div>
+                    <div className="flex justify-between border-t pt-1 border-current border-opacity-20">
+                      <span className={showEstoqueModal === 'entrada' ? 'text-green-700' : 'text-red-700'}>
+                        Novo estoque:
+                      </span>
+                      <span className="font-bold">
+                        {showEstoqueModal === 'entrada'
+                          ? (getEmbalagemAtual()?.quantidade || 0) + estoqueQuantidade
+                          : Math.max(0, (getEmbalagemAtual()?.quantidade || 0) - estoqueQuantidade)
+                        } un
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      onClick={handleSubmitEstoque}
+                      disabled={savingEstoque}
+                      className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 text-white rounded-lg disabled:opacity-50 ${
                         showEstoqueModal === 'entrada'
-                          ? 'focus:ring-green-500 focus:border-green-500'
-                          : 'focus:ring-red-500 focus:border-red-500'
+                          ? 'bg-green-600 hover:bg-green-700'
+                          : 'bg-red-600 hover:bg-red-700'
                       }`}
-                  />
-                  {showEstoqueModal === 'saida' && (
-                    <p className="text-xs text-gray-500 mt-1">
-                      Maximo: {getEmbalagemAtual()?.quantidade || 0} unidades
-                    </p>
+                    >
+                      {savingEstoque ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                      {showEstoqueModal === 'entrada' ? 'Adicionar' : 'Remover'}
+                    </button>
+                    <button
+                      onClick={handleCloseEstoqueModal}
+                      className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Conteudo para Historico */}
+              {showEstoqueModal === 'historico' && (
+                <div className="p-6">
+                  {loadingHistorico ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+                    </div>
+                  ) : movimentacoes.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      <Clock className="w-10 h-10 mx-auto mb-2 text-gray-300" />
+                      <p>Nenhuma movimentacao registrada</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3 max-h-80 overflow-y-auto">
+                      {movimentacoes.map((mov) => (
+                        <div
+                          key={mov.id}
+                          className={`flex items-center gap-3 p-3 rounded-lg border ${
+                            mov.tipo === 'entrada'
+                              ? 'bg-green-50 border-green-200'
+                              : mov.tipo === 'saida'
+                              ? 'bg-red-50 border-red-200'
+                              : 'bg-blue-50 border-blue-200'
+                          }`}
+                        >
+                          {mov.tipo === 'entrada' ? (
+                            <ArrowUpCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+                          ) : mov.tipo === 'saida' ? (
+                            <ArrowDownCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+                          ) : (
+                            <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0" />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className={`font-medium ${
+                                mov.tipo === 'entrada' ? 'text-green-700' : mov.tipo === 'saida' ? 'text-red-700' : 'text-blue-700'
+                              }`}>
+                                {mov.tipo === 'entrada' ? '+' : mov.tipo === 'saida' ? '-' : ''}{mov.quantidade} un
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                {new Date(mov.created_at).toLocaleDateString('pt-BR', {
+                                  day: '2-digit',
+                                  month: '2-digit',
+                                  year: '2-digit',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </span>
+                            </div>
+                            {mov.motivo && (
+                              <p className="text-sm text-gray-600 truncate">{mov.motivo}</p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   )}
-                </div>
-
-                <div className={`p-4 rounded-lg border text-sm space-y-1 ${
-                  showEstoqueModal === 'entrada'
-                    ? 'bg-green-50 border-green-200'
-                    : 'bg-red-50 border-red-200'
-                }`}>
-                  <div className="flex justify-between">
-                    <span className={showEstoqueModal === 'entrada' ? 'text-green-700' : 'text-red-700'}>
-                      Estoque atual:
-                    </span>
-                    <span className="font-medium">{getEmbalagemAtual()?.quantidade || 0} un</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className={showEstoqueModal === 'entrada' ? 'text-green-700' : 'text-red-700'}>
-                      {showEstoqueModal === 'entrada' ? 'Adicionando:' : 'Removendo:'}
-                    </span>
-                    <span className="font-medium">
-                      {showEstoqueModal === 'entrada' ? '+' : '-'}{estoqueQuantidade} un
-                    </span>
-                  </div>
-                  <div className="flex justify-between border-t pt-1 border-current border-opacity-20">
-                    <span className={showEstoqueModal === 'entrada' ? 'text-green-700' : 'text-red-700'}>
-                      Novo estoque:
-                    </span>
-                    <span className="font-bold">
-                      {showEstoqueModal === 'entrada'
-                        ? (getEmbalagemAtual()?.quantidade || 0) + estoqueQuantidade
-                        : Math.max(0, (getEmbalagemAtual()?.quantidade || 0) - estoqueQuantidade)
-                      } un
-                    </span>
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <button
+                      onClick={handleCloseEstoqueModal}
+                      className="w-full px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+                    >
+                      Fechar
+                    </button>
                   </div>
                 </div>
-
-                <div className="flex gap-3 pt-2">
-                  <button
-                    onClick={handleSubmitEstoque}
-                    disabled={savingEstoque}
-                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 text-white rounded-lg disabled:opacity-50 ${
-                      showEstoqueModal === 'entrada'
-                        ? 'bg-green-600 hover:bg-green-700'
-                        : 'bg-red-600 hover:bg-red-700'
-                    }`}
-                  >
-                    {savingEstoque ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                    {showEstoqueModal === 'entrada' ? 'Adicionar' : 'Remover'}
-                  </button>
-                  <button
-                    onClick={handleCloseEstoqueModal}
-                    className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
-                  >
-                    Cancelar
-                  </button>
-                </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
