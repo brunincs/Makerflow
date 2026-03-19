@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { ProdutoSelecionado, Impressora } from '../../types';
-import { Toggle } from '../ui/Toggle';
 import { DecimalInput } from '../ui/DecimalInput';
 import { Clock, Zap, Package, Printer, Layers, Info, AlertCircle, Settings } from 'lucide-react';
 import { getImpressorasAtivas } from '../../services/impressorasService';
@@ -17,8 +16,6 @@ interface ImpressoraEnergiaConfigProps {
   consumoKwh?: number;
   valorKwh?: number;
   onValorKwhChange: (value: number) => void;
-  multiplasPecas?: boolean;
-  onMultiplasPecasChange: (value: boolean) => void;
   quantidadePecas?: number;
   onQuantidadePecasChange: (value: number) => void;
 }
@@ -49,8 +46,6 @@ export function ImpressoraEnergiaConfig({
   consumoKwh,
   valorKwh,
   onValorKwhChange,
-  multiplasPecas,
-  onMultiplasPecasChange,
   quantidadePecas,
   onQuantidadePecasChange,
 }: ImpressoraEnergiaConfigProps) {
