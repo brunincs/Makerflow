@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ProdutoSelecionado, Impressora } from '../../types';
 import { DecimalInput } from '../ui/DecimalInput';
-import { Clock, Zap, Package, Printer, Layers, Info, AlertCircle, Settings } from 'lucide-react';
+import { Clock, Zap, Package, Printer, Info, AlertCircle, Settings } from 'lucide-react';
 import { getImpressorasAtivas } from '../../services/impressorasService';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -16,8 +16,6 @@ interface ImpressoraEnergiaConfigProps {
   consumoKwh?: number;
   valorKwh?: number;
   onValorKwhChange: (value: number) => void;
-  quantidadePecas?: number;
-  onQuantidadePecasChange: (value: number) => void;
 }
 
 // Converte tempo decimal (ex: 1.4166) para horas e minutos
@@ -46,8 +44,6 @@ export function ImpressoraEnergiaConfig({
   consumoKwh,
   valorKwh,
   onValorKwhChange,
-  quantidadePecas,
-  onQuantidadePecasChange,
 }: ImpressoraEnergiaConfigProps) {
   const { profile } = useAuth();
   const [impressoras, setImpressoras] = useState<Impressora[]>([]);
@@ -239,51 +235,6 @@ export function ImpressoraEnergiaConfig({
               </div>
             </div>
           )}
-        </div>
-
-        {/* Quantidade de Pecas / Multiplas Pecas */}
-        <div className="border-t border-blue-200 pt-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Layers className="w-4 h-4 text-blue-600" />
-            <span className="text-sm font-medium text-gray-700">Quantidade de pecas</span>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <div className="relative max-w-[140px]">
-              <input
-                type="number"
-                min="1"
-                max="999"
-                value={quantidadePecas || 1}
-                onChange={(e) => onQuantidadePecasChange(parseInt(e.target.value) || 1)}
-                placeholder="1"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-center text-lg font-semibold
-                  focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-                  [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-              />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">
-                un
-              </span>
-            </div>
-
-            <div className="flex gap-1">
-              {[1, 2, 5, 10].map((qtd) => (
-                <button
-                  key={qtd}
-                  type="button"
-                  onClick={() => onQuantidadePecasChange(qtd)}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                    quantidadePecas === qtd
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-white border border-gray-300 text-gray-600 hover:border-blue-400'
-                  }`}
-                >
-                  {qtd}
-                </button>
-              ))}
-            </div>
-          </div>
-
         </div>
 
         {/* Valor do kWh */}

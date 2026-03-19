@@ -214,8 +214,6 @@ export function MarketplaceSelector({ value, onChange, canSave = true, onSaveSuc
           consumoKwh={custos.consumo_kwh}
           valorKwh={custos.valor_kwh}
           onValorKwhChange={(v: number) => handleCustosProducaoChange('valor_kwh', v >= 0 ? v : 0)}
-          quantidadePecas={custos.quantidade_pecas}
-          onQuantidadePecasChange={(v) => handleCustosProducaoChange('quantidade_pecas', v >= 1 ? v : 1)}
         />
 
         {/* Filamento */}
