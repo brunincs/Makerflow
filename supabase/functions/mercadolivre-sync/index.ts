@@ -207,46 +207,18 @@ serve(async (req) => {
       }
     }
 
-    // Limpar ml_orders orfaos deste usuario
-    // 1. Resetar ml_orders que estao imported=true mas pedido_id=null
+    // IMPORTANTE: Não resetar ml_orders que já foram importados
+    // Pedidos cancelados/devolvidos devem permanecer como imported=true
+    // para evitar reimportação duplicada do Mercado Livre
+    //
+    // A única correção necessária é para ml_orders que ficaram com
+    // imported=true mas nunca tiveram pedido_id (bug de estado inconsistente)
     await supabase
       .from('ml_orders')
       .update({ imported: false })
       .eq('imported', true)
       .eq('user_id', userId)
       .is('pedido_id', null)
-
-    // 2. Buscar ml_orders marcados como imported mas cujo pedido nao existe mais
-    const { data: orphanedOrders } = await supabase
-      .from('ml_orders')
-      .select('id, pedido_id')
-      .eq('imported', true)
-      .eq('user_id', userId)
-      .not('pedido_id', 'is', null)
-
-    if (orphanedOrders && orphanedOrders.length > 0) {
-      // Verificar quais pedidos ainda existem
-      const pedidoIds = orphanedOrders.map(o => o.pedido_id)
-      const { data: existingPedidos } = await supabase
-        .from('pedidos')
-        .select('id')
-        .in('id', pedidoIds)
-        .eq('user_id', userId)
-
-      const existingIds = new Set(existingPedidos?.map(p => p.id) || [])
-
-      // Resetar os que nao tem mais pedido
-      const orphanedIds = orphanedOrders
-        .filter(o => !existingIds.has(o.pedido_id))
-        .map(o => o.id)
-
-      if (orphanedIds.length > 0) {
-        await supabase
-          .from('ml_orders')
-          .update({ imported: false, pedido_id: null })
-          .in('id', orphanedIds)
-      }
-    }
 
     // Buscar todos os pedidos nao importados deste usuario
     const { data: pendingOrders } = await supabase

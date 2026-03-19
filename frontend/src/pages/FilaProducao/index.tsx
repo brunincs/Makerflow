@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Card, CardBody } from '../../components/ui';
 import { Pedido, ProdutoConcorrente, ItemFilaProducao, EstoqueProduto, Filamento, Impressora, MLOrder, MLConnectionStatus, TikTokOrder, TikTokConnectionStatus, ShopeeOrder, ShopeeConnectionStatus, PrioridadePedido } from '../../types';
-import { getPedidosPendentes, createPedido, deletePedido, marcarProduzido, concluirPedido, getPedidosConcluidos, calcularPrioridade, getPrioridadeValor } from '../../services/pedidosService';
+import { getPedidosPendentes, createPedido, marcarProduzido, concluirPedido, getPedidosConcluidos, calcularPrioridade, getPrioridadeValor, cancelarPedido, devolverPedido } from '../../services/pedidosService';
 import { getEstoqueProdutos, removerEstoqueComMovimentacao } from '../../services/estoqueProdutosService';
 import { getProdutos } from '../../services/produtosService';
 import { getFilamentos } from '../../services/filamentosService';
@@ -1049,29 +1049,33 @@ export function FilaProducao() {
     }
   };
 
-  // Excluir pedidos selecionados (retorna estoque e remove do histórico)
+  // Marcar pedidos selecionados como cancelados ou devolvidos (retorna estoque e mantém no histórico)
   const handleExcluirSelecionados = async (motivo: 'cancelado' | 'devolvido') => {
     if (selectedHistorico.length === 0) return;
     if (revertendo) return;
 
     const mensagem = motivo === 'cancelado'
-      ? `Excluir ${selectedHistorico.length} pedido(s) cancelado(s)? O estoque será devolvido.`
-      : `Excluir ${selectedHistorico.length} pedido(s) devolvido(s)? O estoque será devolvido.`;
+      ? `Marcar ${selectedHistorico.length} pedido(s) como cancelado(s)? O estoque será devolvido.`
+      : `Marcar ${selectedHistorico.length} pedido(s) como devolvido(s)? O estoque será devolvido.`;
 
     if (!confirm(mensagem)) return;
 
     setRevertendo('multiple');
     try {
       for (const id of selectedHistorico) {
-        await deletePedido(id);
+        if (motivo === 'cancelado') {
+          await cancelarPedido(id);
+        } else {
+          await devolverPedido(id);
+        }
       }
       const concluidos = await getPedidosConcluidos();
       setPedidosConcluidos(concluidos);
       setSelectedHistorico([]);
       await loadData();
     } catch (error) {
-      console.error('Erro ao excluir pedidos:', error);
-      alert('Erro ao excluir pedidos');
+      console.error('Erro ao atualizar pedidos:', error);
+      alert('Erro ao atualizar pedidos');
     } finally {
       setRevertendo(null);
     }
@@ -1108,8 +1112,8 @@ export function FilaProducao() {
       // Quantidade que ainda falta entregar
       const qtdRestante = pedido.quantidade - qtdJaAtendida;
 
-      // Pular pedidos completamente concluídos
-      if (pedido.status === 'concluido') return;
+      // Pular pedidos concluídos, cancelados ou devolvidos
+      if (pedido.status === 'concluido' || pedido.status === 'cancelado' || pedido.status === 'devolvido') return;
 
       if (mapa.has(key)) {
         const item = mapa.get(key)!;
@@ -1351,11 +1355,11 @@ export function FilaProducao() {
     setSaving(false);
   };
 
-  const handleDeletePedido = async (id: string) => {
-    if (!confirm('Excluir este pedido?')) return;
+  const handleCancelarPedido = async (id: string) => {
+    if (!confirm('Cancelar este pedido? O estoque produzido será devolvido.')) return;
 
-    const success = await deletePedido(id);
-    if (success) {
+    const resultado = await cancelarPedido(id);
+    if (resultado) {
       await loadData();
     }
   };
@@ -2651,8 +2655,9 @@ export function FilaProducao() {
                       </span>
 
                       <button
-                        onClick={() => handleDeletePedido(pedido.id!)}
+                        onClick={() => handleCancelarPedido(pedido.id!)}
                         className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Cancelar pedido"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -4652,7 +4657,7 @@ export function FilaProducao() {
                               )}
                             </div>
                             <span className={`text-sm font-semibold ${
-                              pedido.status === 'cancelado' ? 'text-red-600' :
+                              pedido.status === 'cancelado' ? 'text-gray-500' :
                               pedido.status === 'devolvido' ? 'text-orange-600' :
                               'text-green-600'
                             }`}>

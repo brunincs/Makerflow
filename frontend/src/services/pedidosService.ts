@@ -65,7 +65,10 @@ export const getPedidos = async (): Promise<Pedido[]> => {
 
 export const getPedidosPendentes = async (): Promise<Pedido[]> => {
   if (!isSupabaseConfigured() || !supabase) {
-    return getLocalPedidos().filter(p => p.status !== 'concluido');
+    // Filtrar apenas pedidos ativos (pendentes ou em produção)
+    return getLocalPedidos().filter(p =>
+      p.status === 'pendente' || p.status === 'em_producao'
+    );
   }
 
   const { data, error } = await supabase
@@ -75,7 +78,7 @@ export const getPedidosPendentes = async (): Promise<Pedido[]> => {
       produto:produtos_concorrentes(nome, imagem_url, peso_filamento, tempo_impressao),
       variacao:variacoes_produto(nome_variacao, peso_filamento, tempo_impressao)
     `)
-    .neq('status', 'concluido')
+    .in('status', ['pendente', 'em_producao'])
     .order('created_at', { ascending: true });
 
   if (error) {
@@ -242,12 +245,9 @@ export const deletePedido = async (id: string): Promise<boolean> => {
     return true;
   }
 
-  // Verificar se este pedido veio do Mercado Livre
-  // Se sim, resetar o ml_order para poder importar novamente
-  await supabase
-    .from('ml_orders')
-    .update({ imported: false, pedido_id: null })
-    .eq('pedido_id', id);
+  // IMPORTANTE: NÃO resetar ml_orders.imported quando pedido é deletado
+  // Isso evita que pedidos do Mercado Livre sejam reimportados
+  // Para pedidos de marketplace, use cancelarPedido() ou devolverPedido() em vez de deletePedido()
 
   const { error } = await supabase
     .from('pedidos')
