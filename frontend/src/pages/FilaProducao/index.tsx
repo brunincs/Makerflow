@@ -76,6 +76,7 @@ import {
   Edit3,
   XCircle,
   RotateCcw,
+  Layers,
 } from 'lucide-react';
 
 // Interface para variação selecionada com quantidade
@@ -337,6 +338,10 @@ export function FilaProducao() {
   const [prioridade, setPrioridade] = useState<PrioridadePedido>('normal');
   const [dataEntrega, setDataEntrega] = useState<string>('');
   const [saving, setSaving] = useState(false);
+
+  // Modo Kit
+  const [modoKit, setModoKit] = useState(false);
+  const [quantidadesKit, setQuantidadesKit] = useState<Record<string, number>>({});
 
   // Modal de marcar produzido
   const [showProduzidoModal, setShowProduzidoModal] = useState(false);
@@ -1327,7 +1332,84 @@ export function FilaProducao() {
     return produto?.variacoes || [];
   }, [produtoSelecionado, produtos]);
 
+  // Cálculos do Kit
+  const kitInfo = useMemo(() => {
+    if (!modoKit || !produtoSelecionado) {
+      return { itens: [], pesoTotal: 0, tempoTotal: 0, quantidadeTotal: 0 };
+    }
+
+    const produto = produtos.find(p => p.id === produtoSelecionado);
+    const itens: { variacao: typeof variacoesProduto[0]; quantidade: number; estoqueDisponivel: number }[] = [];
+    let pesoTotal = 0;
+    let tempoTotal = 0;
+    let quantidadeTotal = 0;
+
+    for (const variacao of variacoesProduto) {
+      const qtd = quantidadesKit[variacao.id!] || 0;
+      if (qtd > 0) {
+        // Buscar estoque da variação
+        const estoqueItem = estoque.find(e =>
+          e.produto_id === produtoSelecionado &&
+          e.variacao_id === variacao.id
+        );
+
+        itens.push({
+          variacao,
+          quantidade: qtd,
+          estoqueDisponivel: estoqueItem?.quantidade || 0
+        });
+
+        const peso = variacao.peso_filamento || produto?.peso_filamento || 0;
+        const tempo = variacao.tempo_impressao || produto?.tempo_impressao || 0;
+        pesoTotal += peso * qtd;
+        tempoTotal += tempo * qtd;
+        quantidadeTotal += qtd;
+      }
+    }
+
+    return { itens, pesoTotal, tempoTotal, quantidadeTotal };
+  }, [modoKit, produtoSelecionado, variacoesProduto, quantidadesKit, produtos, estoque]);
+
   const handleAddPedido = async () => {
+    // Modo Kit: criar pedidos separados para cada variação
+    if (modoKit) {
+      if (!produtoSelecionado || kitInfo.itens.length === 0) return;
+
+      setSaving(true);
+
+      let sucesso = true;
+      for (const item of kitInfo.itens) {
+        const resultado = await createPedido({
+          produto_id: produtoSelecionado,
+          variacao_id: item.variacao.id || null,
+          quantidade: item.quantidade,
+          quantidade_produzida: 0,
+          status: 'pendente',
+          prioridade: prioridade,
+          data_entrega: dataEntrega || undefined,
+        });
+
+        if (!resultado) {
+          sucesso = false;
+          break;
+        }
+      }
+
+      if (sucesso) {
+        await loadData();
+        setShowModal(false);
+        setProdutoSelecionado('');
+        setQuantidadesKit({});
+        setModoKit(false);
+        setPrioridade('normal');
+        setDataEntrega('');
+      }
+
+      setSaving(false);
+      return;
+    }
+
+    // Modo normal
     if (!produtoSelecionado || quantidade < 1) return;
 
     setSaving(true);
@@ -1640,7 +1722,36 @@ export function FilaProducao() {
         }
       }
 
-      // 3. Deduzir embalagens selecionadas manualmente
+      // 3. Validar estoque de embalagens e acessórios selecionados manualmente
+      const errosEstoque: string[] = [];
+
+      for (const emb of embalagensSelecionadas) {
+        if (emb.quantidade > 0) {
+          const embData = embalagensDisponiveis.find(e => e.id === emb.id);
+          const qtdNecessaria = emb.quantidade * qtdProduzida;
+          if (embData && qtdNecessaria > (embData.quantidade || 0)) {
+            errosEstoque.push(`${embData.nome_embalagem}: necessário ${qtdNecessaria}, disponível ${embData.quantidade || 0}`);
+          }
+        }
+      }
+
+      for (const acess of acessoriosSelecionados) {
+        if (acess.quantidade > 0) {
+          const acessData = acessoriosDisponiveis.find(a => a.id === acess.id);
+          const qtdNecessaria = acess.quantidade * qtdProduzida;
+          if (acessData && qtdNecessaria > (acessData.estoque_atual || 0)) {
+            errosEstoque.push(`${acessData.nome}: necessário ${qtdNecessaria}, disponível ${acessData.estoque_atual || 0}`);
+          }
+        }
+      }
+
+      if (errosEstoque.length > 0) {
+        alert(`Estoque insuficiente:\n${errosEstoque.join('\n')}`);
+        setProduzindo(false);
+        return;
+      }
+
+      // 4. Deduzir embalagens selecionadas manualmente
       for (const emb of embalagensSelecionadas) {
         if (emb.quantidade > 0) {
           await registrarMovimentacaoEmbalagem(
@@ -1652,7 +1763,7 @@ export function FilaProducao() {
         }
       }
 
-      // 4. Deduzir acessórios selecionados manualmente
+      // 5. Deduzir acessórios selecionados manualmente
       for (const acess of acessoriosSelecionados) {
         if (acess.quantidade > 0) {
           await registrarSaidaAcessorio(
@@ -1663,7 +1774,7 @@ export function FilaProducao() {
         }
       }
 
-      // 5. Marcar pedidos como produzidos (distribuir quantidade entre pedidos)
+      // 6. Marcar pedidos como produzidos (distribuir quantidade entre pedidos)
       let qtdRestante = qtdProduzida;
       for (const pedido of itemParaProduzir.pedidos) {
         if (qtdRestante <= 0) break;
@@ -1726,6 +1837,35 @@ export function FilaProducao() {
           setConcluindo(false);
           return;
         }
+      }
+
+      // Validar estoque de embalagens e acessórios selecionados
+      const errosEstoque: string[] = [];
+
+      for (const emb of embalagensSelecionadas) {
+        if (emb.quantidade > 0) {
+          const embData = embalagensDisponiveis.find(e => e.id === emb.id);
+          const qtdNecessaria = emb.quantidade * qtdRestanteTotal;
+          if (embData && qtdNecessaria > (embData.quantidade || 0)) {
+            errosEstoque.push(`${embData.nome_embalagem}: necessário ${qtdNecessaria}, disponível ${embData.quantidade || 0}`);
+          }
+        }
+      }
+
+      for (const acess of acessoriosSelecionados) {
+        if (acess.quantidade > 0) {
+          const acessData = acessoriosDisponiveis.find(a => a.id === acess.id);
+          const qtdNecessaria = acess.quantidade * qtdRestanteTotal;
+          if (acessData && qtdNecessaria > (acessData.estoque_atual || 0)) {
+            errosEstoque.push(`${acessData.nome}: necessário ${qtdNecessaria}, disponível ${acessData.estoque_atual || 0}`);
+          }
+        }
+      }
+
+      if (errosEstoque.length > 0) {
+        alert(`Estoque insuficiente:\n${errosEstoque.join('\n')}`);
+        setConcluindo(false);
+        return;
       }
 
       // Deduzir embalagens selecionadas
@@ -2673,21 +2813,60 @@ export function FilaProducao() {
       {/* Modal Novo Pedido */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4">
-            <div className="flex items-center justify-between p-4 border-b">
-              <h3 className="text-lg font-semibold text-gray-900">Novo Pedido</h3>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-4 border-b dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-800 z-10">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Novo Pedido</h3>
               <button
-                onClick={() => setShowModal(false)}
-                className="p-1 text-gray-400 hover:text-gray-600"
+                onClick={() => {
+                  setShowModal(false);
+                  setModoKit(false);
+                  setQuantidadesKit({});
+                }}
+                className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <div className="p-4 space-y-4">
+              {/* Alternância Produto/Kit */}
+              <div className="flex gap-2 p-1 bg-gray-100 dark:bg-gray-700 rounded-lg">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setModoKit(false);
+                    setQuantidadesKit({});
+                  }}
+                  className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    !modoKit
+                      ? 'bg-white dark:bg-gray-600 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                      : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                >
+                  <Package className="w-4 h-4" />
+                  Produto
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setModoKit(true);
+                    setVariacaoSelecionada('');
+                    setQuantidade(1);
+                  }}
+                  className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    modoKit
+                      ? 'bg-white dark:bg-gray-600 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                      : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                >
+                  <Layers className="w-4 h-4" />
+                  Kit
+                </button>
+              </div>
+
               {/* Produto */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Produto
                 </label>
                 <select
@@ -2695,8 +2874,9 @@ export function FilaProducao() {
                   onChange={(e) => {
                     setProdutoSelecionado(e.target.value);
                     setVariacaoSelecionada('');
+                    setQuantidadesKit({});
                   }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white
                     focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
                   <option value="">Selecione um produto...</option>
@@ -2708,16 +2888,138 @@ export function FilaProducao() {
                 </select>
               </div>
 
-              {/* Variação */}
-              {variacoesProduto.length > 0 && (
+              {/* Modo Kit: Lista de variações com quantidade */}
+              {modoKit && produtoSelecionado && (
+                <>
+                  {variacoesProduto.length > 0 ? (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Variacoes do Kit
+                      </label>
+                      <div className="space-y-2 max-h-48 overflow-y-auto">
+                        {variacoesProduto.map((variacao) => {
+                          const qtd = quantidadesKit[variacao.id!] || 0;
+                          const estoqueItem = estoque.find(e =>
+                            e.produto_id === produtoSelecionado &&
+                            e.variacao_id === variacao.id
+                          );
+                          const estoqueDisp = estoqueItem?.quantidade || 0;
+
+                          return (
+                            <div
+                              key={variacao.id}
+                              className={`flex items-center justify-between p-3 rounded-lg border ${
+                                qtd > 0
+                                  ? 'border-indigo-300 bg-indigo-50 dark:border-indigo-500 dark:bg-indigo-900/20'
+                                  : 'border-gray-200 dark:border-gray-600'
+                              }`}
+                            >
+                              <div className="flex-1">
+                                <p className="font-medium text-gray-900 dark:text-white">
+                                  {variacao.nome_variacao}
+                                </p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                  Estoque: {estoqueDisp} un
+                                  {variacao.peso_filamento && ` | ${variacao.peso_filamento}g`}
+                                  {variacao.tempo_impressao && ` | ${variacao.tempo_impressao}min`}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => setQuantidadesKit(prev => ({
+                                    ...prev,
+                                    [variacao.id!]: Math.max(0, (prev[variacao.id!] || 0) - 1)
+                                  }))}
+                                  className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600
+                                    hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-600 dark:text-gray-300"
+                                >
+                                  <Minus className="w-3 h-3" />
+                                </button>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  value={qtd}
+                                  onChange={(e) => setQuantidadesKit(prev => ({
+                                    ...prev,
+                                    [variacao.id!]: Math.max(0, parseInt(e.target.value) || 0)
+                                  }))}
+                                  className="w-12 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg text-center text-sm font-semibold
+                                    bg-white dark:bg-gray-700 text-gray-900 dark:text-white
+                                    focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => setQuantidadesKit(prev => ({
+                                    ...prev,
+                                    [variacao.id!]: (prev[variacao.id!] || 0) + 1
+                                  }))}
+                                  className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600
+                                    hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-600 dark:text-gray-300"
+                                >
+                                  <Plus className="w-3 h-3" />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Resumo do Kit */}
+                      {kitInfo.itens.length > 0 && (
+                        <div className="mt-3 p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-200 dark:border-indigo-700">
+                          <p className="text-sm font-medium text-indigo-900 dark:text-indigo-300 mb-2">
+                            Kit {produtos.find(p => p.id === produtoSelecionado)?.nome}:
+                          </p>
+                          <ul className="text-sm text-indigo-700 dark:text-indigo-400 space-y-1 mb-2">
+                            {kitInfo.itens.map(item => (
+                              <li key={item.variacao.id} className="flex items-center justify-between">
+                                <span>{item.variacao.nome_variacao} x{item.quantidade}</span>
+                                {item.estoqueDisponivel < item.quantidade && (
+                                  <span className="text-xs text-orange-600 dark:text-orange-400">
+                                    Estoque: {item.estoqueDisponivel}
+                                  </span>
+                                )}
+                              </li>
+                            ))}
+                          </ul>
+                          <div className="flex items-center justify-between text-xs text-indigo-600 dark:text-indigo-400 pt-2 border-t border-indigo-200 dark:border-indigo-600">
+                            <span className="flex items-center gap-1">
+                              <Cylinder className="w-3 h-3" />
+                              {kitInfo.pesoTotal.toFixed(0)}g
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              {Math.floor(kitInfo.tempoTotal / 60)}h {kitInfo.tempoTotal % 60}min
+                            </span>
+                            <span className="font-medium">
+                              {kitInfo.quantidadeTotal} pecas
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-700">
+                      <p className="text-sm text-amber-800 dark:text-amber-300 flex items-center gap-2">
+                        <AlertTriangle className="w-4 h-4" />
+                        Este produto nao possui variacoes cadastradas.
+                      </p>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* Variação (modo normal) */}
+              {!modoKit && variacoesProduto.length > 0 && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Variacao (opcional)
                   </label>
                   <select
                     value={variacaoSelecionada}
                     onChange={(e) => setVariacaoSelecionada(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white
                       focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   >
                     <option value="">Sem variacao</option>
@@ -2730,42 +3032,45 @@ export function FilaProducao() {
                 </div>
               )}
 
-              {/* Quantidade com controles [-] [+] */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Quantidade vendida
-                </label>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setQuantidade(Math.max(1, quantidade - 1))}
-                    className="w-10 h-10 flex items-center justify-center rounded-lg border border-gray-300
-                      hover:bg-gray-100 transition-colors text-gray-600"
-                  >
-                    <Minus className="w-4 h-4" />
-                  </button>
-                  <input
-                    type="number"
-                    min="1"
-                    value={quantidade}
-                    onChange={(e) => setQuantidade(Math.max(1, parseInt(e.target.value) || 1))}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-center text-lg font-semibold
-                      focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setQuantidade(quantidade + 1)}
-                    className="w-10 h-10 flex items-center justify-center rounded-lg border border-gray-300
-                      hover:bg-gray-100 transition-colors text-gray-600"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </button>
+              {/* Quantidade com controles [-] [+] (modo normal) */}
+              {!modoKit && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Quantidade vendida
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setQuantidade(Math.max(1, quantidade - 1))}
+                      className="w-10 h-10 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600
+                        hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-600 dark:text-gray-300"
+                    >
+                      <Minus className="w-4 h-4" />
+                    </button>
+                    <input
+                      type="number"
+                      min="1"
+                      value={quantidade}
+                      onChange={(e) => setQuantidade(Math.max(1, parseInt(e.target.value) || 1))}
+                      className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-center text-lg font-semibold
+                        bg-white dark:bg-gray-700 text-gray-900 dark:text-white
+                        focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setQuantidade(quantidade + 1)}
+                      className="w-10 h-10 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600
+                        hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-600 dark:text-gray-300"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Data de Entrega */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Data de entrega (opcional)
                 </label>
                 <div className="relative">
@@ -2779,18 +3084,19 @@ export function FilaProducao() {
                         setPrioridade(calcularPrioridade(e.target.value));
                       }
                     }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg
+                      bg-white dark:bg-gray-700 text-gray-900 dark:text-white
                       focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                   A prioridade sera calculada automaticamente
                 </p>
               </div>
 
               {/* Prioridade */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Prioridade
                 </label>
                 <div className="flex gap-2">
@@ -2799,8 +3105,8 @@ export function FilaProducao() {
                     onClick={() => setPrioridade('normal')}
                     className={`flex-1 px-3 py-2 rounded-lg border flex items-center justify-center gap-2 transition-colors ${
                       prioridade === 'normal'
-                        ? 'border-gray-500 bg-gray-100 text-gray-700'
-                        : 'border-gray-300 text-gray-500 hover:bg-gray-50'
+                        ? 'border-gray-500 bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-200'
+                        : 'border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
                     }`}
                   >
                     <Circle className="w-3 h-3" />
@@ -2811,8 +3117,8 @@ export function FilaProducao() {
                     onClick={() => setPrioridade('alta')}
                     className={`flex-1 px-3 py-2 rounded-lg border flex items-center justify-center gap-2 transition-colors ${
                       prioridade === 'alta'
-                        ? 'border-orange-500 bg-orange-100 text-orange-700'
-                        : 'border-gray-300 text-gray-500 hover:bg-orange-50'
+                        ? 'border-orange-500 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400'
+                        : 'border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-orange-50 dark:hover:bg-orange-900/20'
                     }`}
                   >
                     <AlertTriangle className="w-3 h-3" />
@@ -2823,8 +3129,8 @@ export function FilaProducao() {
                     onClick={() => setPrioridade('urgente')}
                     className={`flex-1 px-3 py-2 rounded-lg border flex items-center justify-center gap-2 transition-colors ${
                       prioridade === 'urgente'
-                        ? 'border-red-500 bg-red-100 text-red-700'
-                        : 'border-gray-300 text-gray-500 hover:bg-red-50'
+                        ? 'border-red-500 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                        : 'border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-red-50 dark:hover:bg-red-900/20'
                     }`}
                   >
                     <Flame className="w-3 h-3" />
@@ -2834,26 +3140,36 @@ export function FilaProducao() {
               </div>
             </div>
 
-            <div className="flex justify-end gap-3 p-4 border-t">
+            <div className="flex justify-end gap-3 p-4 border-t dark:border-gray-700 sticky bottom-0 bg-white dark:bg-gray-800">
               <button
-                onClick={() => setShowModal(false)}
-                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                onClick={() => {
+                  setShowModal(false);
+                  setModoKit(false);
+                  setQuantidadesKit({});
+                }}
+                className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleAddPedido}
-                disabled={!produtoSelecionado || quantidade < 1 || saving}
+                disabled={
+                  !produtoSelecionado ||
+                  (modoKit ? kitInfo.itens.length === 0 : quantidade < 1) ||
+                  saving
+                }
                 className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700
                   transition-colors disabled:opacity-50 disabled:cursor-not-allowed
                   flex items-center gap-2"
               >
                 {saving ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
+                ) : modoKit ? (
+                  <Layers className="w-4 h-4" />
                 ) : (
                   <Plus className="w-4 h-4" />
                 )}
-                Adicionar
+                {modoKit ? `Adicionar Kit (${kitInfo.quantidadeTotal})` : 'Adicionar'}
               </button>
             </div>
           </div>
@@ -2931,24 +3247,49 @@ export function FilaProducao() {
               </div>
 
               {/* Selecionar filamento */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Filamento utilizado
-                </label>
-                <select
-                  value={filamentoId}
-                  onChange={(e) => setFilamentoId(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white
-                    focus:outline-none focus:ring-2 focus:ring-green-500"
-                >
-                  <option value="">Selecione um filamento</option>
-                  {filamentos.map((fil) => (
-                    <option key={fil.id} value={fil.id}>
-                      {fil.marca} {fil.nome_filamento} - {fil.cor} ({(fil.estoque_gramas / 1000).toFixed(2)}kg em estoque)
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {(() => {
+                const pesoNecessario = qtdProduzida * itemParaProduzir.peso_por_peca;
+                const filamentoSelecionado = filamentos.find(f => f.id === filamentoId);
+                const estoqueInsuficiente = filamentoSelecionado && pesoNecessario > filamentoSelecionado.estoque_gramas;
+                return (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Filamento utilizado
+                  </label>
+                  <select
+                    value={filamentoId}
+                    onChange={(e) => setFilamentoId(e.target.value)}
+                    className={`w-full px-3 py-2 border rounded-lg bg-white
+                      focus:outline-none focus:ring-2 focus:ring-green-500 ${
+                      estoqueInsuficiente ? 'border-red-500 ring-1 ring-red-500' : 'border-gray-300'
+                    }`}
+                  >
+                    <option value="">Selecione um filamento</option>
+                    {filamentos.map((fil) => {
+                      const semEstoque = fil.estoque_gramas <= 0;
+                      const insuficiente = pesoNecessario > fil.estoque_gramas;
+                      return (
+                        <option
+                          key={fil.id}
+                          value={fil.id}
+                          disabled={semEstoque}
+                          className={insuficiente ? 'text-red-600' : ''}
+                        >
+                          {fil.marca} {fil.nome_filamento} - {fil.cor} ({(fil.estoque_gramas / 1000).toFixed(2)}kg em estoque)
+                          {semEstoque ? ' - SEM ESTOQUE' : insuficiente ? ' - INSUFICIENTE' : ''}
+                        </option>
+                      );
+                    })}
+                  </select>
+                  {estoqueInsuficiente && (
+                    <p className="text-xs text-red-600 mt-1 flex items-center gap-1">
+                      <AlertTriangle className="w-3 h-3" />
+                      Estoque insuficiente! Necessário: {pesoNecessario.toFixed(0)}g, disponível: {filamentoSelecionado.estoque_gramas.toFixed(0)}g
+                    </p>
+                  )}
+                </div>
+                );
+              })()}
 
               {/* Embalagens (opcional) */}
               {embalagensDisponiveis.length > 0 && (
@@ -2959,11 +3300,17 @@ export function FilaProducao() {
                   <div className="space-y-2 max-h-32 overflow-y-auto border border-gray-200 rounded-lg p-2">
                     {embalagensDisponiveis.map((emb) => {
                       const selecionada = embalagensSelecionadas.find(e => e.id === emb.id);
+                      const estoqueDisponivel = emb.quantidade || 0;
+                      const qtdSelecionada = selecionada?.quantidade || 0;
+                      const semEstoque = estoqueDisponivel <= 0;
+                      const atingiuLimite = (qtdSelecionada + 1) * qtdProduzida > estoqueDisponivel;
                       return (
-                        <div key={emb.id} className="flex items-center justify-between gap-2 py-1">
-                          <span className="text-sm text-gray-700 flex-1">
+                        <div key={emb.id} className={`flex items-center justify-between gap-2 py-1 ${semEstoque ? 'opacity-50' : ''}`}>
+                          <span className={`text-sm flex-1 ${semEstoque ? 'text-gray-400' : 'text-gray-700'}`}>
                             {emb.nome_embalagem} {emb.tamanho && `(${emb.tamanho})`}
-                            <span className="text-gray-400 ml-1">- {emb.quantidade} disp.</span>
+                            <span className={semEstoque ? 'text-red-400 ml-1 font-medium' : 'text-gray-400 ml-1'}>
+                              {semEstoque ? '- Sem estoque' : `- ${estoqueDisponivel} disp.`}
+                            </span>
                           </span>
                           <div className="flex items-center gap-1">
                             <button
@@ -2976,12 +3323,13 @@ export function FilaProducao() {
                                   );
                                 }
                               }}
-                              className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
+                              disabled={!selecionada || selecionada.quantidade <= 0}
+                              className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded disabled:opacity-30 disabled:cursor-not-allowed"
                             >
                               <Minus className="w-3 h-3" />
                             </button>
                             <span className="w-6 text-center text-sm font-medium">
-                              {selecionada?.quantidade || 0}
+                              {qtdSelecionada}
                             </span>
                             <button
                               type="button"
@@ -2994,7 +3342,8 @@ export function FilaProducao() {
                                   setEmbalagensSelecionadas(prev => [...prev, {id: emb.id, quantidade: 1}]);
                                 }
                               }}
-                              className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded"
+                              disabled={semEstoque || atingiuLimite}
+                              className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded disabled:opacity-30 disabled:cursor-not-allowed"
                             >
                               <Plus className="w-3 h-3" />
                             </button>
@@ -3015,11 +3364,17 @@ export function FilaProducao() {
                   <div className="space-y-2 max-h-32 overflow-y-auto border border-gray-200 rounded-lg p-2">
                     {acessoriosDisponiveis.map((acess) => {
                       const selecionado = acessoriosSelecionados.find(a => a.id === acess.id);
+                      const estoqueDisponivel = acess.estoque_atual || 0;
+                      const qtdSelecionado = selecionado?.quantidade || 0;
+                      const semEstoque = estoqueDisponivel <= 0;
+                      const atingiuLimite = (qtdSelecionado + 1) * qtdProduzida > estoqueDisponivel;
                       return (
-                        <div key={acess.id} className="flex items-center justify-between gap-2 py-1">
-                          <span className="text-sm text-gray-700 flex-1">
+                        <div key={acess.id} className={`flex items-center justify-between gap-2 py-1 ${semEstoque ? 'opacity-50' : ''}`}>
+                          <span className={`text-sm flex-1 ${semEstoque ? 'text-gray-400' : 'text-gray-700'}`}>
                             {acess.nome}
-                            <span className="text-gray-400 ml-1">- {acess.estoque_atual} disp.</span>
+                            <span className={semEstoque ? 'text-red-400 ml-1 font-medium' : 'text-gray-400 ml-1'}>
+                              {semEstoque ? '- Sem estoque' : `- ${estoqueDisponivel} disp.`}
+                            </span>
                           </span>
                           <div className="flex items-center gap-1">
                             <button
@@ -3032,12 +3387,13 @@ export function FilaProducao() {
                                   );
                                 }
                               }}
-                              className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
+                              disabled={!selecionado || selecionado.quantidade <= 0}
+                              className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded disabled:opacity-30 disabled:cursor-not-allowed"
                             >
                               <Minus className="w-3 h-3" />
                             </button>
                             <span className="w-6 text-center text-sm font-medium">
-                              {selecionado?.quantidade || 0}
+                              {qtdSelecionado}
                             </span>
                             <button
                               type="button"
@@ -3050,7 +3406,8 @@ export function FilaProducao() {
                                   setAcessoriosSelecionados(prev => [...prev, {id: acess.id, quantidade: 1}]);
                                 }
                               }}
-                              className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded"
+                              disabled={semEstoque || atingiuLimite}
+                              className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded disabled:opacity-30 disabled:cursor-not-allowed"
                             >
                               <Plus className="w-3 h-3" />
                             </button>
@@ -3106,28 +3463,35 @@ export function FilaProducao() {
               </div>
             </div>
 
-            <div className="flex justify-end gap-3 p-4 border-t sticky bottom-0 bg-white">
-              <button
-                onClick={() => setShowProduzidoModal(false)}
-                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleMarcarProduzido}
-                disabled={qtdProduzida < 1 || produzindo || !impressoraId || !filamentoId}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700
-                  transition-colors disabled:opacity-50 disabled:cursor-not-allowed
-                  flex items-center gap-2"
-              >
-                {produzindo ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Check className="w-4 h-4" />
-                )}
-                Confirmar Producao
-              </button>
-            </div>
+            {(() => {
+              const pesoNecessario = qtdProduzida * itemParaProduzir.peso_por_peca;
+              const filamentoSelecionado = filamentos.find(f => f.id === filamentoId);
+              const filamentoInsuficiente = filamentoSelecionado && pesoNecessario > filamentoSelecionado.estoque_gramas;
+              return (
+              <div className="flex justify-end gap-3 p-4 border-t sticky bottom-0 bg-white">
+                <button
+                  onClick={() => setShowProduzidoModal(false)}
+                  className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleMarcarProduzido}
+                  disabled={qtdProduzida < 1 || produzindo || !impressoraId || !filamentoId || filamentoInsuficiente}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700
+                    transition-colors disabled:opacity-50 disabled:cursor-not-allowed
+                    flex items-center gap-2"
+                >
+                  {produzindo ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Check className="w-4 h-4" />
+                  )}
+                  Confirmar Producao
+                </button>
+              </div>
+              );
+            })()}
           </div>
         </div>
       )}
@@ -3176,7 +3540,9 @@ export function FilaProducao() {
               </div>
 
               {/* Embalagens (opcional) */}
-              {embalagensDisponiveis.length > 0 && (
+              {embalagensDisponiveis.length > 0 && (() => {
+                const qtdConcluir = itemParaConcluir.pedidos.reduce((acc, p) => acc + (p.quantidade - (p.quantidade_produzida || 0)), 0);
+                return (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Embalagens (opcional)
@@ -3184,11 +3550,17 @@ export function FilaProducao() {
                   <div className="space-y-2 max-h-32 overflow-y-auto border border-gray-200 rounded-lg p-2">
                     {embalagensDisponiveis.map((emb) => {
                       const selecionada = embalagensSelecionadas.find(e => e.id === emb.id);
+                      const estoqueDisponivel = emb.quantidade || 0;
+                      const qtdSelecionada = selecionada?.quantidade || 0;
+                      const semEstoque = estoqueDisponivel <= 0;
+                      const atingiuLimite = (qtdSelecionada + 1) * qtdConcluir > estoqueDisponivel;
                       return (
-                        <div key={emb.id} className="flex items-center justify-between gap-2 py-1">
-                          <span className="text-sm text-gray-700 flex-1">
+                        <div key={emb.id} className={`flex items-center justify-between gap-2 py-1 ${semEstoque ? 'opacity-50' : ''}`}>
+                          <span className={`text-sm flex-1 ${semEstoque ? 'text-gray-400' : 'text-gray-700'}`}>
                             {emb.nome_embalagem} {emb.tamanho && `(${emb.tamanho})`}
-                            <span className="text-gray-400 ml-1">- {emb.quantidade} disp.</span>
+                            <span className={semEstoque ? 'text-red-400 ml-1 font-medium' : 'text-gray-400 ml-1'}>
+                              {semEstoque ? '- Sem estoque' : `- ${estoqueDisponivel} disp.`}
+                            </span>
                           </span>
                           <div className="flex items-center gap-1">
                             <button
@@ -3201,12 +3573,13 @@ export function FilaProducao() {
                                   );
                                 }
                               }}
-                              className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
+                              disabled={!selecionada || selecionada.quantidade <= 0}
+                              className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded disabled:opacity-30 disabled:cursor-not-allowed"
                             >
                               <Minus className="w-3 h-3" />
                             </button>
                             <span className="w-6 text-center text-sm font-medium">
-                              {selecionada?.quantidade || 0}
+                              {qtdSelecionada}
                             </span>
                             <button
                               type="button"
@@ -3219,7 +3592,8 @@ export function FilaProducao() {
                                   setEmbalagensSelecionadas(prev => [...prev, {id: emb.id, quantidade: 1}]);
                                 }
                               }}
-                              className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded"
+                              disabled={semEstoque || atingiuLimite}
+                              className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded disabled:opacity-30 disabled:cursor-not-allowed"
                             >
                               <Plus className="w-3 h-3" />
                             </button>
@@ -3229,10 +3603,13 @@ export function FilaProducao() {
                     })}
                   </div>
                 </div>
-              )}
+                );
+              })()}
 
               {/* Acessórios (opcional) */}
-              {acessoriosDisponiveis.length > 0 && (
+              {acessoriosDisponiveis.length > 0 && (() => {
+                const qtdConcluir = itemParaConcluir.pedidos.reduce((acc, p) => acc + (p.quantidade - (p.quantidade_produzida || 0)), 0);
+                return (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Acessorios (opcional)
@@ -3240,11 +3617,17 @@ export function FilaProducao() {
                   <div className="space-y-2 max-h-32 overflow-y-auto border border-gray-200 rounded-lg p-2">
                     {acessoriosDisponiveis.map((acess) => {
                       const selecionado = acessoriosSelecionados.find(a => a.id === acess.id);
+                      const estoqueDisponivel = acess.estoque_atual || 0;
+                      const qtdSelecionado = selecionado?.quantidade || 0;
+                      const semEstoque = estoqueDisponivel <= 0;
+                      const atingiuLimite = (qtdSelecionado + 1) * qtdConcluir > estoqueDisponivel;
                       return (
-                        <div key={acess.id} className="flex items-center justify-between gap-2 py-1">
-                          <span className="text-sm text-gray-700 flex-1">
+                        <div key={acess.id} className={`flex items-center justify-between gap-2 py-1 ${semEstoque ? 'opacity-50' : ''}`}>
+                          <span className={`text-sm flex-1 ${semEstoque ? 'text-gray-400' : 'text-gray-700'}`}>
                             {acess.nome}
-                            <span className="text-gray-400 ml-1">- {acess.estoque_atual} disp.</span>
+                            <span className={semEstoque ? 'text-red-400 ml-1 font-medium' : 'text-gray-400 ml-1'}>
+                              {semEstoque ? '- Sem estoque' : `- ${estoqueDisponivel} disp.`}
+                            </span>
                           </span>
                           <div className="flex items-center gap-1">
                             <button
@@ -3257,12 +3640,13 @@ export function FilaProducao() {
                                   );
                                 }
                               }}
-                              className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
+                              disabled={!selecionado || selecionado.quantidade <= 0}
+                              className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded disabled:opacity-30 disabled:cursor-not-allowed"
                             >
                               <Minus className="w-3 h-3" />
                             </button>
                             <span className="w-6 text-center text-sm font-medium">
-                              {selecionado?.quantidade || 0}
+                              {qtdSelecionado}
                             </span>
                             <button
                               type="button"
@@ -3275,7 +3659,8 @@ export function FilaProducao() {
                                   setAcessoriosSelecionados(prev => [...prev, {id: acess.id, quantidade: 1}]);
                                 }
                               }}
-                              className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded"
+                              disabled={semEstoque || atingiuLimite}
+                              className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded disabled:opacity-30 disabled:cursor-not-allowed"
                             >
                               <Plus className="w-3 h-3" />
                             </button>
@@ -3285,7 +3670,8 @@ export function FilaProducao() {
                     })}
                   </div>
                 </div>
-              )}
+                );
+              })()}
 
               {/* Info */}
               <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
