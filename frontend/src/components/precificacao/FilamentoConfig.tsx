@@ -12,6 +12,9 @@ interface FilamentoConfigProps {
   filamentoId?: string;
   onFilamentoChange: (id: string | undefined, preco: number | undefined) => void;
   produtoSelecionado: ProdutoSelecionado | null;
+  // Modo Kit
+  modoKit?: boolean;
+  kitTotais?: { peso: number; tempo: number };
 }
 
 export function FilamentoConfig({
@@ -22,6 +25,8 @@ export function FilamentoConfig({
   filamentoId,
   onFilamentoChange,
   produtoSelecionado,
+  modoKit,
+  kitTotais,
 }: FilamentoConfigProps) {
   const [filamentos, setFilamentos] = useState<Filamento[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,8 +46,13 @@ export function FilamentoConfig({
     loadFilamentos();
   }, []);
 
-  // Obter peso do produto selecionado (variacao tem prioridade)
+  // Obter peso do produto selecionado ou do kit (variacao tem prioridade)
   const getPesoFromProduto = (): number | null => {
+    // Modo Kit: usar peso total do kit
+    if (modoKit && kitTotais && kitTotais.peso > 0) {
+      return kitTotais.peso;
+    }
+
     if (!produtoSelecionado) return null;
 
     const peso = produtoSelecionado.variacao?.peso_filamento
@@ -194,12 +204,12 @@ export function FilamentoConfig({
                 <div className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-100 rounded-full">
                   <Package className="w-3.5 h-3.5 text-purple-600" />
                   <span className="text-xs font-medium text-purple-700">
-                    Peso carregado do produto
+                    {modoKit ? 'Peso total do kit' : 'Peso carregado do produto'}
                   </span>
                 </div>
               </div>
 
-              {produtoSelecionado?.variacao && (
+              {!modoKit && produtoSelecionado?.variacao && (
                 <p className="text-xs text-purple-600 mt-2">
                   Variacao: {produtoSelecionado.variacao.nome_variacao}
                 </p>

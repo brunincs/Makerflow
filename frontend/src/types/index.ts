@@ -289,12 +289,23 @@ export interface MarketplaceState {
   modo_precificacao: ModoPrecificacao;
   preco_venda?: number;
   margem_desejada?: number;
+  // Modo Kit
+  modo_kit?: boolean;
+  kit_itens?: KitItem[];
 }
 
 // Produto selecionado na calculadora
 export interface ProdutoSelecionado {
   produto: ProdutoConcorrente;
   variacao?: VariacaoProduto;
+}
+
+// Item de um Kit na calculadora
+export interface KitItem {
+  id: string; // ID único do item no kit
+  produto: ProdutoConcorrente;
+  variacao?: VariacaoProduto;
+  quantidade: number;
 }
 
 // Estado da Precificacao

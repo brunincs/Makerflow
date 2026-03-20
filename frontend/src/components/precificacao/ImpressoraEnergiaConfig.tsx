@@ -16,6 +16,9 @@ interface ImpressoraEnergiaConfigProps {
   consumoKwh?: number;
   valorKwh?: number;
   onValorKwhChange: (value: number) => void;
+  // Modo Kit
+  modoKit?: boolean;
+  kitTotais?: { peso: number; tempo: number };
 }
 
 // Converte tempo decimal (ex: 1.4166) para horas e minutos
@@ -44,6 +47,8 @@ export function ImpressoraEnergiaConfig({
   consumoKwh,
   valorKwh,
   onValorKwhChange,
+  modoKit,
+  kitTotais,
 }: ImpressoraEnergiaConfigProps) {
   const { profile } = useAuth();
   const [impressoras, setImpressoras] = useState<Impressora[]>([]);
@@ -80,8 +85,13 @@ export function ImpressoraEnergiaConfig({
     }
   };
 
-  // Obter tempo do produto selecionado (variacao tem prioridade)
+  // Obter tempo do produto selecionado ou do kit (variacao tem prioridade)
   const getTempoFromProduto = (): { horas: number; minutos: number } | null => {
+    // Modo Kit: usar tempo total do kit
+    if (modoKit && kitTotais && kitTotais.tempo > 0) {
+      return tempoDecimalParaHorasMinutos(kitTotais.tempo);
+    }
+
     if (!produtoSelecionado) return null;
 
     const tempoDecimal = produtoSelecionado.variacao?.tempo_impressao
@@ -169,12 +179,12 @@ export function ImpressoraEnergiaConfig({
                 <div className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-100 rounded-full">
                   <Package className="w-3.5 h-3.5 text-blue-600" />
                   <span className="text-xs font-medium text-blue-700">
-                    Tempo carregado do produto
+                    {modoKit ? 'Tempo total do kit' : 'Tempo carregado do produto'}
                   </span>
                 </div>
               </div>
 
-              {produtoSelecionado?.variacao && (
+              {!modoKit && produtoSelecionado?.variacao && (
                 <p className="text-xs text-blue-600 mt-2">
                   Variacao: {produtoSelecionado.variacao.nome_variacao}
                 </p>

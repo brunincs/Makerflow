@@ -339,9 +339,19 @@ export function FilaProducao() {
   const [dataEntrega, setDataEntrega] = useState<string>('');
   const [saving, setSaving] = useState(false);
 
-  // Modo Kit
+  // Modo Kit - permite múltiplos produtos diferentes
   const [modoKit, setModoKit] = useState(false);
-  const [quantidadesKit, setQuantidadesKit] = useState<Record<string, number>>({});
+  const [itensKit, setItensKit] = useState<{
+    id: string;
+    produto_id: string;
+    variacao_id?: string;
+    produto_nome: string;
+    variacao_nome?: string;
+    quantidade: number;
+    imagem_url?: string;
+    peso?: number;
+    tempo?: number;
+  }[]>([]);
 
   // Modal de marcar produzido
   const [showProduzidoModal, setShowProduzidoModal] = useState(false);
@@ -1332,56 +1342,37 @@ export function FilaProducao() {
     return produto?.variacoes || [];
   }, [produtoSelecionado, produtos]);
 
-  // Cálculos do Kit
+  // Cálculos do Kit (suporta múltiplos produtos diferentes)
   const kitInfo = useMemo(() => {
-    if (!modoKit || !produtoSelecionado) {
-      return { itens: [], pesoTotal: 0, tempoTotal: 0, quantidadeTotal: 0 };
+    if (!modoKit || itensKit.length === 0) {
+      return { pesoTotal: 0, tempoTotal: 0, quantidadeTotal: 0 };
     }
 
-    const produto = produtos.find(p => p.id === produtoSelecionado);
-    const itens: { variacao: typeof variacoesProduto[0]; quantidade: number; estoqueDisponivel: number }[] = [];
     let pesoTotal = 0;
     let tempoTotal = 0;
     let quantidadeTotal = 0;
 
-    for (const variacao of variacoesProduto) {
-      const qtd = quantidadesKit[variacao.id!] || 0;
-      if (qtd > 0) {
-        // Buscar estoque da variação
-        const estoqueItem = estoque.find(e =>
-          e.produto_id === produtoSelecionado &&
-          e.variacao_id === variacao.id
-        );
-
-        itens.push({
-          variacao,
-          quantidade: qtd,
-          estoqueDisponivel: estoqueItem?.quantidade || 0
-        });
-
-        const peso = variacao.peso_filamento || produto?.peso_filamento || 0;
-        const tempo = variacao.tempo_impressao || produto?.tempo_impressao || 0;
-        pesoTotal += peso * qtd;
-        tempoTotal += tempo * qtd;
-        quantidadeTotal += qtd;
-      }
+    for (const item of itensKit) {
+      pesoTotal += (item.peso || 0) * item.quantidade;
+      tempoTotal += (item.tempo || 0) * item.quantidade;
+      quantidadeTotal += item.quantidade;
     }
 
-    return { itens, pesoTotal, tempoTotal, quantidadeTotal };
-  }, [modoKit, produtoSelecionado, variacoesProduto, quantidadesKit, produtos, estoque]);
+    return { pesoTotal, tempoTotal, quantidadeTotal };
+  }, [modoKit, itensKit]);
 
   const handleAddPedido = async () => {
-    // Modo Kit: criar pedidos separados para cada variação
+    // Modo Kit: criar pedidos separados para cada item
     if (modoKit) {
-      if (!produtoSelecionado || kitInfo.itens.length === 0) return;
+      if (itensKit.length === 0) return;
 
       setSaving(true);
 
       let sucesso = true;
-      for (const item of kitInfo.itens) {
+      for (const item of itensKit) {
         const resultado = await createPedido({
-          produto_id: produtoSelecionado,
-          variacao_id: item.variacao.id || null,
+          produto_id: item.produto_id,
+          variacao_id: item.variacao_id || null,
           quantidade: item.quantidade,
           quantidade_produzida: 0,
           status: 'pendente',
@@ -1399,7 +1390,7 @@ export function FilaProducao() {
         await loadData();
         setShowModal(false);
         setProdutoSelecionado('');
-        setQuantidadesKit({});
+        setItensKit([]);
         setModoKit(false);
         setPrioridade('normal');
         setDataEntrega('');
@@ -2820,7 +2811,9 @@ export function FilaProducao() {
                 onClick={() => {
                   setShowModal(false);
                   setModoKit(false);
-                  setQuantidadesKit({});
+                  setItensKit([]);
+                  setProdutoSelecionado('');
+                  setVariacaoSelecionada('');
                 }}
                 className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
               >
@@ -2835,7 +2828,7 @@ export function FilaProducao() {
                   type="button"
                   onClick={() => {
                     setModoKit(false);
-                    setQuantidadesKit({});
+                    setItensKit([]);
                   }}
                   className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                     !modoKit
@@ -2864,150 +2857,186 @@ export function FilaProducao() {
                 </button>
               </div>
 
-              {/* Produto */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Produto
-                </label>
-                <select
-                  value={produtoSelecionado}
-                  onChange={(e) => {
-                    setProdutoSelecionado(e.target.value);
-                    setVariacaoSelecionada('');
-                    setQuantidadesKit({});
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white
-                    focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="">Selecione um produto...</option>
-                  {produtos.map((produto) => (
-                    <option key={produto.id} value={produto.id}>
-                      {produto.nome}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Modo Kit: Lista de variações com quantidade */}
-              {modoKit && produtoSelecionado && (
-                <>
-                  {variacoesProduto.length > 0 ? (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Variacoes do Kit
-                      </label>
-                      <div className="space-y-2 max-h-48 overflow-y-auto">
-                        {variacoesProduto.map((variacao) => {
-                          const qtd = quantidadesKit[variacao.id!] || 0;
-                          const estoqueItem = estoque.find(e =>
-                            e.produto_id === produtoSelecionado &&
-                            e.variacao_id === variacao.id
-                          );
-                          const estoqueDisp = estoqueItem?.quantidade || 0;
-
-                          return (
-                            <div
-                              key={variacao.id}
-                              className={`flex items-center justify-between p-3 rounded-lg border ${
-                                qtd > 0
-                                  ? 'border-indigo-300 bg-indigo-50 dark:border-indigo-500 dark:bg-indigo-900/20'
-                                  : 'border-gray-200 dark:border-gray-600'
-                              }`}
-                            >
-                              <div className="flex-1">
-                                <p className="font-medium text-gray-900 dark:text-white">
-                                  {variacao.nome_variacao}
-                                </p>
-                                <p className="text-xs text-gray-500 dark:text-gray-400">
-                                  Estoque: {estoqueDisp} un
-                                  {variacao.peso_filamento && ` | ${variacao.peso_filamento}g`}
-                                  {variacao.tempo_impressao && ` | ${variacao.tempo_impressao}min`}
-                                </p>
-                              </div>
-                              <div className="flex items-center gap-1">
-                                <button
-                                  type="button"
-                                  onClick={() => setQuantidadesKit(prev => ({
-                                    ...prev,
-                                    [variacao.id!]: Math.max(0, (prev[variacao.id!] || 0) - 1)
-                                  }))}
-                                  className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600
-                                    hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-600 dark:text-gray-300"
-                                >
-                                  <Minus className="w-3 h-3" />
-                                </button>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  value={qtd}
-                                  onChange={(e) => setQuantidadesKit(prev => ({
-                                    ...prev,
-                                    [variacao.id!]: Math.max(0, parseInt(e.target.value) || 0)
-                                  }))}
-                                  className="w-12 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg text-center text-sm font-semibold
-                                    bg-white dark:bg-gray-700 text-gray-900 dark:text-white
-                                    focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => setQuantidadesKit(prev => ({
-                                    ...prev,
-                                    [variacao.id!]: (prev[variacao.id!] || 0) + 1
-                                  }))}
-                                  className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600
-                                    hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-600 dark:text-gray-300"
-                                >
-                                  <Plus className="w-3 h-3" />
-                                </button>
-                              </div>
+              {/* Modo Kit: Adicionar múltiplos produtos */}
+              {modoKit && (
+                <div className="space-y-3">
+                  {/* Lista de itens do kit */}
+                  {itensKit.length > 0 && (
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      {itensKit.map((item) => (
+                        <div
+                          key={item.id}
+                          className="flex items-center gap-2 p-2 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-700 rounded-lg"
+                        >
+                          {item.imagem_url ? (
+                            <img src={item.imagem_url} alt={item.produto_nome} className="w-10 h-10 rounded-lg object-cover" />
+                          ) : (
+                            <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                              <ImageOff className="w-4 h-4 text-gray-400" />
                             </div>
-                          );
-                        })}
-                      </div>
-
-                      {/* Resumo do Kit */}
-                      {kitInfo.itens.length > 0 && (
-                        <div className="mt-3 p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-200 dark:border-indigo-700">
-                          <p className="text-sm font-medium text-indigo-900 dark:text-indigo-300 mb-2">
-                            Kit {produtos.find(p => p.id === produtoSelecionado)?.nome}:
-                          </p>
-                          <ul className="text-sm text-indigo-700 dark:text-indigo-400 space-y-1 mb-2">
-                            {kitInfo.itens.map(item => (
-                              <li key={item.variacao.id} className="flex items-center justify-between">
-                                <span>{item.variacao.nome_variacao} x{item.quantidade}</span>
-                                {item.estoqueDisponivel < item.quantidade && (
-                                  <span className="text-xs text-orange-600 dark:text-orange-400">
-                                    Estoque: {item.estoqueDisponivel}
-                                  </span>
-                                )}
-                              </li>
-                            ))}
-                          </ul>
-                          <div className="flex items-center justify-between text-xs text-indigo-600 dark:text-indigo-400 pt-2 border-t border-indigo-200 dark:border-indigo-600">
-                            <span className="flex items-center gap-1">
-                              <Cylinder className="w-3 h-3" />
-                              {kitInfo.pesoTotal.toFixed(0)}g
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Clock className="w-3 h-3" />
-                              {Math.floor(kitInfo.tempoTotal / 60)}h {kitInfo.tempoTotal % 60}min
-                            </span>
-                            <span className="font-medium">
-                              {kitInfo.quantidadeTotal} pecas
-                            </span>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                              {item.produto_nome}
+                            </p>
+                            {item.variacao_nome && (
+                              <p className="text-xs text-indigo-600 dark:text-indigo-400">{item.variacao_nome}</p>
+                            )}
                           </div>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => setItensKit(prev => prev.map(i =>
+                                i.id === item.id ? { ...i, quantidade: Math.max(1, i.quantidade - 1) } : i
+                              ))}
+                              className="w-6 h-6 flex items-center justify-center rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700"
+                            >
+                              <Minus className="w-3 h-3" />
+                            </button>
+                            <span className="w-8 text-center text-sm font-semibold">{item.quantidade}</span>
+                            <button
+                              type="button"
+                              onClick={() => setItensKit(prev => prev.map(i =>
+                                i.id === item.id ? { ...i, quantidade: i.quantidade + 1 } : i
+                              ))}
+                              className="w-6 h-6 flex items-center justify-center rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700"
+                            >
+                              <Plus className="w-3 h-3" />
+                            </button>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setItensKit(prev => prev.filter(i => i.id !== item.id))}
+                            className="p-1 text-gray-400 hover:text-red-600"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-700">
-                      <p className="text-sm text-amber-800 dark:text-amber-300 flex items-center gap-2">
-                        <AlertTriangle className="w-4 h-4" />
-                        Este produto nao possui variacoes cadastradas.
-                      </p>
+                      ))}
                     </div>
                   )}
-                </>
+
+                  {/* Adicionar produto ao kit */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Adicionar produto ao kit
+                    </label>
+                    <select
+                      value={produtoSelecionado}
+                      onChange={(e) => {
+                        setProdutoSelecionado(e.target.value);
+                        setVariacaoSelecionada('');
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white
+                        focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                      <option value="">Selecione um produto...</option>
+                      {produtos.map((produto) => (
+                        <option key={produto.id} value={produto.id}>
+                          {produto.nome}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Variação do produto selecionado */}
+                  {produtoSelecionado && variacoesProduto.length > 0 && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Variacao
+                      </label>
+                      <select
+                        value={variacaoSelecionada}
+                        onChange={(e) => setVariacaoSelecionada(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white
+                          focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      >
+                        <option value="">Sem variacao</option>
+                        {variacoesProduto.map((variacao) => (
+                          <option key={variacao.id} value={variacao.id}>
+                            {variacao.nome_variacao}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Botão adicionar ao kit */}
+                  {produtoSelecionado && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const produto = produtos.find(p => p.id === produtoSelecionado);
+                        const variacao = variacoesProduto.find(v => v.id === variacaoSelecionada);
+                        if (produto) {
+                          setItensKit(prev => [...prev, {
+                            id: `${produto.id}-${variacao?.id || 'base'}-${Date.now()}`,
+                            produto_id: produto.id!,
+                            variacao_id: variacao?.id,
+                            produto_nome: produto.nome,
+                            variacao_nome: variacao?.nome_variacao,
+                            quantidade: 1,
+                            imagem_url: produto.imagem_url,
+                            peso: variacao?.peso_filamento || produto.peso_filamento,
+                            tempo: variacao?.tempo_impressao || produto.tempo_impressao,
+                          }]);
+                          setProdutoSelecionado('');
+                          setVariacaoSelecionada('');
+                        }
+                      }}
+                      className="w-full px-3 py-2 border-2 border-dashed border-indigo-300 dark:border-indigo-600 rounded-lg
+                        text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors
+                        flex items-center justify-center gap-2"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Adicionar ao kit
+                    </button>
+                  )}
+
+                  {/* Resumo do Kit */}
+                  {itensKit.length > 0 && (
+                    <div className="p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-200 dark:border-indigo-700">
+                      <div className="flex items-center justify-between text-xs text-indigo-600 dark:text-indigo-400">
+                        <span className="flex items-center gap-1">
+                          <Cylinder className="w-3 h-3" />
+                          {kitInfo.pesoTotal.toFixed(0)}g
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          {Math.floor(kitInfo.tempoTotal / 60)}h {Math.round(kitInfo.tempoTotal % 60)}min
+                        </span>
+                        <span className="font-medium">
+                          {kitInfo.quantidadeTotal} {kitInfo.quantidadeTotal === 1 ? 'peca' : 'pecas'}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Produto (modo normal) */}
+              {!modoKit && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Produto
+                  </label>
+                  <select
+                    value={produtoSelecionado}
+                    onChange={(e) => {
+                      setProdutoSelecionado(e.target.value);
+                      setVariacaoSelecionada('');
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white
+                      focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="">Selecione um produto...</option>
+                    {produtos.map((produto) => (
+                      <option key={produto.id} value={produto.id}>
+                        {produto.nome}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               )}
 
               {/* Variação (modo normal) */}
@@ -3145,7 +3174,9 @@ export function FilaProducao() {
                 onClick={() => {
                   setShowModal(false);
                   setModoKit(false);
-                  setQuantidadesKit({});
+                  setItensKit([]);
+                  setProdutoSelecionado('');
+                  setVariacaoSelecionada('');
                 }}
                 className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
               >
@@ -3154,8 +3185,7 @@ export function FilaProducao() {
               <button
                 onClick={handleAddPedido}
                 disabled={
-                  !produtoSelecionado ||
-                  (modoKit ? kitInfo.itens.length === 0 : quantidade < 1) ||
+                  (modoKit ? itensKit.length === 0 : (!produtoSelecionado || quantidade < 1)) ||
                   saving
                 }
                 className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700

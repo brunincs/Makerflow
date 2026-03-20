@@ -1,4 +1,4 @@
-import { MarketplaceState, MarketplaceType, ProdutoSelecionado, CustosProducaoConfig } from '../../types';
+import { MarketplaceState, MarketplaceType, ProdutoSelecionado, CustosProducaoConfig, KitItem } from '../../types';
 import { ShopeeConfigComponent } from './ShopeeConfig';
 import { MercadoLivreConfigComponent } from './MercadoLivreConfig';
 import { VendaDiretaConfigComponent } from './VendaDiretaConfig';
@@ -7,8 +7,9 @@ import { FilamentoConfig } from './FilamentoConfig';
 import { DemaisCustosConfig } from './DemaisCustosConfig';
 import { PrecoMargemConfig } from './PrecoMargemConfig';
 import { ResultadoCard } from './ResultadoCard';
+import { KitSelector } from './KitSelector';
 import { ShopeeIcon, MercadoLivreIcon } from '../ui/MarketplaceIcons';
-import { Store } from 'lucide-react';
+import { Store, Package, Layers } from 'lucide-react';
 
 interface MarketplaceSelectorProps {
   value: MarketplaceState;
@@ -98,6 +99,29 @@ export function MarketplaceSelector({ value, onChange, canSave = true, onSaveSuc
     onChange({ ...value, preco_venda: preco });
   };
 
+  // Handler para modo kit
+  const handleModoKitChange = (modoKit: boolean) => {
+    onChange({
+      ...value,
+      modo_kit: modoKit,
+      // Limpar produto selecionado ao trocar de modo
+      produto_selecionado: modoKit ? undefined : value.produto_selecionado,
+      kit_itens: modoKit ? (value.kit_itens || []) : undefined,
+    });
+  };
+
+  // Handler para itens do kit
+  const handleKitItensChange = (itens: KitItem[]) => {
+    onChange({ ...value, kit_itens: itens });
+  };
+
+  // Calcular totais do kit para uso nos componentes de custos
+  const kitTotais = value.kit_itens?.reduce((acc, item) => {
+    const peso = (item.variacao?.peso_filamento || item.produto.peso_filamento || 0) * item.quantidade;
+    const tempo = (item.variacao?.tempo_impressao || item.produto.tempo_impressao || 0) * item.quantidade;
+    return { peso: acc.peso + peso, tempo: acc.tempo + tempo };
+  }, { peso: 0, tempo: 0 }) || { peso: 0, tempo: 0 };
+
   const getColorClasses = (color: string, isSelected: boolean) => {
     const colors: Record<string, { selected: string; unselected: string; iconBg: string; iconColor: string }> = {
       yellow: {
@@ -160,33 +184,75 @@ export function MarketplaceSelector({ value, onChange, canSave = true, onSaveSuc
         </div>
       </div>
 
-      {/* Configuracao do Marketplace Selecionado */}
+      {/* Selecao Produto/Kit */}
       <div className="border-t border-gray-200 pt-6">
-        {value.tipo === 'shopee' && (
-          <ShopeeConfigComponent
-            value={value.shopee}
-            onChange={(shopee) => onChange({ ...value, shopee })}
-            produtoSelecionado={value.produto_selecionado || null}
-            onProdutoChange={handleProdutoChange}
-          />
+        <div className="flex gap-2 p-1 bg-gray-100 dark:bg-gray-700 rounded-lg mb-6">
+          <button
+            type="button"
+            onClick={() => handleModoKitChange(false)}
+            className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-md text-sm font-medium transition-colors ${
+              !value.modo_kit
+                ? 'bg-white dark:bg-gray-600 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
+            }`}
+          >
+            <Package className="w-4 h-4" />
+            Produto Unico
+          </button>
+          <button
+            type="button"
+            onClick={() => handleModoKitChange(true)}
+            className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-md text-sm font-medium transition-colors ${
+              value.modo_kit
+                ? 'bg-white dark:bg-gray-600 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
+            }`}
+          >
+            <Layers className="w-4 h-4" />
+            Kit
+          </button>
+        </div>
+
+        {/* Modo Kit: Seletor de multiplos produtos */}
+        {value.modo_kit && (
+          <div className="mb-6">
+            <KitSelector
+              itens={value.kit_itens || []}
+              onChange={handleKitItensChange}
+            />
+          </div>
         )}
 
-        {value.tipo === 'mercadolivre' && (
-          <MercadoLivreConfigComponent
-            value={value.mercadolivre}
-            onChange={(mercadolivre) => onChange({ ...value, mercadolivre })}
-            produtoSelecionado={value.produto_selecionado || null}
-            onProdutoChange={handleProdutoChange}
-          />
-        )}
+        {/* Modo Produto Unico: Configuracao do Marketplace */}
+        {!value.modo_kit && (
+          <>
+            {value.tipo === 'shopee' && (
+              <ShopeeConfigComponent
+                value={value.shopee}
+                onChange={(shopee) => onChange({ ...value, shopee })}
+                produtoSelecionado={value.produto_selecionado || null}
+                onProdutoChange={handleProdutoChange}
+              />
+            )}
 
-        {value.tipo === 'venda_direta' && (
-          <VendaDiretaConfigComponent
-            value={value.venda_direta}
-            onChange={(venda_direta) => onChange({ ...value, venda_direta })}
-            produtoSelecionado={value.produto_selecionado || null}
-            onProdutoChange={handleProdutoChange}
-          />
+            {value.tipo === 'mercadolivre' && (
+              <MercadoLivreConfigComponent
+                value={value.mercadolivre}
+                onChange={(mercadolivre) => onChange({ ...value, mercadolivre })}
+                produtoSelecionado={value.produto_selecionado || null}
+                onProdutoChange={handleProdutoChange}
+              />
+            )}
+
+            {value.tipo === 'venda_direta' && (
+              <VendaDiretaConfigComponent
+                value={value.venda_direta}
+                onChange={(venda_direta) => onChange({ ...value, venda_direta })}
+                produtoSelecionado={value.produto_selecionado || null}
+                onProdutoChange={handleProdutoChange}
+              />
+            )}
+          </>
         )}
       </div>
 
@@ -214,6 +280,8 @@ export function MarketplaceSelector({ value, onChange, canSave = true, onSaveSuc
           consumoKwh={custos.consumo_kwh}
           valorKwh={custos.valor_kwh}
           onValorKwhChange={(v: number) => handleCustosProducaoChange('valor_kwh', v >= 0 ? v : 0)}
+          modoKit={value.modo_kit}
+          kitTotais={kitTotais}
         />
 
         {/* Filamento */}
@@ -225,6 +293,8 @@ export function MarketplaceSelector({ value, onChange, canSave = true, onSaveSuc
           filamentoId={custos.filamento_id}
           onFilamentoChange={handleFilamentoChange}
           produtoSelecionado={value.produto_selecionado || null}
+          modoKit={value.modo_kit}
+          kitTotais={kitTotais}
         />
 
         {/* Demais Custos */}
