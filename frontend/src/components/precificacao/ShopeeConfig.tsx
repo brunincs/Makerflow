@@ -9,6 +9,7 @@ interface ShopeeConfigProps {
   onChange: (config: ShopeeConfigType) => void;
   produtoSelecionado: ProdutoSelecionado | null;
   onProdutoChange: (produto: ProdutoSelecionado | null) => void;
+  modoKit?: boolean;
 }
 
 const FAIXAS_COMISSAO: ShopeeComissaoFaixa[] = [
@@ -19,7 +20,7 @@ const FAIXAS_COMISSAO: ShopeeComissaoFaixa[] = [
   { min: 500, max: null, percentual: 14, taxa_fixa: 26, label: 'R$500+' },
 ];
 
-export function ShopeeConfigComponent({ value, onChange, produtoSelecionado, onProdutoChange }: ShopeeConfigProps) {
+export function ShopeeConfigComponent({ value, onChange, produtoSelecionado, onProdutoChange, modoKit }: ShopeeConfigProps) {
   const handleVendedorChange = (tipo: ShopeeVendedorType) => {
     onChange({ ...value, tipo_vendedor: tipo });
   };
@@ -79,11 +80,13 @@ export function ShopeeConfigComponent({ value, onChange, produtoSelecionado, onP
         </div>
       </div>
 
-      {/* Selecionar Produto do Radar */}
-      <ProdutoSelector
-        value={produtoSelecionado}
-        onChange={onProdutoChange}
-      />
+      {/* Selecionar Produto do Radar (esconde em modo Kit) */}
+      {!modoKit && (
+        <ProdutoSelector
+          value={produtoSelecionado}
+          onChange={onProdutoChange}
+        />
+      )}
 
       {/* Opcoes Adicionais */}
       <div className="space-y-4">

@@ -223,36 +223,35 @@ export function MarketplaceSelector({ value, onChange, canSave = true, onSaveSuc
           </div>
         )}
 
-        {/* Modo Produto Unico: Configuracao do Marketplace */}
-        {!value.modo_kit && (
-          <>
-            {value.tipo === 'shopee' && (
-              <ShopeeConfigComponent
-                value={value.shopee}
-                onChange={(shopee) => onChange({ ...value, shopee })}
-                produtoSelecionado={value.produto_selecionado || null}
-                onProdutoChange={handleProdutoChange}
-              />
-            )}
+        {/* Configuracao do Marketplace (aparece sempre) */}
+        {value.tipo === 'shopee' && (
+          <ShopeeConfigComponent
+            value={value.shopee}
+            onChange={(shopee) => onChange({ ...value, shopee })}
+            produtoSelecionado={value.produto_selecionado || null}
+            onProdutoChange={handleProdutoChange}
+            modoKit={value.modo_kit}
+          />
+        )}
 
-            {value.tipo === 'mercadolivre' && (
-              <MercadoLivreConfigComponent
-                value={value.mercadolivre}
-                onChange={(mercadolivre) => onChange({ ...value, mercadolivre })}
-                produtoSelecionado={value.produto_selecionado || null}
-                onProdutoChange={handleProdutoChange}
-              />
-            )}
+        {value.tipo === 'mercadolivre' && (
+          <MercadoLivreConfigComponent
+            value={value.mercadolivre}
+            onChange={(mercadolivre) => onChange({ ...value, mercadolivre })}
+            produtoSelecionado={value.produto_selecionado || null}
+            onProdutoChange={handleProdutoChange}
+            modoKit={value.modo_kit}
+          />
+        )}
 
-            {value.tipo === 'venda_direta' && (
-              <VendaDiretaConfigComponent
-                value={value.venda_direta}
-                onChange={(venda_direta) => onChange({ ...value, venda_direta })}
-                produtoSelecionado={value.produto_selecionado || null}
-                onProdutoChange={handleProdutoChange}
-              />
-            )}
-          </>
+        {value.tipo === 'venda_direta' && (
+          <VendaDiretaConfigComponent
+            value={value.venda_direta}
+            onChange={(venda_direta) => onChange({ ...value, venda_direta })}
+            produtoSelecionado={value.produto_selecionado || null}
+            onProdutoChange={handleProdutoChange}
+            modoKit={value.modo_kit}
+          />
         )}
       </div>
 

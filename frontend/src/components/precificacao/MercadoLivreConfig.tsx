@@ -11,11 +11,12 @@ interface MercadoLivreConfigProps {
   onChange: (config: MercadoLivreConfigType) => void;
   produtoSelecionado: ProdutoSelecionado | null;
   onProdutoChange: (produto: ProdutoSelecionado | null) => void;
+  modoKit?: boolean;
 }
 
 const CATEGORIAS = CATEGORIAS_MERCADO_LIVRE;
 
-export function MercadoLivreConfigComponent({ value, onChange, produtoSelecionado, onProdutoChange }: MercadoLivreConfigProps) {
+export function MercadoLivreConfigComponent({ value, onChange, produtoSelecionado, onProdutoChange, modoKit }: MercadoLivreConfigProps) {
   const [showCategorias, setShowCategorias] = useState(false);
 
   const categoriaAtual = CATEGORIAS.find(c => c.id === value.categoria_id) || CATEGORIAS[0];
@@ -145,11 +146,13 @@ export function MercadoLivreConfigComponent({ value, onChange, produtoSelecionad
         </div>
       </div>
 
-      {/* Selecionar Produto do Radar */}
-      <ProdutoSelector
-        value={produtoSelecionado}
-        onChange={onProdutoChange}
-      />
+      {/* Selecionar Produto do Radar (esconde em modo Kit) */}
+      {!modoKit && (
+        <ProdutoSelector
+          value={produtoSelecionado}
+          onChange={onProdutoChange}
+        />
+      )}
 
       {/* Configuracao de Frete */}
       <div>

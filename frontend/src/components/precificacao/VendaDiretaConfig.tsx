@@ -15,6 +15,7 @@ interface VendaDiretaConfigProps {
   onChange: (config: VendaDiretaConfigType) => void;
   produtoSelecionado: ProdutoSelecionado | null;
   onProdutoChange: (produto: ProdutoSelecionado | null) => void;
+  modoKit?: boolean;
 }
 
 const FORMAS_PAGAMENTO: { value: FormaPagamento; label: string; icon: typeof CreditCard; color: string }[] = [
@@ -29,7 +30,8 @@ export function VendaDiretaConfigComponent({
   value,
   onChange,
   produtoSelecionado,
-  onProdutoChange
+  onProdutoChange,
+  modoKit
 }: VendaDiretaConfigProps) {
   const handleChange = (field: keyof VendaDiretaConfigType, valor: string | FormaPagamento) => {
     if (field === 'forma_pagamento') {
@@ -52,11 +54,13 @@ export function VendaDiretaConfigComponent({
 
   return (
     <div className="space-y-6">
-      {/* Selecionar Produto do Radar */}
-      <ProdutoSelector
-        value={produtoSelecionado}
-        onChange={onProdutoChange}
-      />
+      {/* Selecionar Produto do Radar (esconde em modo Kit) */}
+      {!modoKit && (
+        <ProdutoSelector
+          value={produtoSelecionado}
+          onChange={onProdutoChange}
+        />
+      )}
 
       {/* Forma de Pagamento */}
       <div>
