@@ -277,6 +277,15 @@ export interface CustosProducaoConfig {
 // Modo de Precificacao
 export type ModoPrecificacao = 'preco_manual' | 'margem';
 
+// Configuração de promoção (desconto com preço inflado)
+export type ArredondamentoPromocao = '90' | '99';
+
+export interface PromocaoConfig {
+  ativo: boolean;
+  desconto_percentual: number; // Ex: 50 para 50%
+  arredondamento: ArredondamentoPromocao;
+}
+
 // Estado completo do Marketplace
 export interface MarketplaceState {
   tipo: MarketplaceType;
@@ -292,6 +301,8 @@ export interface MarketplaceState {
   // Modo Kit
   modo_kit?: boolean;
   kit_itens?: KitItem[];
+  // Promoção (desconto com preço inflado)
+  promocao?: PromocaoConfig;
 }
 
 // Produto selecionado na calculadora

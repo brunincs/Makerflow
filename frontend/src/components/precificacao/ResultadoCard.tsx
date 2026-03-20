@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MarketplaceState, PrecificacaoSalva, Embalagem } from '../../types';
 import { CATEGORIAS } from './MercadoLivreConfig';
@@ -7,6 +7,7 @@ import { getEmbalagens } from '../../services/embalagensService';
 import { getAcessorios } from '../../services/acessoriosService';
 import { Acessorio } from '../../types/acessorio';
 import { createPedido } from '../../services/pedidosService';
+import { calcularPrecoAnuncio, arredondarPreco } from './PrecoMargemConfig';
 import {
   TrendingUp,
   Clock,
@@ -26,7 +27,8 @@ import {
   Loader2,
   Send,
   Layers,
-  Lightbulb
+  Lightbulb,
+  Tag
 } from 'lucide-react';
 
 // ========== TABELAS DE FRETE MERCADO LIVRE ==========
@@ -394,6 +396,27 @@ export function ResultadoCard({ state, canSave = true, onSaveSuccess, nomeProdut
     return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
+  // Calcular precos de promocao
+  const precosPromocao = useMemo(() => {
+    const promocao = state.promocao;
+    if (!promocao?.ativo || precoVenda <= 0) {
+      return null;
+    }
+
+    const descontoPercent = promocao.desconto_percentual || 50;
+    const arredondamento = promocao.arredondamento || '90';
+
+    const precoAnuncioRaw = calcularPrecoAnuncio(precoVenda, descontoPercent);
+    const precoAnuncio = arredondarPreco(precoAnuncioRaw, arredondamento);
+    const precoFinal = precoAnuncio * (1 - descontoPercent / 100);
+
+    return {
+      precoAnuncio,
+      precoFinal,
+      descontoReal: Math.round((precoAnuncio - precoFinal) / precoAnuncio * 100),
+    };
+  }, [state.promocao, precoVenda]);
+
   // Handler para salvar a precificação
   const handleSalvar = async () => {
     // Validar nome
@@ -469,10 +492,40 @@ export function ResultadoCard({ state, canSave = true, onSaveSuccess, nomeProdut
       </h4>
 
       {/* Preço de Venda */}
-      <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl p-4 text-white">
-        <p className="text-sm opacity-90 mb-1">Preco de venda</p>
-        <p className="text-3xl font-bold">R$ {formatCurrency(precoVenda)}</p>
-      </div>
+      {precosPromocao ? (
+        <div className="bg-gradient-to-r from-purple-500 to-pink-600 rounded-xl p-4 text-white">
+          <div className="flex items-center gap-2 mb-3">
+            <Tag className="w-4 h-4" />
+            <span className="text-sm font-medium opacity-90">Preco de Promocao</span>
+          </div>
+
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm opacity-80">Anunciar por:</span>
+              <span className="text-2xl font-bold">R$ {formatCurrency(precosPromocao.precoAnuncio)}</span>
+            </div>
+
+            <div className="flex items-center justify-between bg-white/20 rounded-lg p-3">
+              <div className="flex items-center gap-2">
+                <span className="text-sm opacity-90">Com desconto:</span>
+                <span className="px-2 py-0.5 bg-red-500 text-white text-xs font-bold rounded-full">
+                  -{precosPromocao.descontoReal}%
+                </span>
+              </div>
+              <span className="text-xl font-bold">R$ {formatCurrency(precosPromocao.precoFinal)}</span>
+            </div>
+          </div>
+
+          <p className="text-xs opacity-70 mt-3">
+            Seu lucro e calculado com base no preco real de R$ {formatCurrency(precoVenda)}
+          </p>
+        </div>
+      ) : (
+        <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl p-4 text-white">
+          <p className="text-sm opacity-90 mb-1">Preco de venda</p>
+          <p className="text-3xl font-bold">R$ {formatCurrency(precoVenda)}</p>
+        </div>
+      )}
 
       {/* Custos de Produção */}
       <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">

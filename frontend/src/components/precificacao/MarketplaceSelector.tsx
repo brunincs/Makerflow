@@ -1,4 +1,4 @@
-import { MarketplaceState, MarketplaceType, ProdutoSelecionado, CustosProducaoConfig, KitItem } from '../../types';
+import { MarketplaceState, MarketplaceType, ProdutoSelecionado, CustosProducaoConfig, KitItem, PromocaoConfig } from '../../types';
 import { ShopeeConfigComponent } from './ShopeeConfig';
 import { MercadoLivreConfigComponent } from './MercadoLivreConfig';
 import { VendaDiretaConfigComponent } from './VendaDiretaConfig';
@@ -97,6 +97,11 @@ export function MarketplaceSelector({ value, onChange, canSave = true, onSaveSuc
   // Handler para preco de venda
   const handlePrecoVendaChange = (preco: number) => {
     onChange({ ...value, preco_venda: preco });
+  };
+
+  // Handler para promocao
+  const handlePromocaoChange = (promocao: PromocaoConfig) => {
+    onChange({ ...value, promocao });
   };
 
   // Handler para modo kit
@@ -308,10 +313,12 @@ export function MarketplaceSelector({ value, onChange, canSave = true, onSaveSuc
           onOutrosCustosChange={(v) => handleCustosProducaoChange('outros_custos', v)}
         />
 
-        {/* Preco de Venda */}
+        {/* Preco de Venda e Promocao */}
         <PrecoMargemConfig
           precoVenda={value.preco_venda}
           onPrecoVendaChange={handlePrecoVendaChange}
+          promocao={value.promocao}
+          onPromocaoChange={handlePromocaoChange}
         />
 
         {/* Resultado */}
