@@ -133,6 +133,9 @@ interface ResultadoCardProps {
   nomeProdutoCarregado?: string; // Nome do produto quando carrega simulação salva
   simulacaoId?: string; // ID da simulação sendo editada (undefined = nova)
   produtoIdOriginal?: string; // ID do produto do radar quando carrega simulação
+  // Modo Kit
+  modoKit?: boolean;
+  kitTotais?: { peso: number; tempo: number };
 }
 
 interface CustoItem {
@@ -142,7 +145,7 @@ interface CustoItem {
   icon: React.ElementType;
 }
 
-export function ResultadoCard({ state, canSave = true, onSaveSuccess, nomeProdutoCarregado, simulacaoId, produtoIdOriginal }: ResultadoCardProps) {
+export function ResultadoCard({ state, canSave = true, onSaveSuccess, nomeProdutoCarregado, simulacaoId, produtoIdOriginal, modoKit, kitTotais }: ResultadoCardProps) {
   const navigate = useNavigate();
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -154,6 +157,7 @@ export function ResultadoCard({ state, canSave = true, onSaveSuccess, nomeProdut
 
   const custos = state.custos_producao || {};
   const temProdutoSelecionado = !!state.produto_selecionado;
+  const temKitComItens = modoKit && state.kit_itens && state.kit_itens.length > 0;
   const precoVenda = state.preco_venda || 0;
   const quantidadePecas = custos.quantidade_pecas || 1;
 
@@ -177,8 +181,8 @@ export function ResultadoCard({ state, canSave = true, onSaveSuccess, nomeProdut
     }
   }, [nomeProdutoCarregado]);
 
-  // Se tem produto selecionado ou nome manual, o nome é válido
-  const temNomeValido = temProdutoSelecionado || !!nomeManual.trim();
+  // Se tem produto selecionado, kit com itens ou nome manual, o nome é válido
+  const temNomeValido = temProdutoSelecionado || temKitComItens || !!nomeManual.trim();
 
   // Se não tem preço de venda, não mostra o card
   if (precoVenda <= 0) {
@@ -187,22 +191,26 @@ export function ResultadoCard({ state, canSave = true, onSaveSuccess, nomeProdut
 
   // ========== CÁLCULOS DE CUSTOS ==========
 
-  // Peso do filamento (do produto ou manual)
-  const pesoFilamento = state.produto_selecionado?.variacao?.peso_filamento
-    || state.produto_selecionado?.produto.peso_filamento
-    || custos.peso_filamento_g
-    || 0;
+  // Peso do filamento (do kit, produto ou manual)
+  const pesoFilamento = modoKit && kitTotais && kitTotais.peso > 0
+    ? kitTotais.peso
+    : state.produto_selecionado?.variacao?.peso_filamento
+      || state.produto_selecionado?.produto.peso_filamento
+      || custos.peso_filamento_g
+      || 0;
 
   // Custo do filamento
   const custoFilamento = custos.preco_filamento_kg && pesoFilamento
     ? (custos.preco_filamento_kg / 1000) * pesoFilamento
     : 0;
 
-  // Tempo de impressão (do produto ou manual)
-  const tempoHoras = state.produto_selecionado?.variacao?.tempo_impressao
-    || state.produto_selecionado?.produto.tempo_impressao
-    || ((custos.tempo_impressao_horas || 0) + (custos.tempo_impressao_minutos || 0) / 60)
-    || 0;
+  // Tempo de impressão (do kit, produto ou manual)
+  const tempoHoras = modoKit && kitTotais && kitTotais.tempo > 0
+    ? kitTotais.tempo
+    : state.produto_selecionado?.variacao?.tempo_impressao
+      || state.produto_selecionado?.produto.tempo_impressao
+      || ((custos.tempo_impressao_horas || 0) + (custos.tempo_impressao_minutos || 0) / 60)
+      || 0;
 
   // Custo de energia
   const consumoKwh = custos.consumo_kwh || 0;

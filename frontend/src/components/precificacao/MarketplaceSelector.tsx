@@ -315,7 +315,16 @@ export function MarketplaceSelector({ value, onChange, canSave = true, onSaveSuc
         />
 
         {/* Resultado */}
-        <ResultadoCard state={value} canSave={canSave} onSaveSuccess={onSaveSuccess} nomeProdutoCarregado={nomeProdutoCarregado} simulacaoId={simulacaoId} produtoIdOriginal={produtoIdOriginal} />
+        <ResultadoCard
+          state={value}
+          canSave={canSave}
+          onSaveSuccess={onSaveSuccess}
+          nomeProdutoCarregado={nomeProdutoCarregado}
+          simulacaoId={simulacaoId}
+          produtoIdOriginal={produtoIdOriginal}
+          modoKit={value.modo_kit}
+          kitTotais={kitTotais}
+        />
       </div>
     </div>
   );
