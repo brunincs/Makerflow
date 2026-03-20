@@ -186,6 +186,27 @@ export function ResultadoCard({ state, canSave = true, onSaveSuccess, nomeProdut
   // Se tem produto selecionado, kit com itens ou nome manual, o nome é válido
   const temNomeValido = temProdutoSelecionado || temKitComItens || !!nomeManual.trim();
 
+  // Calcular precos de promocao (DEVE ficar antes do return condicional)
+  const precosPromocao = useMemo(() => {
+    const promocao = state.promocao;
+    if (!promocao?.ativo || precoVenda <= 0) {
+      return null;
+    }
+
+    const descontoPercent = promocao.desconto_percentual || 50;
+    const arredondamento = promocao.arredondamento || '90';
+
+    const precoAnuncioRaw = calcularPrecoAnuncio(precoVenda, descontoPercent);
+    const precoAnuncio = arredondarPreco(precoAnuncioRaw, arredondamento);
+    const precoFinal = precoAnuncio * (1 - descontoPercent / 100);
+
+    return {
+      precoAnuncio,
+      precoFinal,
+      descontoReal: Math.round((precoAnuncio - precoFinal) / precoAnuncio * 100),
+    };
+  }, [state.promocao, precoVenda]);
+
   // Se não tem preço de venda, não mostra o card
   if (precoVenda <= 0) {
     return null;
@@ -395,27 +416,6 @@ export function ResultadoCard({ state, canSave = true, onSaveSuccess, nomeProdut
   const formatCurrency = (value: number) => {
     return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
-
-  // Calcular precos de promocao
-  const precosPromocao = useMemo(() => {
-    const promocao = state.promocao;
-    if (!promocao?.ativo || precoVenda <= 0) {
-      return null;
-    }
-
-    const descontoPercent = promocao.desconto_percentual || 50;
-    const arredondamento = promocao.arredondamento || '90';
-
-    const precoAnuncioRaw = calcularPrecoAnuncio(precoVenda, descontoPercent);
-    const precoAnuncio = arredondarPreco(precoAnuncioRaw, arredondamento);
-    const precoFinal = precoAnuncio * (1 - descontoPercent / 100);
-
-    return {
-      precoAnuncio,
-      precoFinal,
-      descontoReal: Math.round((precoAnuncio - precoFinal) / precoAnuncio * 100),
-    };
-  }, [state.promocao, precoVenda]);
 
   // Handler para salvar a precificação
   const handleSalvar = async () => {
