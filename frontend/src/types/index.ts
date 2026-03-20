@@ -219,6 +219,9 @@ export interface MercadoLivreConfig {
   frete_gratis: boolean;
   frete_manual: boolean;
   frete_valor?: number;
+  // Cupom proprio
+  cupom_desconto?: boolean;
+  valor_cupom?: number;
   tempo_impressao_horas?: number;
   tempo_impressao_minutos?: number;
   impressora_modelo?: ImpressoraModelo;

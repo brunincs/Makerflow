@@ -28,7 +28,8 @@ import {
   Send,
   Layers,
   Lightbulb,
-  Tag
+  Tag,
+  Ticket
 } from 'lucide-react';
 
 // ========== TABELAS DE FRETE MERCADO LIVRE ==========
@@ -329,8 +330,16 @@ export function ResultadoCard({ state, canSave = true, onSaveSuccess, nomeProdut
   const impostoPercent = custos.imposto_aliquota || 0;
   const custoImposto = (impostoPercent / 100) * precoVenda;
 
+  // Cupom proprio (desconto bancado pelo vendedor)
+  let custoCupom = 0;
+  if (state.tipo === 'shopee' && state.shopee.cupom_desconto && state.shopee.valor_cupom) {
+    custoCupom = state.shopee.valor_cupom;
+  } else if (state.tipo === 'mercadolivre' && state.mercadolivre.cupom_desconto && state.mercadolivre.valor_cupom) {
+    custoCupom = state.mercadolivre.valor_cupom;
+  }
+
   // Total custos de venda
-  const totalCustosVenda = taxaMarketplace + taxaFixaShopee + custoFrete + custoImposto;
+  const totalCustosVenda = taxaMarketplace + taxaFixaShopee + custoFrete + custoImposto + custoCupom;
 
   // ========== LUCRO ==========
 
@@ -411,6 +420,11 @@ export function ResultadoCard({ state, canSave = true, onSaveSuccess, nomeProdut
 
   if (custoImposto > 0) {
     custosVendaList.push({ label: 'Imposto', valor: custoImposto, percentual: calcPercent(custoImposto), icon: Receipt });
+  }
+
+  // Cupom proprio
+  if (custoCupom > 0) {
+    custosVendaList.push({ label: 'Cupom proprio', valor: custoCupom, percentual: calcPercent(custoCupom), icon: Ticket });
   }
 
   const formatCurrency = (value: number) => {

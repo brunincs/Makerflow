@@ -1,9 +1,10 @@
 import { MercadoLivreConfig as MercadoLivreConfigType, MercadoLivreAnuncioType, ProdutoSelecionado } from '../../types';
 import { Toggle } from '../ui/Toggle';
 import { DecimalInput } from '../ui/DecimalInput';
+import { Input } from '../ui/Input';
 import { ProdutoSelector } from './ProdutoSelector';
 import { CATEGORIAS_MERCADO_LIVRE } from '../../constants/categorias';
-import { Tag, Truck, Package, Award, Zap, ChevronDown, Scale } from 'lucide-react';
+import { Tag, Truck, Package, Award, Zap, ChevronDown, Scale, Ticket } from 'lucide-react';
 import { useState } from 'react';
 
 interface MercadoLivreConfigProps {
@@ -30,7 +31,7 @@ export function MercadoLivreConfigComponent({ value, onChange, produtoSelecionad
     setShowCategorias(false);
   };
 
-  const handleToggle = (field: 'frete_gratis' | 'frete_manual', checked: boolean) => {
+  const handleToggle = (field: 'frete_gratis' | 'frete_manual' | 'cupom_desconto', checked: boolean) => {
     onChange({ ...value, [field]: checked });
   };
 
@@ -40,6 +41,10 @@ export function MercadoLivreConfigComponent({ value, onChange, produtoSelecionad
 
   const handleFreteValorChange = (frete: number) => {
     onChange({ ...value, frete_valor: frete });
+  };
+
+  const handleCupomValor = (valor: string) => {
+    onChange({ ...value, valor_cupom: valor ? parseFloat(valor) : undefined });
   };
 
   return (
@@ -218,6 +223,38 @@ export function MercadoLivreConfigComponent({ value, onChange, produtoSelecionad
               </div>
             )}
           </div>
+        </div>
+      </div>
+
+      {/* Cupom Proprio */}
+      <div>
+        <h4 className="text-sm font-medium text-gray-900 mb-3 flex items-center gap-2">
+          <Ticket className="w-4 h-4" />
+          Cupom de desconto
+        </h4>
+
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+          <Toggle
+            checked={value.cupom_desconto || false}
+            onChange={(checked) => handleToggle('cupom_desconto', checked)}
+            label="Cupom de desconto proprio"
+            description="Desconto bancado pelo vendedor"
+          />
+
+          {value.cupom_desconto && (
+            <div className="mt-3 ml-14">
+              <Input
+                label="Valor do cupom (R$)"
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="Ex: 5.00"
+                value={value.valor_cupom?.toString() || ''}
+                onChange={(e) => handleCupomValor(e.target.value)}
+                className="bg-white"
+              />
+            </div>
+          )}
         </div>
       </div>
     </div>
