@@ -1,4 +1,4 @@
-import { Plus, Trash2, Package, Scale, Clock, Lock, Barcode } from 'lucide-react';
+import { Plus, Trash2, Package, Scale, Clock, Lock, Barcode, Ruler } from 'lucide-react';
 import { Input } from './Input';
 import { Button } from './Button';
 import { ShopeeIcon, MercadoLivreIcon } from './MarketplaceIcons';
@@ -13,6 +13,7 @@ interface VariacaoItem {
   peso_filamento: string;
   tempo_horas: number;
   tempo_minutos: number;
+  dimensoes: string;
   herdaDoProduto?: boolean; // Indica se herda dados do produto base
 }
 
@@ -43,6 +44,7 @@ export function VariacoesEditor({ value, onChange, produtoBase }: VariacoesEdito
           peso_filamento: produtoBase.peso_filamento,
           tempo_horas: produtoBase.tempo_horas,
           tempo_minutos: produtoBase.tempo_minutos,
+          dimensoes: '',
           herdaDoProduto: true,
         },
       ]);
@@ -58,6 +60,7 @@ export function VariacoesEditor({ value, onChange, produtoBase }: VariacoesEdito
           peso_filamento: '',
           tempo_horas: 0,
           tempo_minutos: 0,
+          dimensoes: '',
           herdaDoProduto: false,
         },
       ]);
@@ -269,6 +272,22 @@ export function VariacoesEditor({ value, onChange, produtoBase }: VariacoesEdito
                         </div>
                       </div>
                     </div>
+
+                    {/* Dimensões */}
+                    <div className="mt-3">
+                      <label className="block text-xs font-medium text-gray-600 mb-1 flex items-center gap-1">
+                        <Ruler className="w-3 h-3" />
+                        Dimensoes (opcional)
+                      </label>
+                      <input
+                        type="text"
+                        value={variacao.dimensoes || ''}
+                        onChange={(e) => updateVariacao(index, 'dimensoes', e.target.value)}
+                        placeholder="Ex: 10x5x3 cm"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white
+                          focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                      />
+                    </div>
                   </div>
 
                   {/* Precos Marketplace */}
@@ -349,6 +368,7 @@ export function variacoesToDB(variacoes: VariacaoItem[]): Omit<VariacaoProduto, 
         preco_mercado_livre: v.preco_mercado_livre ? parseFloat(v.preco_mercado_livre) : undefined,
         peso_filamento: v.peso_filamento ? parseFloat(v.peso_filamento) : undefined,
         tempo_impressao: tempoImpressao > 0 ? tempoImpressao : undefined,
+        dimensoes: v.dimensoes?.trim() || undefined,
       };
     });
 }
@@ -367,6 +387,7 @@ export function variacoesFromDB(variacoes?: VariacaoProduto[]): VariacaoItem[] {
       peso_filamento: v.peso_filamento?.toString() || '',
       tempo_horas: tempo.horas,
       tempo_minutos: tempo.minutos,
+      dimensoes: v.dimensoes || '',
       // A primeira variação sempre herda (para produtos existentes)
       herdaDoProduto: index === 0,
     };

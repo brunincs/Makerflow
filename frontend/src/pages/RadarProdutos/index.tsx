@@ -5,7 +5,7 @@ import { ShopeeIcon, MercadoLivreIcon, Modelo3DIcon } from '../../components/ui/
 import { ProdutoForm } from '../../components/forms';
 import { getProdutos, deleteProduto } from '../../services/produtosService';
 import { ProdutoConcorrente } from '../../types';
-import { Plus, Trash2, Pencil, Package, AlertTriangle, Layers, Scale, Clock, Tag, Eye, X, ExternalLink, Printer, Search, Barcode } from 'lucide-react';
+import { Plus, Trash2, Pencil, Package, AlertTriangle, Layers, Scale, Clock, Tag, Eye, X, ExternalLink, Printer, Search, Barcode, Ruler } from 'lucide-react';
 import { formatarTempoImpressao } from '../../components/ui';
 import { getCategoriaById } from '../../constants/categorias';
 
@@ -191,6 +191,17 @@ function ViewModal({
                     </span>
                   </div>
                 </div>
+                {produto.dimensoes && (
+                  <div className="mt-3 p-3 bg-purple-50 rounded-lg">
+                    <div className="flex items-center gap-2 text-purple-700 mb-1">
+                      <Ruler className="w-4 h-4" />
+                      <span className="text-sm">Dimensoes</span>
+                    </div>
+                    <span className="text-lg font-bold text-purple-800">
+                      {produto.dimensoes}
+                    </span>
+                  </div>
+                )}
               </div>
             )}
 
@@ -255,6 +266,12 @@ function ViewModal({
                             {formatarTempoImpressao(variacao.tempo_impressao)}
                           </span>
                         )}
+                        {variacao.dimensoes && (
+                          <span className="flex items-center gap-1 text-purple-700">
+                            <Ruler className="w-3.5 h-3.5" />
+                            {variacao.dimensoes}
+                          </span>
+                        )}
                         {variacao.preco_shopee && (
                           <span className="flex items-center gap-1 text-orange-700">
                             <ShopeeIcon className="w-3.5 h-3.5" />
@@ -315,7 +332,7 @@ function ProdutoCard({
   const hasShopee = produto.link_shopee || produto.preco_shopee;
   const hasMercadoLivre = produto.link_mercado_livre || produto.preco_mercado_livre;
   const hasVariacoes = produto.variacoes && produto.variacoes.length > 0;
-  const hasProducao = produto.peso_filamento || produto.tempo_impressao;
+  const hasProducao = produto.peso_filamento || produto.tempo_impressao || produto.dimensoes;
 
   return (
     <Card className="overflow-hidden group hover:shadow-md transition-shadow">
@@ -421,6 +438,14 @@ function ProdutoCard({
                 </span>
               </div>
             )}
+            {produto.dimensoes && (
+              <div className="flex items-center gap-1.5 px-2 py-1 bg-purple-50 rounded-lg">
+                <Ruler className="w-3.5 h-3.5 text-purple-600" />
+                <span className="text-sm text-purple-700 font-medium">
+                  {produto.dimensoes}
+                </span>
+              </div>
+            )}
           </div>
         )}
 
@@ -498,8 +523,8 @@ function ProdutoCard({
                       )}
                     </div>
                   </div>
-                  {/* Peso e Tempo da variação */}
-                  {(variacao.peso_filamento || variacao.tempo_impressao) && (
+                  {/* Peso, Tempo e Dimensões da variação */}
+                  {(variacao.peso_filamento || variacao.tempo_impressao || variacao.dimensoes) && (
                     <div className="flex items-center gap-3 mt-1 text-xs text-gray-600">
                       {variacao.peso_filamento && (
                         <span className="flex items-center gap-1">
@@ -511,6 +536,12 @@ function ProdutoCard({
                         <span className="flex items-center gap-1">
                           <Clock className="w-3 h-3 text-blue-600" />
                           {formatarTempoImpressao(variacao.tempo_impressao)}
+                        </span>
+                      )}
+                      {variacao.dimensoes && (
+                        <span className="flex items-center gap-1">
+                          <Ruler className="w-3 h-3 text-purple-600" />
+                          {variacao.dimensoes}
                         </span>
                       )}
                     </div>

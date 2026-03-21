@@ -4,7 +4,7 @@ import { Modelo3DIcon } from '../ui/MarketplaceIcons';
 import { ProdutoConcorrente, StatusProduto } from '../../types';
 import { createProduto, updateProduto, uploadImagem, uploadModelo3D } from '../../services/produtosService';
 import { CATEGORIAS_MERCADO_LIVRE } from '../../constants/categorias';
-import { Printer, Scale, Tag, Barcode } from 'lucide-react';
+import { Printer, Scale, Tag, Barcode, Ruler } from 'lucide-react';
 
 interface VariacaoItem {
   id?: string;
@@ -15,6 +15,7 @@ interface VariacaoItem {
   peso_filamento: string;
   tempo_horas: number;
   tempo_minutos: number;
+  dimensoes: string;
   herdaDoProduto?: boolean;
 }
 
@@ -48,6 +49,7 @@ export function ProdutoForm({ onSuccess, onCancel, produto }: ProdutoFormProps) 
     link_mercado_livre: '',
     preco_mercado_livre: '',
     peso_filamento: '',
+    dimensoes: '',
     categoria_id: '',
     status: 'teste' as StatusProduto,
   });
@@ -65,6 +67,7 @@ export function ProdutoForm({ onSuccess, onCancel, produto }: ProdutoFormProps) 
         link_mercado_livre: produto.link_mercado_livre || '',
         preco_mercado_livre: produto.preco_mercado_livre?.toString() || '',
         peso_filamento: produto.peso_filamento?.toString() || '',
+        dimensoes: produto.dimensoes || '',
         categoria_id: produto.categoria_id || '',
         status: produto.status || 'teste',
       });
@@ -155,6 +158,7 @@ export function ProdutoForm({ onSuccess, onCancel, produto }: ProdutoFormProps) 
         preco_mercado_livre: formData.preco_mercado_livre ? parseFloat(formData.preco_mercado_livre) : undefined,
         peso_filamento: formData.peso_filamento ? parseFloat(formData.peso_filamento) : undefined,
         tempo_impressao: tempoImpressao > 0 ? tempoImpressao : undefined,
+        dimensoes: formData.dimensoes || undefined,
         categoria_id: formData.categoria_id || undefined,
         status: formData.status,
         imagem_url: imageUrl,
@@ -314,6 +318,23 @@ export function ProdutoForm({ onSuccess, onCancel, produto }: ProdutoFormProps) 
             minutos={tempoMinutos}
             onHorasChange={setTempoHoras}
             onMinutosChange={setTempoMinutos}
+          />
+        </div>
+
+        {/* Dimensões */}
+        <div className="mt-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+            <Ruler className="w-4 h-4" />
+            Dimensoes (opcional)
+          </label>
+          <input
+            type="text"
+            name="dimensoes"
+            value={formData.dimensoes}
+            onChange={handleChange}
+            placeholder="Ex: 10x5x3 cm"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm bg-white
+              focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
           />
         </div>
       </div>

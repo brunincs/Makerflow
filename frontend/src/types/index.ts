@@ -63,6 +63,7 @@ export interface VariacaoProduto {
   preco_mercado_livre?: number;
   peso_filamento?: number;
   tempo_impressao?: number;
+  dimensoes?: string;
   arquivo_stl?: string;
   created_at?: string;
 }
@@ -81,6 +82,7 @@ export interface ProdutoConcorrente {
   status: 'teste' | 'validado' | 'rejeitado';
   peso_filamento?: number;
   tempo_impressao?: number;
+  dimensoes?: string;
   arquivo_stl?: string;
   categoria_id?: string;
   created_at?: string;
