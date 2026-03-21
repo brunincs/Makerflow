@@ -1,10 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Card, CardBody } from '../../components/ui';
-import { EstoqueProduto, EstoqueMovimentacao } from '../../types';
+import { EstoqueProduto, EstoqueMovimentacao, ProdutoConcorrente } from '../../types';
 import {
   getEstoqueProdutos,
   getMovimentacoes,
+  adicionarEstoqueComMovimentacao,
+  removerEstoqueComMovimentacao,
 } from '../../services/estoqueProdutosService';
+import { getProdutos } from '../../services/produtosService';
 import {
   Package,
   History,
@@ -14,7 +17,11 @@ import {
   Layers,
   Loader2,
   BoxIcon,
-  Info
+  Info,
+  Plus,
+  Minus,
+  X,
+  PenLine
 } from 'lucide-react';
 
 interface ProdutoAgrupado {
@@ -30,21 +37,92 @@ export function Estoque() {
   const [movimentacoes, setMovimentacoes] = useState<EstoqueMovimentacao[]>([]);
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState('');
+  const [produtos, setProdutos] = useState<ProdutoConcorrente[]>([]);
 
   // Aba atual
   const [abaAtiva, setAbaAtiva] = useState<'estoque' | 'historico'>('estoque');
 
+  // Modal de ajuste manual
+  const [showModal, setShowModal] = useState(false);
+  const [ajusteTipo, setAjusteTipo] = useState<'entrada' | 'saida'>('entrada');
+  const [ajusteProdutoId, setAjusteProdutoId] = useState('');
+  const [ajusteVariacaoId, setAjusteVariacaoId] = useState('');
+  const [ajusteQuantidade, setAjusteQuantidade] = useState(1);
+  const [ajusteMotivo, setAjusteMotivo] = useState('');
+  const [salvandoAjuste, setSalvandoAjuste] = useState(false);
+
   const carregarDados = useCallback(async () => {
     setLoading(true);
-    const [estoqueData, movData] = await Promise.all([
+    const [estoqueData, movData, produtosData] = await Promise.all([
       getEstoqueProdutos(),
       getMovimentacoes(100),
+      getProdutos(),
     ]);
     // Filtrar apenas produtos com quantidade > 0
     setEstoque(estoqueData.filter(e => e.quantidade > 0));
     setMovimentacoes(movData);
+    setProdutos(produtosData);
     setLoading(false);
   }, []);
+
+  // Abrir modal de ajuste
+  const abrirModalAjuste = () => {
+    setAjusteTipo('entrada');
+    setAjusteProdutoId('');
+    setAjusteVariacaoId('');
+    setAjusteQuantidade(1);
+    setAjusteMotivo('');
+    setShowModal(true);
+  };
+
+  // Salvar ajuste manual
+  const salvarAjuste = async () => {
+    if (!ajusteProdutoId || ajusteQuantidade <= 0 || !ajusteMotivo.trim()) {
+      alert('Preencha todos os campos obrigatorios');
+      return;
+    }
+
+    setSalvandoAjuste(true);
+
+    const variacaoId = ajusteVariacaoId || null;
+    const motivo = `Ajuste manual: ${ajusteMotivo.trim()}`;
+
+    let resultado;
+    if (ajusteTipo === 'entrada') {
+      resultado = await adicionarEstoqueComMovimentacao(
+        ajusteProdutoId,
+        variacaoId,
+        ajusteQuantidade,
+        'ajuste',
+        motivo
+      );
+    } else {
+      resultado = await removerEstoqueComMovimentacao(
+        ajusteProdutoId,
+        variacaoId,
+        ajusteQuantidade,
+        'ajuste',
+        motivo
+      );
+    }
+
+    setSalvandoAjuste(false);
+
+    if (resultado) {
+      setShowModal(false);
+      carregarDados();
+    } else {
+      if (ajusteTipo === 'saida') {
+        alert('Estoque insuficiente para esta saida');
+      } else {
+        alert('Erro ao registrar ajuste');
+      }
+    }
+  };
+
+  // Obter variações do produto selecionado
+  const produtoSelecionado = produtos.find(p => p.id === ajusteProdutoId);
+  const variacoesProduto = produtoSelecionado?.variacoes || [];
 
   useEffect(() => {
     carregarDados();
@@ -92,16 +170,26 @@ export function Estoque() {
   return (
     <div>
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-          <div className="p-2 bg-emerald-100 rounded-lg">
-            <BoxIcon className="w-6 h-6 text-emerald-600" />
-          </div>
-          Estoque de Produtos
-        </h1>
-        <p className="text-gray-500 mt-2">
-          Produtos prontos em estoque (gerado automaticamente via impressoes)
-        </p>
+      <div className="mb-8 flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+            <div className="p-2 bg-emerald-100 rounded-lg">
+              <BoxIcon className="w-6 h-6 text-emerald-600" />
+            </div>
+            Estoque de Produtos
+          </h1>
+          <p className="text-gray-500 mt-2">
+            Produtos prontos em estoque (gerado automaticamente via impressoes)
+          </p>
+        </div>
+
+        <button
+          onClick={abrirModalAjuste}
+          className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+        >
+          <PenLine className="w-4 h-4" />
+          Ajuste Manual
+        </button>
       </div>
 
       {/* Info Box */}
@@ -308,6 +396,173 @@ export function Estoque() {
             )}
           </CardBody>
         </Card>
+      )}
+
+      {/* Modal de Ajuste Manual */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+              <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <PenLine className="w-5 h-5 text-emerald-600" />
+                Ajuste Manual de Estoque
+              </h2>
+              <button
+                onClick={() => setShowModal(false)}
+                className="p-1 text-gray-400 hover:text-gray-600 rounded"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-4 space-y-4">
+              {/* Tipo de Ajuste */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Tipo de Ajuste
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setAjusteTipo('entrada')}
+                    className={`flex items-center justify-center gap-2 p-3 rounded-lg border-2 transition-colors ${
+                      ajusteTipo === 'entrada'
+                        ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
+                        : 'border-gray-200 hover:border-gray-300 text-gray-600'
+                    }`}
+                  >
+                    <Plus className="w-4 h-4" />
+                    Entrada
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAjusteTipo('saida')}
+                    className={`flex items-center justify-center gap-2 p-3 rounded-lg border-2 transition-colors ${
+                      ajusteTipo === 'saida'
+                        ? 'border-red-500 bg-red-50 text-red-700'
+                        : 'border-gray-200 hover:border-gray-300 text-gray-600'
+                    }`}
+                  >
+                    <Minus className="w-4 h-4" />
+                    Saida
+                  </button>
+                </div>
+              </div>
+
+              {/* Produto */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Produto *
+                </label>
+                <select
+                  value={ajusteProdutoId}
+                  onChange={(e) => {
+                    setAjusteProdutoId(e.target.value);
+                    setAjusteVariacaoId('');
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg
+                    focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                >
+                  <option value="">Selecione um produto</option>
+                  {produtos.map((produto) => (
+                    <option key={produto.id} value={produto.id}>
+                      {produto.nome}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Variacao (se houver) */}
+              {variacoesProduto.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Variacao
+                  </label>
+                  <select
+                    value={ajusteVariacaoId}
+                    onChange={(e) => setAjusteVariacaoId(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg
+                      focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  >
+                    <option value="">Produto base (sem variacao)</option>
+                    {variacoesProduto.map((variacao) => (
+                      <option key={variacao.id} value={variacao.id}>
+                        {variacao.nome_variacao}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Quantidade */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Quantidade *
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={ajusteQuantidade}
+                  onChange={(e) => setAjusteQuantidade(Math.max(1, parseInt(e.target.value) || 1))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg
+                    focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                />
+              </div>
+
+              {/* Motivo (obrigatorio) */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Motivo do Ajuste *
+                </label>
+                <textarea
+                  value={ajusteMotivo}
+                  onChange={(e) => setAjusteMotivo(e.target.value)}
+                  placeholder="Ex: Correcao de inventario, peca danificada, devolucao..."
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg
+                    focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500
+                    resize-none"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Obrigatorio informar o motivo do ajuste
+                </p>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-3 p-4 border-t border-gray-200">
+              <button
+                onClick={() => setShowModal(false)}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={salvarAjuste}
+                disabled={salvandoAjuste || !ajusteProdutoId || !ajusteMotivo.trim()}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-white transition-colors ${
+                  ajusteTipo === 'entrada'
+                    ? 'bg-emerald-600 hover:bg-emerald-700'
+                    : 'bg-red-600 hover:bg-red-700'
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
+                {salvandoAjuste ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Salvando...
+                  </>
+                ) : (
+                  <>
+                    {ajusteTipo === 'entrada' ? <Plus className="w-4 h-4" /> : <Minus className="w-4 h-4" />}
+                    {ajusteTipo === 'entrada' ? 'Adicionar ao Estoque' : 'Remover do Estoque'}
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
