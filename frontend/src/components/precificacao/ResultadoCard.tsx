@@ -733,7 +733,7 @@ export function ResultadoCard({ state, canSave = true, onSaveSuccess, nomeProdut
                 {pesoFilamento > 0 && (
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Filamento:</span>
-                    <span className="font-medium">{pesoFilamento}g</span>
+                    <span className="font-medium">{pesoFilamento.toFixed(2)}g</span>
                   </div>
                 )}
                 {tempoEfetivoPorPeca > 0 && (
@@ -758,7 +758,7 @@ export function ResultadoCard({ state, canSave = true, onSaveSuccess, nomeProdut
                 {pesoFilamento > 0 && (
                   <div className="flex justify-between text-sm">
                     <span className="text-blue-700">Filamento:</span>
-                    <span className="font-bold text-blue-800">{pesoFilamento * quantidadePecas}g</span>
+                    <span className="font-bold text-blue-800">{(pesoFilamento * quantidadePecas).toFixed(2)}g</span>
                   </div>
                 )}
                 {tempoEfetivoPorPeca > 0 && (

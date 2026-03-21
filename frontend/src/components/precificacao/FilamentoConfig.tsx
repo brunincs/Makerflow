@@ -197,7 +197,7 @@ export function FilamentoConfig({
               <div className="flex items-center gap-3">
                 <div className="flex-1 p-3 bg-white border border-purple-200 rounded-lg">
                   <p className="text-2xl font-bold text-purple-700">
-                    {pesoProduto}g
+                    {pesoProduto.toFixed(2)}g
                   </p>
                 </div>
 
