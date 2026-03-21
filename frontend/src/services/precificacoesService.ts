@@ -277,6 +277,75 @@ export const deletePrecificacao = async (id: string): Promise<boolean> => {
   return true;
 };
 
+// Buscar precificacoes de venda direta (para catalogo publico)
+export interface CatalogoItem {
+  id: string;
+  nome_produto: string;
+  variacao_nome?: string;
+  preco_venda: number;
+  produto_id?: string;
+  imagem_url?: string;
+}
+
+export const getPrecificacoesVendaDireta = async (): Promise<CatalogoItem[]> => {
+  if (!isSupabaseConfigured() || !supabase) {
+    const precificacoes = getLocalPrecificacoes();
+    return precificacoes
+      .filter(p => p.marketplace === 'venda_direta')
+      .map(p => ({
+        id: p.id || '',
+        nome_produto: p.nome_produto || 'Produto sem nome',
+        variacao_nome: p.variacao_nome || undefined,
+        preco_venda: p.preco_venda,
+        produto_id: p.produto_id || undefined,
+        imagem_url: p.produto?.imagem_url,
+      }));
+  }
+
+  // Buscar precificacoes de venda direta
+  const { data, error } = await supabase
+    .from('precificacoes')
+    .select('id, nome_produto, variacao_nome, preco_venda, produto_id')
+    .eq('marketplace', 'venda_direta')
+    .order('nome_produto', { ascending: true });
+
+  if (error) {
+    console.error('Erro ao buscar precificacoes venda direta:', error);
+    return [];
+  }
+
+  if (!data || data.length === 0) {
+    return [];
+  }
+
+  // Buscar imagens dos produtos
+  const produtoIds = data
+    .filter(p => p.produto_id)
+    .map(p => p.produto_id);
+
+  let produtosMap = new Map<string, { imagem_url?: string }>();
+
+  if (produtoIds.length > 0) {
+    const { data: produtos } = await supabase
+      .from('produtos_concorrentes')
+      .select('id, imagem_url')
+      .in('id', produtoIds);
+
+    if (produtos) {
+      produtosMap = new Map(produtos.map(p => [p.id, p]));
+    }
+  }
+
+  return data.map(p => ({
+    id: p.id,
+    nome_produto: p.nome_produto || 'Produto sem nome',
+    variacao_nome: p.variacao_nome || undefined,
+    preco_venda: p.preco_venda,
+    produto_id: p.produto_id || undefined,
+    imagem_url: p.produto_id ? produtosMap.get(p.produto_id)?.imagem_url : undefined,
+  }));
+};
+
 // Deletar todas as precificações de um produto
 export const deletePrecificacoesPorProduto = async (produtoId: string): Promise<boolean> => {
   if (!isSupabaseConfigured() || !supabase) {
