@@ -195,14 +195,18 @@ export function VariacoesEditor({ value, onChange, produtoBase }: VariacoesEdito
                         </label>
                         <div className="relative">
                           <input
-                            type="number"
-                            min="0"
-                            step="0.01"
+                            type="text"
+                            inputMode="decimal"
                             value={variacao.peso_filamento}
-                            onChange={(e) => updateVariacao(index, 'peso_filamento', e.target.value)}
-                            placeholder="0.00"
+                            onChange={(e) => {
+                              const val = e.target.value.replace(',', '.');
+                              if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                                updateVariacao(index, 'peso_filamento', val);
+                              }
+                            }}
+                            placeholder="22.46"
                             disabled={isFirstAndInherited}
-                            className={`w-full px-3 py-2 border border-gray-300 rounded-lg text-sm
+                            className={`w-full px-3 py-2 pr-8 border border-gray-300 rounded-lg text-sm
                               focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500
                               ${isFirstAndInherited
                                 ? 'bg-green-100 text-green-800 cursor-not-allowed'

@@ -1,5 +1,5 @@
 import { useState, FormEvent, ChangeEvent, useEffect } from 'react';
-import { Button, Input, Select, ImageUpload, MarketplaceBlock, VariacoesEditor, variacoesToDB, variacoesFromDB, TempoImpressaoInput, tempoDecimalParaHorasMinutos, horasMinutosParaDecimal, STLUpload } from '../ui';
+import { Button, Input, Select, ImageUpload, MarketplaceBlock, VariacoesEditor, variacoesToDB, variacoesFromDB, TempoImpressaoInput, tempoDecimalParaHorasMinutos, horasMinutosParaDecimal, STLUpload, DecimalInput } from '../ui';
 import { Modelo3DIcon } from '../ui/MarketplaceIcons';
 import { ProdutoConcorrente, StatusProduto } from '../../types';
 import { createProduto, updateProduto, uploadImagem, uploadModelo3D } from '../../services/produtosService';
@@ -296,15 +296,11 @@ export function ProdutoForm({ onSuccess, onCancel, produto }: ProdutoFormProps) 
               Peso da Peca (g)
             </label>
             <div className="relative">
-              <input
-                type="number"
-                name="peso_filamento"
-                min="0"
-                step="0.01"
-                value={formData.peso_filamento}
-                onChange={handleChange}
-                placeholder="0.00"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm bg-white
+              <DecimalInput
+                value={formData.peso_filamento ? parseFloat(formData.peso_filamento) : undefined}
+                onChange={(val) => setFormData(prev => ({ ...prev, peso_filamento: val > 0 ? String(val) : '' }))}
+                placeholder="22.46"
+                className="w-full px-3 py-2 pr-16 border border-gray-300 rounded-lg shadow-sm bg-white
                   focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
               />
               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">
