@@ -14,7 +14,8 @@ import {
   Copy,
   ImageOff,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Search
 } from 'lucide-react';
 import { ShopeeIcon, MercadoLivreIcon } from '../../components/ui/MarketplaceIcons';
 import { Store } from 'lucide-react';
@@ -64,6 +65,7 @@ export function Simulacoes() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
   const [expandedProducts, setExpandedProducts] = useState<Set<string>>(new Set());
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     loadSimulacoes();
@@ -111,6 +113,22 @@ export function Simulacoes() {
 
     return Array.from(grupos.values());
   }, [simulacoes]);
+
+  // Filtrar produtos pela pesquisa
+  const produtosFiltrados = useMemo(() => {
+    if (!searchTerm.trim()) return produtosAgrupados;
+
+    const termo = searchTerm.toLowerCase().trim();
+    return produtosAgrupados.filter(produto => {
+      // Busca no nome do produto
+      if (produto.nome.toLowerCase().includes(termo)) return true;
+
+      // Busca nas variações
+      if (produto.simulacoes.some(s => s.variacao_nome?.toLowerCase().includes(termo))) return true;
+
+      return false;
+    });
+  }, [produtosAgrupados, searchTerm]);
 
   const toggleExpanded = (key: string) => {
     setExpandedProducts(prev => {
@@ -184,7 +202,7 @@ export function Simulacoes() {
   return (
     <div>
       {/* Header */}
-      <div className="mb-8 flex items-start justify-between">
+      <div className="mb-6 flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
             <div className="p-2 bg-purple-100 rounded-lg">
@@ -206,29 +224,75 @@ export function Simulacoes() {
         </button>
       </div>
 
+      {/* Barra de Pesquisa */}
+      {simulacoes.length > 0 && (
+        <div className="mb-6">
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Buscar por nome do produto..."
+              className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg bg-white
+                focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500
+                placeholder:text-gray-400"
+            />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Lista de Produtos */}
-      {produtosAgrupados.length === 0 ? (
+      {produtosFiltrados.length === 0 ? (
         <Card>
           <CardBody className="p-12 text-center">
-            <AlertCircle className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              Nenhuma simulacao salva
-            </h3>
-            <p className="text-gray-500 mb-4">
-              Use a calculadora de precificacao para criar e salvar simulacoes.
-            </p>
-            <button
-              onClick={() => navigate('/precificacao')}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <TrendingUp className="w-4 h-4" />
-              Ir para Precificacao
-            </button>
+            {searchTerm ? (
+              <>
+                <Search className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  Nenhum resultado encontrado
+                </h3>
+                <p className="text-gray-500 mb-4">
+                  Nao encontramos simulacoes para "{searchTerm}"
+                </p>
+                <button
+                  onClick={() => setSearchTerm('')}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  Limpar pesquisa
+                </button>
+              </>
+            ) : (
+              <>
+                <AlertCircle className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  Nenhuma simulacao salva
+                </h3>
+                <p className="text-gray-500 mb-4">
+                  Use a calculadora de precificacao para criar e salvar simulacoes.
+                </p>
+                <button
+                  onClick={() => navigate('/precificacao')}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <TrendingUp className="w-4 h-4" />
+                  Ir para Precificacao
+                </button>
+              </>
+            )}
           </CardBody>
         </Card>
       ) : (
         <div className="space-y-4">
-          {produtosAgrupados.map((produto) => {
+          {produtosFiltrados.map((produto) => {
             const isExpanded = expandedProducts.has(produto.key);
 
             return (
@@ -401,11 +465,19 @@ export function Simulacoes() {
       )}
 
       {/* Resumo */}
-      {produtosAgrupados.length > 0 && (
+      {produtosFiltrados.length > 0 && (
         <div className="mt-6 p-4 bg-gray-50 rounded-xl border border-gray-200">
           <div className="flex items-center justify-between text-sm">
             <span className="text-gray-500">
-              <strong className="text-gray-900">{produtosAgrupados.length}</strong> {produtosAgrupados.length === 1 ? 'produto' : 'produtos'} · <strong className="text-gray-900">{simulacoes.length}</strong> {simulacoes.length === 1 ? 'simulacao' : 'simulacoes'}
+              {searchTerm ? (
+                <>
+                  <strong className="text-gray-900">{produtosFiltrados.length}</strong> de {produtosAgrupados.length} {produtosAgrupados.length === 1 ? 'produto' : 'produtos'}
+                </>
+              ) : (
+                <>
+                  <strong className="text-gray-900">{produtosAgrupados.length}</strong> {produtosAgrupados.length === 1 ? 'produto' : 'produtos'} · <strong className="text-gray-900">{simulacoes.length}</strong> {simulacoes.length === 1 ? 'simulacao' : 'simulacoes'}
+                </>
+              )}
             </span>
             <div className="flex items-center gap-4 text-xs text-gray-400">
               <span className="flex items-center gap-1">
