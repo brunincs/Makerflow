@@ -234,7 +234,14 @@ function ViewModal({
                       key={variacao.id}
                       className="p-3 bg-purple-50 rounded-lg"
                     >
-                      <span className="font-medium text-purple-800">{variacao.nome_variacao}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-purple-800">{variacao.nome_variacao}</span>
+                        {variacao.sku && (
+                          <span className="font-mono text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">
+                            {variacao.sku}
+                          </span>
+                        )}
+                      </div>
                       <div className="flex flex-wrap gap-4 mt-2 text-sm">
                         {variacao.peso_filamento && (
                           <span className="flex items-center gap-1 text-green-700">
@@ -466,9 +473,16 @@ function ProdutoCard({
                   className="p-2 bg-purple-50 rounded-lg text-sm"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="font-medium text-gray-800">
-                      {variacao.nome_variacao}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-gray-800">
+                        {variacao.nome_variacao}
+                      </span>
+                      {variacao.sku && (
+                        <span className="font-mono text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">
+                          {variacao.sku}
+                        </span>
+                      )}
+                    </div>
                     <div className="flex items-center gap-2">
                       {variacao.preco_shopee && (
                         <span className="flex items-center gap-1 text-orange-600">
