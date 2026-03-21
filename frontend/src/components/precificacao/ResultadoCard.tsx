@@ -308,6 +308,12 @@ export function ResultadoCard({ state, canSave = true, onSaveSuccess, nomeProdut
     taxaMarketplace = comissao;
   }
 
+  // Custo da campanha de destaque Shopee (+2.5%)
+  let custoCampanhaDestaque = 0;
+  if (state.tipo === 'shopee' && state.shopee.campanha_destaque) {
+    custoCampanhaDestaque = (2.5 / 100) * precoVenda;
+  }
+
   // Custo de frete (vendedor sempre paga uma parte)
   let custoFrete = 0;
   if (state.tipo === 'mercadolivre') {
@@ -339,7 +345,7 @@ export function ResultadoCard({ state, canSave = true, onSaveSuccess, nomeProdut
   }
 
   // Total custos de venda
-  const totalCustosVenda = taxaMarketplace + taxaFixaShopee + custoFrete + custoImposto + custoCupom;
+  const totalCustosVenda = taxaMarketplace + taxaFixaShopee + custoFrete + custoImposto + custoCupom + custoCampanhaDestaque;
 
   // ========== LUCRO ==========
 
@@ -409,6 +415,11 @@ export function ResultadoCard({ state, canSave = true, onSaveSuccess, nomeProdut
   // Taxa fixa Shopee
   if (taxaFixaShopee > 0) {
     custosVendaList.push({ label: 'Taxa fixa Shopee', valor: taxaFixaShopee, percentual: calcPercent(taxaFixaShopee), icon: Receipt });
+  }
+
+  // Campanha de destaque Shopee
+  if (custoCampanhaDestaque > 0) {
+    custosVendaList.push({ label: 'Campanha destaque', valor: custoCampanhaDestaque, percentual: calcPercent(custoCampanhaDestaque), icon: Star });
   }
 
   if (custoFrete > 0) {

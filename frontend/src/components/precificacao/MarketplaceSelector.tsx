@@ -238,7 +238,13 @@ export function MarketplaceSelector({ value, onChange, canSave = true, onSaveSuc
       custoCupom = value.mercadolivre.valor_cupom;
     }
 
-    const totalCustosVenda = taxaMarketplace + taxaFixaShopee + custoImposto + custoCupom;
+    // Campanha de destaque Shopee (+2.5%)
+    let custoCampanhaDestaque = 0;
+    if (value.tipo === 'shopee' && value.shopee.campanha_destaque) {
+      custoCampanhaDestaque = (2.5 / 100) * precoVenda;
+    }
+
+    const totalCustosVenda = taxaMarketplace + taxaFixaShopee + custoImposto + custoCupom + custoCampanhaDestaque;
 
     return totalCustosProducao + totalCustosVenda;
   }, [value, kitTotais, embalagens, acessorios]);
