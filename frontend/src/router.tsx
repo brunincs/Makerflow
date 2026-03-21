@@ -12,6 +12,7 @@ import { Embalagens } from './pages/Embalagens';
 import { Impressoes } from './pages/Impressoes';
 import { FilaProducao } from './pages/FilaProducao';
 import { Estoque } from './pages/Estoque';
+import { Catalogo } from './pages/Catalogo';
 import { Login, Register, ForgotPassword } from './pages/Auth';
 import { Admin } from './pages/Admin';
 import { Perfil } from './pages/Perfil';
@@ -125,6 +126,16 @@ export const router = createBrowserRouter([
           <ProtectedRoute>
             <MainLayout>
               <Estoque />
+            </MainLayout>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: '/catalogo',
+        element: (
+          <ProtectedRoute>
+            <MainLayout>
+              <Catalogo />
             </MainLayout>
           </ProtectedRoute>
         ),

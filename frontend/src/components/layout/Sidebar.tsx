@@ -12,6 +12,7 @@ import {
   Shield,
   LogOut,
   User,
+  Store,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { isSupabaseConfigured } from '../../services/supabaseClient';
@@ -19,6 +20,7 @@ import { isSupabaseConfigured } from '../../services/supabaseClient';
 const menuItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/radar-produtos', icon: Radar, label: 'Radar de Produtos' },
+  { to: '/catalogo', icon: Store, label: 'Catalogo' },
   { to: '/precificacao', icon: Calculator, label: 'Calculadora' },
   { to: '/simulacoes', icon: LineChart, label: 'Precificados' },
   { to: '/fila-producao', icon: ClipboardList, label: 'Fila de Producao' },
