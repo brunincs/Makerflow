@@ -10,7 +10,7 @@ import { createImpressao } from '../../services/impressoesService';
 import { getImpressorasAtivas } from '../../services/impressorasService';
 import { getPrecificacaoByProduto } from '../../services/precificacoesService';
 import { getAcessorios, deduzirEstoqueAcessorios, validarEstoqueAcessorios, registrarSaida as registrarSaidaAcessorio } from '../../services/acessoriosService';
-import { getEmbalagens, registrarMovimentacaoEmbalagem } from '../../services/embalagensService';
+import { getEmbalagens, registrarMovimentacaoEmbalagem, validarEstoqueEmbalagens, deduzirEstoqueEmbalagens } from '../../services/embalagensService';
 import { Embalagem } from '../../types';
 import { Acessorio } from '../../types/acessorio';
 import {
@@ -1650,8 +1650,10 @@ export function FilaProducao() {
     setProduzindo(true);
 
     try {
-      // 0. Verificar e deduzir acessorios (se configurados na precificacao)
+      // 0. Verificar e deduzir acessorios e embalagens (se configurados na precificacao)
       const precificacao = await getPrecificacaoByProduto(itemParaProduzir.produto_id);
+
+      // Validar e deduzir acessórios da precificação
       if (precificacao?.acessorios_config && precificacao.acessorios_config.length > 0) {
         // Validar estoque de acessorios
         const validacao = await validarEstoqueAcessorios(precificacao.acessorios_config, qtdProduzida);
@@ -1670,6 +1672,29 @@ export function FilaProducao() {
         );
         if (!deduzido) {
           alert('Erro ao deduzir estoque de acessorios.');
+          setProduzindo(false);
+          return;
+        }
+      }
+
+      // Validar e deduzir embalagens da precificação
+      if (precificacao?.embalagens_config && precificacao.embalagens_config.length > 0) {
+        // Validar estoque de embalagens
+        const validacaoEmb = await validarEstoqueEmbalagens(precificacao.embalagens_config, qtdProduzida);
+        if (!validacaoEmb.valido) {
+          alert(`Estoque insuficiente de embalagens:\n${validacaoEmb.erros.join('\n')}`);
+          setProduzindo(false);
+          return;
+        }
+
+        // Deduzir embalagens
+        const deduzidoEmb = await deduzirEstoqueEmbalagens(
+          precificacao.embalagens_config,
+          qtdProduzida,
+          `Producao de ${qtdProduzida} unidade(s) - ${itemParaProduzir.nome_produto}`
+        );
+        if (!deduzidoEmb) {
+          alert('Erro ao deduzir estoque de embalagens.');
           setProduzindo(false);
           return;
         }
@@ -1811,6 +1836,52 @@ export function FilaProducao() {
       const qtdRestanteTotal = itemParaConcluir.pedidos.reduce((acc, pedido) => {
         return acc + (pedido.quantidade - (pedido.quantidade_produzida || 0));
       }, 0);
+
+      // Verificar e deduzir acessórios e embalagens da precificação
+      const precificacao = await getPrecificacaoByProduto(itemParaConcluir.produto_id);
+
+      // Validar e deduzir acessórios da precificação
+      if (precificacao?.acessorios_config && precificacao.acessorios_config.length > 0) {
+        const validacao = await validarEstoqueAcessorios(precificacao.acessorios_config, qtdRestanteTotal);
+        if (!validacao.valido) {
+          alert(`Estoque insuficiente de acessorios:\n${validacao.erros.join('\n')}`);
+          setConcluindo(false);
+          return;
+        }
+
+        const deduzido = await deduzirEstoqueAcessorios(
+          precificacao.acessorios_config,
+          qtdRestanteTotal,
+          itemParaConcluir.produto_id,
+          'conclusao'
+        );
+        if (!deduzido) {
+          alert('Erro ao deduzir estoque de acessorios.');
+          setConcluindo(false);
+          return;
+        }
+      }
+
+      // Validar e deduzir embalagens da precificação
+      if (precificacao?.embalagens_config && precificacao.embalagens_config.length > 0) {
+        const validacaoEmb = await validarEstoqueEmbalagens(precificacao.embalagens_config, qtdRestanteTotal);
+        if (!validacaoEmb.valido) {
+          alert(`Estoque insuficiente de embalagens:\n${validacaoEmb.erros.join('\n')}`);
+          setConcluindo(false);
+          return;
+        }
+
+        const deduzidoEmb = await deduzirEstoqueEmbalagens(
+          precificacao.embalagens_config,
+          qtdRestanteTotal,
+          `Conclusao de ${qtdRestanteTotal} unidade(s) - ${itemParaConcluir.nome_produto}`
+        );
+        if (!deduzidoEmb) {
+          alert('Erro ao deduzir estoque de embalagens.');
+          setConcluindo(false);
+          return;
+        }
+      }
 
       // Consumir estoque para atender os pedidos restantes
       if (qtdRestanteTotal > 0 && itemParaConcluir.quantidade_estoque_disponivel > 0) {

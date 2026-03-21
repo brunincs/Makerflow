@@ -335,3 +335,76 @@ export const getMovimentacoesEmbalagem = async (embalagem_id: string): Promise<E
 
   return data || [];
 };
+
+// Buscar embalagem por ID
+export const getEmbalagemById = async (id: string): Promise<Embalagem | null> => {
+  if (!isSupabaseConfigured() || !supabase) {
+    const embalagens = getLocalEmbalagens();
+    return embalagens.find(e => e.id === id) || null;
+  }
+
+  const { data, error } = await supabase
+    .from('embalagens')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (error) {
+    console.error('Erro ao buscar embalagem:', error);
+    return null;
+  }
+
+  return data;
+};
+
+// Validar estoque de embalagens (para uso na fila de produção)
+export const validarEstoqueEmbalagens = async (
+  embalagensConfig: { embalagem_id: string; quantidade: number }[],
+  quantidadeProdutos: number = 1
+): Promise<{ valido: boolean; erros: string[] }> => {
+  const erros: string[] = [];
+
+  for (const config of embalagensConfig) {
+    const embalagem = await getEmbalagemById(config.embalagem_id);
+    if (!embalagem) {
+      erros.push(`Embalagem ${config.embalagem_id} nao encontrada`);
+      continue;
+    }
+
+    const quantidadeNecessaria = config.quantidade * quantidadeProdutos;
+    if ((embalagem.quantidade || 0) < quantidadeNecessaria) {
+      erros.push(
+        `${embalagem.nome_embalagem}: necessario ${quantidadeNecessaria}, disponivel ${embalagem.quantidade || 0}`
+      );
+    }
+  }
+
+  return {
+    valido: erros.length === 0,
+    erros,
+  };
+};
+
+// Deduzir estoque de embalagens (para uso na fila de produção)
+export const deduzirEstoqueEmbalagens = async (
+  embalagensConfig: { embalagem_id: string; quantidade: number }[],
+  quantidadeProdutos: number = 1,
+  motivo?: string
+): Promise<boolean> => {
+  for (const config of embalagensConfig) {
+    const quantidadeTotal = config.quantidade * quantidadeProdutos;
+    const result = await registrarMovimentacaoEmbalagem(
+      config.embalagem_id,
+      'saida',
+      quantidadeTotal,
+      motivo || `Producao de ${quantidadeProdutos} unidade(s)`
+    );
+
+    if (!result) {
+      console.error(`Erro ao deduzir estoque da embalagem ${config.embalagem_id}`);
+      return false;
+    }
+  }
+
+  return true;
+};
