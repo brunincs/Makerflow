@@ -39,8 +39,10 @@ export const createPrecificacao = async (
     peso_kg: precificacao.peso_kg || 0,
     imposto_aliquota: precificacao.imposto_aliquota || 0,
     outros_custos: precificacao.outros_custos || 0,
-    embalagens_config: precificacao.embalagens_config || [],
-    embalagens_ids: precificacao.embalagens_ids || [], // Legado
+    // Converter embalagens_config para embalagens_ids (expandindo por quantidade)
+    embalagens_ids: (precificacao.embalagens_config || []).flatMap(cfg =>
+      Array(cfg.quantidade).fill(cfg.embalagem_id)
+    ),
     acessorios_config: precificacao.acessorios_config || [],
     custo_acessorios: precificacao.custo_acessorios || 0,
     impressora_modelo: precificacao.impressora_modelo || null,
@@ -202,8 +204,10 @@ export const updatePrecificacao = async (
     peso_kg: precificacao.peso_kg || 0,
     imposto_aliquota: precificacao.imposto_aliquota || 0,
     outros_custos: precificacao.outros_custos || 0,
-    embalagens_config: precificacao.embalagens_config || [],
-    embalagens_ids: precificacao.embalagens_ids || [], // Legado
+    // Converter embalagens_config para embalagens_ids (expandindo por quantidade)
+    embalagens_ids: (precificacao.embalagens_config || []).flatMap(cfg =>
+      Array(cfg.quantidade).fill(cfg.embalagem_id)
+    ),
     acessorios_config: precificacao.acessorios_config || [],
     custo_acessorios: precificacao.custo_acessorios || 0,
     impressora_modelo: precificacao.impressora_modelo || null,
