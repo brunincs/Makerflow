@@ -1,5 +1,6 @@
 import { supabase, isSupabaseConfigured, getCurrentUserId } from './supabaseClient';
 import { ProdutoConcorrente, VariacaoProduto } from '../types';
+import { deletePrecificacoesPorProduto } from './precificacoesService';
 
 const STORAGE_KEY = 'makerflow_produtos';
 const VARIACOES_KEY = 'makerflow_variacoes';
@@ -455,6 +456,9 @@ export const updateProduto = async (
 };
 
 export const deleteProduto = async (id: string): Promise<boolean> => {
+  // Primeiro, deletar todas as precificações deste produto
+  await deletePrecificacoesPorProduto(id);
+
   if (!isSupabaseConfigured() || !supabase) {
     const produtos = getLocalProdutos();
     const filtered = produtos.filter(p => p.id !== id);

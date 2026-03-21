@@ -1,4 +1,4 @@
-import { DollarSign, Info, Tag, Percent } from 'lucide-react';
+import { DollarSign, Info, Tag, Percent, Sparkles, Check, AlertTriangle, Target } from 'lucide-react';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Toggle } from '../ui/Toggle';
 import { PromocaoConfig, ArredondamentoPromocao } from '../../types';
@@ -8,6 +8,8 @@ interface PrecoMargemConfigProps {
   onPrecoVendaChange: (value: number) => void;
   promocao?: PromocaoConfig;
   onPromocaoChange?: (promocao: PromocaoConfig) => void;
+  // Para calcular sugestões de desconto
+  custoTotal?: number;
 }
 
 // Input especial para preco com formatacao em 2 casas decimais
@@ -121,6 +123,7 @@ export function PrecoMargemConfig({
   onPrecoVendaChange,
   promocao,
   onPromocaoChange,
+  custoTotal,
 }: PrecoMargemConfigProps) {
   // Estado local da promocao com valores padrao
   const promocaoAtiva = promocao?.ativo ?? false;
@@ -143,6 +146,86 @@ export function PrecoMargemConfig({
       descontoReal: ((precoAnuncio - precoFinal) / precoAnuncio * 100).toFixed(0),
     };
   }, [promocaoAtiva, precoVenda, descontoPercent, arredondamento]);
+
+  // Gerar sugestões de desconto baseadas na margem
+  const sugestoesDesconto = useMemo(() => {
+    if (!promocaoAtiva || !custoTotal || custoTotal <= 0) {
+      return null;
+    }
+
+    const descontos = [20, 30, 40, 50];
+    const sugestoes = [];
+
+    for (const desconto of descontos) {
+      // Calcular o lucro com o preço atual
+      const lucroAtual = precoVenda ? precoVenda - custoTotal : 0;
+      const margemAtual = precoVenda && precoVenda > 0 ? (lucroAtual / precoVenda) * 100 : 0;
+
+      // Classificação baseada na margem atual
+      let classificacao: 'excelente' | 'equilibrado' | 'agressivo' | 'risco';
+      let icon: string;
+      let label: string;
+      let corFundo: string;
+      let corTexto: string;
+
+      if (margemAtual >= 40) {
+        classificacao = 'excelente';
+        icon = '🟢';
+        label = 'Excelente';
+        corFundo = 'bg-emerald-50 dark:bg-emerald-900/20';
+        corTexto = 'text-emerald-700 dark:text-emerald-400';
+      } else if (margemAtual >= 30) {
+        classificacao = 'equilibrado';
+        icon = '🟢';
+        label = 'Equilibrado';
+        corFundo = 'bg-green-50 dark:bg-green-900/20';
+        corTexto = 'text-green-700 dark:text-green-400';
+      } else if (margemAtual >= 20) {
+        classificacao = 'agressivo';
+        icon = '🟡';
+        label = 'Agressivo';
+        corFundo = 'bg-yellow-50 dark:bg-yellow-900/20';
+        corTexto = 'text-yellow-700 dark:text-yellow-400';
+      } else if (margemAtual > 0) {
+        classificacao = 'risco';
+        icon = '🔴';
+        label = 'Risco';
+        corFundo = 'bg-red-50 dark:bg-red-900/20';
+        corTexto = 'text-red-700 dark:text-red-400';
+      } else {
+        // Lucro zero ou negativo - não sugerir
+        continue;
+      }
+
+      // Só adicionar se o lucro for positivo
+      if (lucroAtual > 0) {
+        sugestoes.push({
+          desconto,
+          precoAnuncio: precoVenda ? arredondarPreco(calcularPrecoAnuncio(precoVenda, desconto), arredondamento) : 0,
+          lucro: lucroAtual,
+          margem: margemAtual,
+          classificacao,
+          icon,
+          label,
+          corFundo,
+          corTexto,
+          isAtual: desconto === descontoPercent,
+          isIdeal: desconto === 50 && margemAtual >= 30, // 50% é mais atrativo para o cliente
+        });
+      }
+    }
+
+    // Determinar qual é a sugestão ideal (maior desconto com boa margem)
+    const sugestaoIdeal = sugestoes.find(s => s.margem >= 30 && s.desconto >= 40)
+      || sugestoes.find(s => s.margem >= 20 && s.desconto >= 30)
+      || sugestoes[0];
+
+    if (sugestaoIdeal) {
+      sugestaoIdeal.isIdeal = true;
+    }
+
+    return sugestoes;
+  }, [promocaoAtiva, custoTotal, precoVenda, arredondamento, descontoPercent]);
 
   const handlePromocaoToggle = (ativo: boolean) => {
     onPromocaoChange?.({
@@ -315,6 +398,105 @@ export function PrecoMargemConfig({
                         O cliente ve o preco riscado de R$ {precosPromocao.precoAnuncio.toFixed(2)} e paga R$ {precosPromocao.precoFinal.toFixed(2)}
                       </p>
                     </div>
+                  </div>
+                )}
+
+                {/* Sugestões de Desconto */}
+                {sugestoesDesconto && sugestoesDesconto.length > 0 && (
+                  <div className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 border border-indigo-200 dark:border-indigo-700 rounded-xl p-4 mt-4">
+                    <h5 className="text-sm font-semibold text-indigo-700 dark:text-indigo-400 mb-3 flex items-center gap-2">
+                      <Sparkles className="w-4 h-4" />
+                      Sugestoes de Desconto
+                    </h5>
+
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                      Clique para aplicar um desconto. Seu lucro permanece o mesmo.
+                    </p>
+
+                    <div className="space-y-2">
+                      {sugestoesDesconto.map((sugestao) => (
+                        <button
+                          key={sugestao.desconto}
+                          type="button"
+                          onClick={() => handleDescontoChange(String(sugestao.desconto))}
+                          className={`w-full p-3 rounded-lg border transition-all text-left ${
+                            sugestao.isAtual
+                              ? 'border-purple-400 dark:border-purple-500 bg-purple-100 dark:bg-purple-900/40 ring-2 ring-purple-400 ring-offset-1'
+                              : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 hover:border-purple-300 hover:bg-purple-50 dark:hover:bg-purple-900/20'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              {/* Badge de Desconto */}
+                              <div className={`px-2.5 py-1 rounded-full text-sm font-bold ${
+                                sugestao.desconto >= 50
+                                  ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                                  : sugestao.desconto >= 40
+                                    ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400'
+                                    : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
+                              }`}>
+                                {sugestao.desconto}% OFF
+                              </div>
+
+                              {/* Preço de Anúncio */}
+                              <div>
+                                <p className="text-sm font-medium text-gray-900 dark:text-white">
+                                  Anunciar: R$ {sugestao.precoAnuncio.toFixed(2)}
+                                </p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                  Recebe: R$ {precoVenda?.toFixed(2)}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              {/* Classificação */}
+                              <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full ${sugestao.corFundo}`}>
+                                <span>{sugestao.icon}</span>
+                                <span className={`text-xs font-medium ${sugestao.corTexto}`}>
+                                  {sugestao.label}
+                                </span>
+                              </div>
+
+                              {/* Badges especiais */}
+                              {sugestao.isIdeal && !sugestao.isAtual && (
+                                <div className="flex items-center gap-1 px-2 py-1 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 rounded-full">
+                                  <Target className="w-3 h-3" />
+                                  <span className="text-xs font-medium">Ideal</span>
+                                </div>
+                              )}
+
+                              {sugestao.isAtual && (
+                                <div className="flex items-center gap-1 px-2 py-1 bg-purple-200 dark:bg-purple-800 text-purple-700 dark:text-purple-300 rounded-full">
+                                  <Check className="w-3 h-3" />
+                                  <span className="text-xs font-medium">Atual</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Info de Lucro */}
+                          <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                              Lucro: R$ {sugestao.lucro.toFixed(2)}
+                            </span>
+                            <span className={`text-xs font-medium ${sugestao.corTexto}`}>
+                              Margem: {sugestao.margem.toFixed(1)}%
+                            </span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Aviso de margem */}
+                    {sugestoesDesconto[0] && sugestoesDesconto[0].margem < 20 && (
+                      <div className="flex items-start gap-2 mt-3 p-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg">
+                        <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                        <p className="text-xs text-amber-700 dark:text-amber-400">
+                          Margem baixa. Considere aumentar o preco de venda para ter uma operacao mais segura.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

@@ -253,6 +253,12 @@ export interface AcessorioConfigItem {
   quantidade: number;
 }
 
+// Config de embalagem na precificacao (com quantidade)
+export interface EmbalagemConfigItem {
+  embalagem_id: string;
+  quantidade: number;
+}
+
 // Custos de Producao (compartilhado entre todos os marketplaces)
 export interface CustosProducaoConfig {
   // Impressora & Energia
@@ -268,8 +274,9 @@ export interface CustosProducaoConfig {
   filamento_id?: string;
   preco_filamento_kg?: number;
   peso_filamento_g?: number;
-  // Embalagens (múltiplas)
-  embalagens_ids?: string[];
+  // Embalagens (com quantidade)
+  embalagens_config?: EmbalagemConfigItem[];
+  embalagens_ids?: string[]; // Legado - manter para compatibilidade
   // Acessorios
   acessorios_config?: AcessorioConfigItem[];
   // Demais Custos
@@ -363,7 +370,8 @@ export interface PrecificacaoSalva {
   peso_kg?: number;
   imposto_aliquota?: number;
   outros_custos?: number;
-  embalagens_ids?: string[];
+  embalagens_config?: EmbalagemConfigItem[];
+  embalagens_ids?: string[]; // Legado
   acessorios_config?: AcessorioConfigItem[];
   custo_acessorios?: number;
   impressora_modelo?: string | null;

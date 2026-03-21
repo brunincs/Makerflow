@@ -39,7 +39,8 @@ export const createPrecificacao = async (
     peso_kg: precificacao.peso_kg || 0,
     imposto_aliquota: precificacao.imposto_aliquota || 0,
     outros_custos: precificacao.outros_custos || 0,
-    embalagens_ids: precificacao.embalagens_ids || [],
+    embalagens_config: precificacao.embalagens_config || [],
+    embalagens_ids: precificacao.embalagens_ids || [], // Legado
     acessorios_config: precificacao.acessorios_config || [],
     custo_acessorios: precificacao.custo_acessorios || 0,
     impressora_modelo: precificacao.impressora_modelo || null,
@@ -201,7 +202,8 @@ export const updatePrecificacao = async (
     peso_kg: precificacao.peso_kg || 0,
     imposto_aliquota: precificacao.imposto_aliquota || 0,
     outros_custos: precificacao.outros_custos || 0,
-    embalagens_ids: precificacao.embalagens_ids || [],
+    embalagens_config: precificacao.embalagens_config || [],
+    embalagens_ids: precificacao.embalagens_ids || [], // Legado
     acessorios_config: precificacao.acessorios_config || [],
     custo_acessorios: precificacao.custo_acessorios || 0,
     impressora_modelo: precificacao.impressora_modelo || null,
@@ -265,6 +267,28 @@ export const deletePrecificacao = async (id: string): Promise<boolean> => {
 
   if (error) {
     console.error('Erro ao deletar precificação:', error);
+    return false;
+  }
+
+  return true;
+};
+
+// Deletar todas as precificações de um produto
+export const deletePrecificacoesPorProduto = async (produtoId: string): Promise<boolean> => {
+  if (!isSupabaseConfigured() || !supabase) {
+    const precificacoes = getLocalPrecificacoes();
+    const filtered = precificacoes.filter(p => p.produto_id !== produtoId);
+    setLocalPrecificacoes(filtered);
+    return true;
+  }
+
+  const { error } = await supabase
+    .from('precificacoes')
+    .delete()
+    .eq('produto_id', produtoId);
+
+  if (error) {
+    console.error('Erro ao deletar precificações do produto:', error);
     return false;
   }
 

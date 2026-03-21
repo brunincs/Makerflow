@@ -1,4 +1,5 @@
-import { MarketplaceState, MarketplaceType, ProdutoSelecionado, CustosProducaoConfig, KitItem, PromocaoConfig } from '../../types';
+import { useState, useEffect, useMemo } from 'react';
+import { MarketplaceState, MarketplaceType, ProdutoSelecionado, CustosProducaoConfig, KitItem, PromocaoConfig, Embalagem } from '../../types';
 import { ShopeeConfigComponent } from './ShopeeConfig';
 import { MercadoLivreConfigComponent } from './MercadoLivreConfig';
 import { VendaDiretaConfigComponent } from './VendaDiretaConfig';
@@ -7,9 +8,13 @@ import { FilamentoConfig } from './FilamentoConfig';
 import { DemaisCustosConfig } from './DemaisCustosConfig';
 import { PrecoMargemConfig } from './PrecoMargemConfig';
 import { ResultadoCard } from './ResultadoCard';
+import { CATEGORIAS } from './MercadoLivreConfig';
 import { KitSelector } from './KitSelector';
 import { ShopeeIcon, MercadoLivreIcon } from '../ui/MarketplaceIcons';
 import { Store, Package, Layers } from 'lucide-react';
+import { getEmbalagens } from '../../services/embalagensService';
+import { getAcessorios } from '../../services/acessoriosService';
+import { Acessorio } from '../../types/acessorio';
 
 interface MarketplaceSelectorProps {
   value: MarketplaceState;
@@ -46,6 +51,22 @@ const MARKETPLACES = [
 ];
 
 export function MarketplaceSelector({ value, onChange, canSave = true, onSaveSuccess, nomeProdutoCarregado, simulacaoId, produtoIdOriginal }: MarketplaceSelectorProps) {
+  const [embalagens, setEmbalagens] = useState<Embalagem[]>([]);
+  const [acessorios, setAcessorios] = useState<Acessorio[]>([]);
+
+  // Carregar embalagens e acessorios para calcular custos
+  useEffect(() => {
+    const loadData = async () => {
+      const [embData, acessData] = await Promise.all([
+        getEmbalagens(),
+        getAcessorios(true)
+      ]);
+      setEmbalagens(embData);
+      setAcessorios(acessData);
+    };
+    loadData();
+  }, []);
+
   const handleMarketplaceChange = (tipo: MarketplaceType) => {
     onChange({ ...value, tipo });
   };
@@ -126,6 +147,101 @@ export function MarketplaceSelector({ value, onChange, canSave = true, onSaveSuc
     const tempo = (item.variacao?.tempo_impressao || item.produto.tempo_impressao || 0) * item.quantidade;
     return { peso: acc.peso + peso, tempo: acc.tempo + tempo };
   }, { peso: 0, tempo: 0 }) || { peso: 0, tempo: 0 };
+
+  // Calcular custo total para sugestões de desconto
+  const custoTotal = useMemo(() => {
+    const custos = value.custos_producao || {};
+    const precoVenda = value.preco_venda || 0;
+
+    // Peso do filamento
+    const pesoFilamento = value.modo_kit && kitTotais.peso > 0
+      ? kitTotais.peso
+      : value.produto_selecionado?.variacao?.peso_filamento
+        || value.produto_selecionado?.produto.peso_filamento
+        || custos.peso_filamento_g
+        || 0;
+
+    // Tempo de impressão
+    const tempoHoras = value.modo_kit && kitTotais.tempo > 0
+      ? kitTotais.tempo
+      : value.produto_selecionado?.variacao?.tempo_impressao
+        || value.produto_selecionado?.produto.tempo_impressao
+        || ((custos.tempo_impressao_horas || 0) + (custos.tempo_impressao_minutos || 0) / 60)
+        || 0;
+
+    // Custo do filamento
+    const custoFilamento = custos.preco_filamento_kg && pesoFilamento
+      ? (custos.preco_filamento_kg / 1000) * pesoFilamento
+      : 0;
+
+    // Custo de energia
+    let custoEnergia = (custos.consumo_kwh || 0) * (custos.valor_kwh || 0) * tempoHoras;
+    if (custos.multiplas_pecas && custos.quantidade_pecas && custos.quantidade_pecas > 1) {
+      custoEnergia = custoEnergia / custos.quantidade_pecas;
+    }
+
+    // Custo de embalagem (com quantidade)
+    const custoEmbalagem = (custos.embalagens_config || []).reduce((total, cfg) => {
+      const emb = embalagens.find(e => e.id === cfg.embalagem_id);
+      return total + (emb?.preco_unitario || 0) * cfg.quantidade;
+    }, 0);
+
+    // Custo de acessorios
+    const custoAcessorios = (custos.acessorios_config || []).reduce((total, cfg) => {
+      const acessorio = acessorios.find(a => a.id === cfg.acessorio_id);
+      return total + (acessorio?.custo_unitario || 0) * cfg.quantidade;
+    }, 0);
+
+    const outrosCustos = custos.outros_custos || 0;
+    const totalCustosProducao = custoFilamento + custoEnergia + custoEmbalagem + custoAcessorios + outrosCustos;
+
+    // Taxa do marketplace
+    let taxaMarketplace = 0;
+    let taxaFixaShopee = 0;
+
+    if (value.tipo === 'mercadolivre') {
+      const categoria = CATEGORIAS.find(c => c.id === value.mercadolivre.categoria_id);
+      if (categoria) {
+        const taxaPercent = value.mercadolivre.tipo_anuncio === 'classico'
+          ? categoria.taxa_classico
+          : categoria.taxa_premium;
+        taxaMarketplace = (taxaPercent / 100) * precoVenda;
+      }
+    } else if (value.tipo === 'shopee') {
+      let comissaoPercent = 0;
+      if (precoVenda < 80) {
+        comissaoPercent = 20;
+        taxaFixaShopee = 4;
+      } else if (precoVenda < 100) {
+        comissaoPercent = 14;
+        taxaFixaShopee = 16;
+      } else if (precoVenda < 200) {
+        comissaoPercent = 14;
+        taxaFixaShopee = 20;
+      } else {
+        comissaoPercent = 14;
+        taxaFixaShopee = 26;
+      }
+      let comissao = (comissaoPercent / 100) * precoVenda;
+      if (comissao > 100) comissao = 100;
+      taxaMarketplace = comissao;
+    }
+
+    // Imposto
+    const custoImposto = ((custos.imposto_aliquota || 0) / 100) * precoVenda;
+
+    // Cupom próprio
+    let custoCupom = 0;
+    if (value.tipo === 'shopee' && value.shopee.cupom_desconto && value.shopee.valor_cupom) {
+      custoCupom = value.shopee.valor_cupom;
+    } else if (value.tipo === 'mercadolivre' && value.mercadolivre.cupom_desconto && value.mercadolivre.valor_cupom) {
+      custoCupom = value.mercadolivre.valor_cupom;
+    }
+
+    const totalCustosVenda = taxaMarketplace + taxaFixaShopee + custoImposto + custoCupom;
+
+    return totalCustosProducao + totalCustosVenda;
+  }, [value, kitTotais, embalagens, acessorios]);
 
   const getColorClasses = (color: string, isSelected: boolean) => {
     const colors: Record<string, { selected: string; unselected: string; iconBg: string; iconColor: string }> = {
@@ -305,8 +421,8 @@ export function MarketplaceSelector({ value, onChange, canSave = true, onSaveSuc
         <DemaisCustosConfig
           impostoAliquota={custos.imposto_aliquota}
           onImpostoAliquotaChange={(v) => handleCustosProducaoChange('imposto_aliquota', v)}
-          embalagensIds={custos.embalagens_ids}
-          onEmbalagensChange={(ids) => handleCustosProducaoChange('embalagens_ids', ids)}
+          embalagensConfig={custos.embalagens_config}
+          onEmbalagensChange={(config) => handleCustosProducaoChange('embalagens_config', config)}
           acessoriosConfig={custos.acessorios_config}
           onAcessoriosChange={(config) => handleCustosProducaoChange('acessorios_config', config)}
           outrosCustos={custos.outros_custos}
@@ -319,6 +435,7 @@ export function MarketplaceSelector({ value, onChange, canSave = true, onSaveSuc
           onPrecoVendaChange={handlePrecoVendaChange}
           promocao={value.promocao}
           onPromocaoChange={handlePromocaoChange}
+          custoTotal={custoTotal}
         />
 
         {/* Resultado */}

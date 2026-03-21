@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { DecimalInput } from '../ui/DecimalInput';
-import { Receipt, Percent, Package, PlusCircle, Info, Loader2, Check, Lightbulb } from 'lucide-react';
-import { Embalagem, AcessorioConfigItem } from '../../types';
+import { Receipt, Percent, Package, PlusCircle, Info, Loader2, Lightbulb, Plus, Minus } from 'lucide-react';
+import { Embalagem, AcessorioConfigItem, EmbalagemConfigItem } from '../../types';
 import { getEmbalagens } from '../../services/embalagensService';
 import { AcessoriosConfig } from './AcessoriosConfig';
 import { AcessorioConfig } from '../../types/acessorio';
@@ -9,8 +9,8 @@ import { AcessorioConfig } from '../../types/acessorio';
 interface DemaisCustosConfigProps {
   impostoAliquota?: number;
   onImpostoAliquotaChange: (value: number) => void;
-  embalagensIds?: string[];
-  onEmbalagensChange: (ids: string[], custoTotal: number) => void;
+  embalagensConfig?: EmbalagemConfigItem[];
+  onEmbalagensChange: (config: EmbalagemConfigItem[], custoTotal: number) => void;
   acessoriosConfig?: AcessorioConfigItem[];
   onAcessoriosChange: (config: AcessorioConfigItem[], custoTotal: number) => void;
   outrosCustos?: number;
@@ -90,7 +90,7 @@ function PercentInput({
 export function DemaisCustosConfig({
   impostoAliquota,
   onImpostoAliquotaChange,
-  embalagensIds = [],
+  embalagensConfig = [],
   onEmbalagensChange,
   acessoriosConfig = [],
   onAcessoriosChange,
@@ -110,30 +110,84 @@ export function DemaisCustosConfig({
     loadEmbalagens();
   }, []);
 
-  const handleEmbalagemToggle = (id: string) => {
-    const isSelected = embalagensIds.includes(id);
-    let newIds: string[];
+  const getQuantidade = (embalagemId: string): number => {
+    const config = embalagensConfig.find(c => c.embalagem_id === embalagemId);
+    return config?.quantidade || 0;
+  };
 
-    if (isSelected) {
-      newIds = embalagensIds.filter(eid => eid !== id);
+  const handleQuantidadeChange = (embalagemId: string, delta: number) => {
+    const embalagem = embalagens.find(e => e.id === embalagemId);
+    const estoqueDisponivel = embalagem?.quantidade || 0;
+
+    // Se não tem estoque, não permite adicionar
+    if (estoqueDisponivel <= 0 && delta > 0) return;
+
+    const atual = getQuantidade(embalagemId);
+    // Limita ao estoque disponível
+    const novaQuantidade = Math.min(Math.max(0, atual + delta), estoqueDisponivel);
+
+    let newConfig: EmbalagemConfigItem[];
+
+    if (novaQuantidade === 0) {
+      // Remover do config
+      newConfig = embalagensConfig.filter(c => c.embalagem_id !== embalagemId);
     } else {
-      newIds = [...embalagensIds, id];
+      const existingIndex = embalagensConfig.findIndex(c => c.embalagem_id === embalagemId);
+      if (existingIndex >= 0) {
+        // Atualizar quantidade
+        newConfig = [...embalagensConfig];
+        newConfig[existingIndex] = { ...newConfig[existingIndex], quantidade: novaQuantidade };
+      } else {
+        // Adicionar novo
+        newConfig = [...embalagensConfig, { embalagem_id: embalagemId, quantidade: novaQuantidade }];
+      }
     }
 
-    // Calcular custo total das embalagens selecionadas
-    const custoTotal = newIds.reduce((total, eid) => {
-      const emb = embalagens.find(e => e.id === eid);
-      return total + (emb?.preco_unitario || 0);
+    // Calcular custo total
+    const custoTotal = newConfig.reduce((total, cfg) => {
+      const embalagem = embalagens.find(e => e.id === cfg.embalagem_id);
+      return total + (embalagem?.preco_unitario || 0) * cfg.quantidade;
     }, 0);
 
-    onEmbalagensChange(newIds, custoTotal);
+    onEmbalagensChange(newConfig, custoTotal);
+  };
+
+  const handleQuantidadeInputChange = (embalagemId: string, value: string) => {
+    const embalagem = embalagens.find(e => e.id === embalagemId);
+    const estoqueDisponivel = embalagem?.quantidade || 0;
+
+    // Limita ao estoque disponível
+    const novaQuantidade = Math.min(Math.max(0, parseInt(value) || 0), estoqueDisponivel);
+
+    let newConfig: EmbalagemConfigItem[];
+
+    if (novaQuantidade === 0) {
+      newConfig = embalagensConfig.filter(c => c.embalagem_id !== embalagemId);
+    } else {
+      const existingIndex = embalagensConfig.findIndex(c => c.embalagem_id === embalagemId);
+      if (existingIndex >= 0) {
+        newConfig = [...embalagensConfig];
+        newConfig[existingIndex] = { ...newConfig[existingIndex], quantidade: novaQuantidade };
+      } else {
+        newConfig = [...embalagensConfig, { embalagem_id: embalagemId, quantidade: novaQuantidade }];
+      }
+    }
+
+    const custoTotal = newConfig.reduce((total, cfg) => {
+      const embalagem = embalagens.find(e => e.id === cfg.embalagem_id);
+      return total + (embalagem?.preco_unitario || 0) * cfg.quantidade;
+    }, 0);
+
+    onEmbalagensChange(newConfig, custoTotal);
   };
 
   // Calcular custo total atual
-  const custoTotalEmbalagens = embalagensIds.reduce((total, id) => {
-    const emb = embalagens.find(e => e.id === id);
-    return total + (emb?.preco_unitario || 0);
+  const custoTotalEmbalagens = embalagensConfig.reduce((total, cfg) => {
+    const emb = embalagens.find(e => e.id === cfg.embalagem_id);
+    return total + (emb?.preco_unitario || 0) * cfg.quantidade;
   }, 0);
+
+  const totalItensEmbalagens = embalagensConfig.reduce((sum, cfg) => sum + cfg.quantidade, 0);
 
   const formatCurrency = (value: number) => {
     return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -188,56 +242,105 @@ export function DemaisCustosConfig({
           ) : (
             <div className="space-y-2">
               {embalagens.map((embalagem) => {
-                const isSelected = embalagensIds.includes(embalagem.id);
+                const quantidade = getQuantidade(embalagem.id);
+                const isSelected = quantidade > 0;
                 const semEstoque = (embalagem.quantidade || 0) <= 0;
+                const custoItem = embalagem.preco_unitario * quantidade;
+                const atingiuLimite = quantidade >= (embalagem.quantidade || 0);
+
                 return (
-                  <button
+                  <div
                     key={embalagem.id}
-                    type="button"
-                    onClick={() => !semEstoque && handleEmbalagemToggle(embalagem.id)}
-                    disabled={semEstoque}
-                    className={`w-full flex items-center gap-3 p-3 rounded-lg border-2 transition-all text-left ${
+                    className={`flex items-center gap-3 p-3 rounded-lg border-2 transition-all ${
                       semEstoque
-                        ? 'border-gray-200 bg-gray-100 opacity-60 cursor-not-allowed'
+                        ? 'border-gray-200 bg-gray-100 opacity-60'
                         : isSelected
-                        ? 'border-orange-500 bg-orange-100'
+                        ? 'border-orange-500 bg-orange-50'
                         : 'border-gray-200 bg-white hover:border-gray-300'
                     }`}
                   >
-                    <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${
-                      semEstoque
-                        ? 'border-gray-300 bg-gray-200'
-                        : isSelected
-                        ? 'bg-orange-500 border-orange-500'
-                        : 'border-gray-300 bg-white'
+                    <div className={`p-2 rounded-lg flex-shrink-0 ${
+                      semEstoque ? 'bg-gray-200' : isSelected ? 'bg-orange-100' : 'bg-gray-100'
                     }`}>
-                      {isSelected && !semEstoque && <Check className="w-3 h-3 text-white" />}
+                      <Package className={`w-4 h-4 ${
+                        semEstoque ? 'text-gray-400' : isSelected ? 'text-orange-600' : 'text-gray-400'
+                      }`} />
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      <p className={`text-sm font-medium truncate ${semEstoque ? 'text-gray-400' : 'text-gray-900'}`}>
-                        {embalagem.nome_embalagem}
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className={`text-sm font-medium truncate ${semEstoque ? 'text-gray-400' : 'text-gray-900'}`}>
+                          {embalagem.nome_embalagem}
+                        </p>
+                        {semEstoque && (
+                          <span className="flex items-center gap-1 px-1.5 py-0.5 bg-red-100 text-red-700 rounded text-xs">
+                            Sem estoque
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-gray-500">
-                        {embalagem.tipo}
-                        {semEstoque && <span className="ml-2 text-red-500 font-medium">Sem estoque</span>}
-                        {!semEstoque && <span className="ml-2 text-green-600">({embalagem.quantidade} un)</span>}
+                        R$ {formatCurrency(embalagem.preco_unitario)}/un · {embalagem.tipo} · Estoque: {embalagem.quantidade}
                       </p>
                     </div>
 
-                    <p className={`text-sm font-semibold flex-shrink-0 ${semEstoque ? 'text-gray-400' : 'text-orange-700'}`}>
-                      R$ {formatCurrency(embalagem.preco_unitario)}
-                    </p>
-                  </button>
+                    {/* Controle de quantidade */}
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => handleQuantidadeChange(embalagem.id, -1)}
+                        disabled={quantidade === 0}
+                        className={`p-1.5 rounded-lg transition-colors ${
+                          quantidade === 0
+                            ? 'text-gray-300 cursor-not-allowed'
+                            : 'text-orange-600 hover:bg-orange-100'
+                        }`}
+                      >
+                        <Minus className="w-4 h-4" />
+                      </button>
+
+                      <input
+                        type="number"
+                        min="0"
+                        max={embalagem.quantidade || 0}
+                        value={quantidade || ''}
+                        onChange={(e) => handleQuantidadeInputChange(embalagem.id, e.target.value)}
+                        placeholder="0"
+                        disabled={semEstoque}
+                        className={`w-12 text-center px-1 py-1 border border-gray-300 rounded-lg text-sm
+                          focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500
+                          ${semEstoque ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                      />
+
+                      <button
+                        type="button"
+                        onClick={() => handleQuantidadeChange(embalagem.id, 1)}
+                        disabled={semEstoque || atingiuLimite}
+                        className={`p-1.5 rounded-lg transition-colors ${
+                          semEstoque || atingiuLimite
+                            ? 'text-gray-300 cursor-not-allowed'
+                            : 'text-orange-600 hover:bg-orange-100'
+                        }`}
+                      >
+                        <Plus className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    {/* Custo do item */}
+                    {isSelected && (
+                      <p className="text-sm font-semibold text-orange-700 flex-shrink-0 min-w-[80px] text-right">
+                        R$ {formatCurrency(custoItem)}
+                      </p>
+                    )}
+                  </div>
                 );
               })}
 
               {/* Total das embalagens */}
-              {embalagensIds.length > 0 && (
+              {totalItensEmbalagens > 0 && (
                 <div className="mt-3 p-3 bg-orange-100 border border-orange-300 rounded-lg">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium text-orange-700">
-                      Total embalagens ({embalagensIds.length})
+                      Total embalagens ({totalItensEmbalagens} itens)
                     </span>
                     <span className="text-lg font-bold text-orange-800">
                       R$ {formatCurrency(custoTotalEmbalagens)}

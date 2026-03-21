@@ -246,10 +246,10 @@ export function ResultadoCard({ state, canSave = true, onSaveSuccess, nomeProdut
     custoEnergia = custoEnergia / custos.quantidade_pecas;
   }
 
-  // Custo de embalagem (soma das embalagens selecionadas)
-  const custoEmbalagem = (custos.embalagens_ids || []).reduce((total, id) => {
-    const emb = embalagens.find(e => e.id === id);
-    return total + (emb?.preco_unitario || 0);
+  // Custo de embalagem (soma das embalagens selecionadas com quantidade)
+  const custoEmbalagem = (custos.embalagens_config || []).reduce((total, cfg) => {
+    const emb = embalagens.find(e => e.id === cfg.embalagem_id);
+    return total + (emb?.preco_unitario || 0) * cfg.quantidade;
   }, 0);
 
   // Custo de acessorios
@@ -467,7 +467,8 @@ export function ResultadoCard({ state, canSave = true, onSaveSuccess, nomeProdut
       peso_kg: state.mercadolivre?.peso_kg || 0,
       imposto_aliquota: custos.imposto_aliquota || 0,
       outros_custos: custos.outros_custos || 0,
-      embalagens_ids: custos.embalagens_ids || [],
+      embalagens_config: custos.embalagens_config || [],
+      embalagens_ids: [], // Legado
       acessorios_config: custos.acessorios_config || [],
       custo_acessorios: custoAcessorios,
       impressora_modelo: custos.impressora_modelo || null,
