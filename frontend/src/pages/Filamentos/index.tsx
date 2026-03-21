@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Card, CardBody } from '../../components/ui';
-import { Filamento } from '../../types';
+import { Filamento, Impressao } from '../../types';
 import {
   getFilamentos,
   createFilamento,
@@ -10,6 +10,7 @@ import {
   removerEstoqueFilamento,
   ajustarEstoqueFilamento
 } from '../../services/filamentosService';
+import { getImpressoesPorFilamento } from '../../services/impressoesService';
 import { DecimalInput } from '../../components/ui/DecimalInput';
 import {
   Cylinder,
@@ -23,7 +24,10 @@ import {
   AlertCircle,
   AlertTriangle,
   Package,
-  Settings
+  Settings,
+  History,
+  Printer,
+  Calendar
 } from 'lucide-react';
 
 const MATERIAIS = ['PLA', 'PETG', 'ABS', 'TPU'];
@@ -37,7 +41,7 @@ interface FilamentoForm {
   quantidade_rolos: number;
 }
 
-type ModalTipo = 'entrada' | 'saida' | 'ajuste' | null;
+type ModalTipo = 'entrada' | 'saida' | 'ajuste' | 'historico' | null;
 
 interface EntradaForm {
   quantidade_rolos: number;
@@ -96,6 +100,10 @@ export function Filamentos() {
   const [saidaForm, setSaidaForm] = useState<SaidaForm>(initialSaidaForm);
   const [ajusteForm, setAjusteForm] = useState<AjusteForm>(initialAjusteForm);
   const [savingModal, setSavingModal] = useState(false);
+
+  // Histórico de uso
+  const [historicoImpressoes, setHistoricoImpressoes] = useState<Impressao[]>([]);
+  const [loadingHistorico, setLoadingHistorico] = useState(false);
 
   useEffect(() => {
     loadFilamentos();
@@ -179,7 +187,7 @@ export function Filamentos() {
   };
 
   // Funções do modal
-  const handleOpenModal = (tipo: ModalTipo, filamentoId: string) => {
+  const handleOpenModal = async (tipo: ModalTipo, filamentoId: string) => {
     const filamento = filamentos.find(f => f.id === filamentoId);
     setModalTipo(tipo);
     setModalFilamentoId(filamentoId);
@@ -190,6 +198,14 @@ export function Filamentos() {
       novo_preco_medio: filamento?.preco_por_kg || 0,
       motivo: '',
     });
+
+    // Carregar histórico de uso
+    if (tipo === 'historico') {
+      setLoadingHistorico(true);
+      const impressoes = await getImpressoesPorFilamento(filamentoId);
+      setHistoricoImpressoes(impressoes);
+      setLoadingHistorico(false);
+    }
   };
 
   const handleCloseModal = () => {
@@ -198,6 +214,7 @@ export function Filamentos() {
     setEntradaForm(initialEntradaForm);
     setSaidaForm(initialSaidaForm);
     setAjusteForm(initialAjusteForm);
+    setHistoricoImpressoes([]);
   };
 
   const handleSubmitEntrada = async (e: React.FormEvent) => {
@@ -655,6 +672,14 @@ export function Filamentos() {
                     <Settings className="w-3.5 h-3.5" />
                   </button>
 
+                  <button
+                    onClick={() => handleOpenModal('historico', filamento.id)}
+                    className="flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-purple-600 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors"
+                    title="Histórico de uso"
+                  >
+                    <History className="w-3.5 h-3.5" />
+                  </button>
+
                   {/* Separador */}
                   <div className="w-px h-6 bg-gray-200 mx-1" />
 
@@ -993,6 +1018,137 @@ export function Filamentos() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Histórico */}
+      {modalTipo === 'historico' && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="fixed inset-0 bg-black/50" onClick={handleCloseModal} />
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div className="relative bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col">
+              <div className="px-6 py-4 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                    <History className="w-5 h-5 text-purple-600" />
+                    Histórico de Uso
+                  </h3>
+                  <button onClick={handleCloseModal} className="p-2 hover:bg-gray-100 rounded-lg">
+                    <X className="w-5 h-5 text-gray-500" />
+                  </button>
+                </div>
+                {getFilamentoAtual() && (
+                  <p className="text-sm text-gray-500 mt-1">
+                    {getFilamentoAtual()?.marca} - {getFilamentoAtual()?.nome_filamento}
+                  </p>
+                )}
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-6">
+                {loadingHistorico ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="w-8 h-8 animate-spin text-purple-500" />
+                  </div>
+                ) : historicoImpressoes.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Printer className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                    <p className="text-gray-500">Nenhuma impressão registrada com este filamento.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {/* Resumo */}
+                    <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg mb-4">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-purple-700">Total de impressões:</span>
+                        <span className="font-bold text-purple-800">{historicoImpressoes.length}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm mt-1">
+                        <span className="text-purple-700">Total consumido:</span>
+                        <span className="font-bold text-purple-800">
+                          {(historicoImpressoes.reduce((acc, i) => acc + (i.peso_total_g || 0), 0) / 1000).toFixed(3)} kg
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Lista de impressões */}
+                    {historicoImpressoes.map((impressao) => {
+                      const nomeProduto = impressao.nome_peca_manual ||
+                        (impressao.produto as { nome?: string })?.nome ||
+                        'Peça manual';
+                      const nomeVariacao = (impressao.variacao as { nome_variacao?: string })?.nome_variacao;
+                      const impressoraInfo = impressao.impressora_info as { modelo?: string; apelido?: string } | null;
+                      const dataFormatada = impressao.created_at
+                        ? new Date(impressao.created_at).toLocaleDateString('pt-BR', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })
+                        : '-';
+
+                      return (
+                        <div
+                          key={impressao.id}
+                          className="p-4 bg-white border border-gray-200 rounded-lg hover:border-purple-200 transition-colors"
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className="p-2 bg-purple-100 rounded-lg flex-shrink-0">
+                              <Printer className="w-5 h-5 text-purple-600" />
+                            </div>
+
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <h4 className="font-medium text-gray-900 truncate">
+                                  {nomeProduto}
+                                </h4>
+                                {nomeVariacao && (
+                                  <span className="px-2 py-0.5 text-xs bg-gray-100 text-gray-600 rounded">
+                                    {nomeVariacao}
+                                  </span>
+                                )}
+                              </div>
+
+                              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-500">
+                                <span className="flex items-center gap-1">
+                                  <Calendar className="w-3.5 h-3.5" />
+                                  {dataFormatada}
+                                </span>
+                                {impressoraInfo && (
+                                  <span>
+                                    {impressoraInfo.apelido || impressoraInfo.modelo}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="text-right flex-shrink-0">
+                              <div className="text-sm text-gray-500">
+                                {impressao.quantidade}x {impressao.peso_peca_g}g
+                              </div>
+                              <div className="text-lg font-bold text-purple-700">
+                                {impressao.peso_total_g}g
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div className="px-6 py-4 border-t border-gray-200">
+                <button
+                  type="button"
+                  onClick={handleCloseModal}
+                  className="w-full px-4 py-2 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                >
+                  Fechar
+                </button>
+              </div>
             </div>
           </div>
         </div>

@@ -136,6 +136,32 @@ export const getImpressoes = async (): Promise<Impressao[]> => {
   return data || [];
 };
 
+// Buscar impressões por filamento (histórico de uso)
+export const getImpressoesPorFilamento = async (filamentoId: string): Promise<Impressao[]> => {
+  if (!isSupabaseConfigured() || !supabase) {
+    const impressoes = getLocalImpressoes();
+    return impressoes.filter(i => i.filamento_id === filamentoId);
+  }
+
+  const { data, error } = await supabase
+    .from('impressoes')
+    .select(`
+      *,
+      produto:produtos_concorrentes!left(nome, imagem_url),
+      variacao:variacoes_produto(nome_variacao),
+      impressora_info:impressoras(modelo, apelido)
+    `)
+    .eq('filamento_id', filamentoId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Erro ao buscar impressoes por filamento:', error);
+    return [];
+  }
+
+  return data || [];
+};
+
 export const deleteImpressao = async (id: string): Promise<boolean> => {
   if (!isSupabaseConfigured() || !supabase) {
     const impressoes = getLocalImpressoes();
