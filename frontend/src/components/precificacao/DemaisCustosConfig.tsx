@@ -279,7 +279,7 @@ export function DemaisCustosConfig({
                         )}
                       </div>
                       <p className="text-xs text-gray-500">
-                        R$ {formatCurrency(embalagem.preco_unitario)}/un · {embalagem.tipo} · Estoque: {embalagem.quantidade}
+                        R$ {formatCurrency(embalagem.preco_unitario)}/un · Estoque: {embalagem.quantidade}
                       </p>
                     </div>
 
