@@ -300,10 +300,10 @@ export function ProdutoForm({ onSuccess, onCancel, produto }: ProdutoFormProps) 
                 type="number"
                 name="peso_filamento"
                 min="0"
-                step="0.1"
+                step="0.01"
                 value={formData.peso_filamento}
                 onChange={handleChange}
-                placeholder="0"
+                placeholder="0.00"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm bg-white
                   focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
               />
