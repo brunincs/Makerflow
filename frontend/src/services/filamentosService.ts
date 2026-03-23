@@ -74,10 +74,14 @@ export const createFilamento = async (
   }
 
   const user_id = await getCurrentUserId();
-  // Só inclui user_id se não for null (auth desabilitada temporariamente)
-  const dadosComUserId = user_id
-    ? { ...dadosParaSalvar, user_id }
-    : dadosParaSalvar;
+
+  if (!user_id) {
+    console.error('[Filamentos] ERRO: Usuário não autenticado - não é possível salvar');
+    return null;
+  }
+
+  const dadosComUserId = { ...dadosParaSalvar, user_id };
+  console.log('[Filamentos] Salvando:', dadosComUserId);
 
   const { data, error } = await supabase
     .from('filamentos')
@@ -86,9 +90,13 @@ export const createFilamento = async (
     .single();
 
   if (error) {
-    console.error('Erro ao criar filamento:', error);
+    console.error('[Filamentos] Erro ao criar:', error.message);
+    console.error('[Filamentos] Código:', error.code);
+    console.error('[Filamentos] Detalhes:', error.details);
     return null;
   }
+
+  console.log('[Filamentos] Salvo com sucesso:', data);
 
   return data;
 };

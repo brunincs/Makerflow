@@ -14,10 +14,30 @@ export const isSupabaseConfigured = (): boolean => {
 
 // Funcao para obter o user_id do usuario logado
 export const getCurrentUserId = async (): Promise<string | null> => {
-  if (!supabase) return null;
+  if (!supabase) {
+    console.warn('[Auth] Supabase não configurado');
+    return null;
+  }
 
-  const { data: { user } } = await supabase.auth.getUser();
-  return user?.id ?? null;
+  try {
+    const { data: { user }, error } = await supabase.auth.getUser();
+
+    if (error) {
+      console.error('[Auth] Erro ao obter usuário:', error.message);
+      return null;
+    }
+
+    if (!user) {
+      console.warn('[Auth] Nenhum usuário logado');
+      return null;
+    }
+
+    console.log('[Auth] Usuário autenticado:', user.id);
+    return user.id;
+  } catch (err) {
+    console.error('[Auth] Exceção ao obter usuário:', err);
+    return null;
+  }
 };
 
 // Funcao sincrona para obter user_id da sessao atual (cache)
