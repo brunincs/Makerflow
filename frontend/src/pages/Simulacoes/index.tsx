@@ -181,9 +181,9 @@ export function Simulacoes() {
     return (
       <div>
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <LineChart className="w-6 h-6 text-purple-600" />
+          <h1 className="text-2xl font-bold text-white flex items-center gap-3">
+            <div className="p-2 bg-purple-500/20 rounded-lg">
+              <LineChart className="w-6 h-6 text-purple-400" />
             </div>
             Simulacoes
           </h1>
@@ -204,9 +204,9 @@ export function Simulacoes() {
       {/* Header */}
       <div className="mb-6 flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <LineChart className="w-6 h-6 text-purple-600" />
+          <h1 className="text-2xl font-bold text-white flex items-center gap-3">
+            <div className="p-2 bg-purple-500/20 rounded-lg">
+              <LineChart className="w-6 h-6 text-purple-400" />
             </div>
             Simulacoes
           </h1>
@@ -217,7 +217,7 @@ export function Simulacoes() {
 
         <button
           onClick={() => navigate('/precificacao')}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-500 transition-colors"
         >
           <TrendingUp className="w-4 h-4" />
           Nova simulacao
@@ -234,7 +234,7 @@ export function Simulacoes() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Buscar por nome do produto..."
-              className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg bg-white
+              className="w-full pl-10 pr-4 py-2.5 border border-gray-600 rounded-lg bg-gray-900
                 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500
                 placeholder:text-gray-400"
             />
@@ -257,7 +257,7 @@ export function Simulacoes() {
             {searchTerm ? (
               <>
                 <Search className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                <h3 className="text-lg font-medium text-white mb-2">
                   Nenhum resultado encontrado
                 </h3>
                 <p className="text-gray-500 mb-4">
@@ -265,7 +265,7 @@ export function Simulacoes() {
                 </p>
                 <button
                   onClick={() => setSearchTerm('')}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-gray-800 text-gray-300 rounded-lg hover:bg-gray-700 transition-colors"
                 >
                   Limpar pesquisa
                 </button>
@@ -273,7 +273,7 @@ export function Simulacoes() {
             ) : (
               <>
                 <AlertCircle className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                <h3 className="text-lg font-medium text-white mb-2">
                   Nenhuma simulacao salva
                 </h3>
                 <p className="text-gray-500 mb-4">
@@ -281,7 +281,7 @@ export function Simulacoes() {
                 </p>
                 <button
                   onClick={() => navigate('/precificacao')}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-500 transition-colors"
                 >
                   <TrendingUp className="w-4 h-4" />
                   Ir para Precificacao
@@ -299,11 +299,11 @@ export function Simulacoes() {
               <Card key={produto.key} className="overflow-hidden">
                 {/* Header do Produto */}
                 <div
-                  className="flex items-center gap-4 p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                  className="flex items-center gap-4 p-4 cursor-pointer hover:bg-gray-800 transition-colors"
                   onClick={() => toggleExpanded(produto.key)}
                 >
                   {/* Imagem */}
-                  <div className="w-16 h-16 flex-shrink-0 bg-gray-100 rounded-lg overflow-hidden">
+                  <div className="w-16 h-16 flex-shrink-0 bg-gray-800 rounded-lg overflow-hidden">
                     {produto.imagemUrl ? (
                       <img
                         src={produto.imagemUrl}
@@ -319,7 +319,7 @@ export function Simulacoes() {
 
                   {/* Nome e Info */}
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-gray-900 truncate">
+                    <h3 className="font-semibold text-white truncate">
                       {produto.nome}
                     </h3>
                     <p className="text-sm text-gray-500">
@@ -354,7 +354,7 @@ export function Simulacoes() {
 
                 {/* Simulacoes do Produto */}
                 {isExpanded && (
-                  <div className="border-t border-gray-100">
+                  <div className="border-t border-gray-800">
                     {produto.simulacoes.map((simulacao, index) => {
                       const marketplace = MARKETPLACE_INFO[simulacao.marketplace];
                       const MarketIcon = marketplace.icon;
@@ -363,7 +363,7 @@ export function Simulacoes() {
                       return (
                         <div
                           key={simulacao.id}
-                          className={`flex items-center gap-4 px-4 py-3 hover:bg-gray-50 transition-colors ${
+                          className={`flex items-center gap-4 px-4 py-3 hover:bg-gray-800 transition-colors ${
                             index > 0 ? 'border-t border-gray-50' : ''
                           }`}
                         >
@@ -377,7 +377,7 @@ export function Simulacoes() {
 
                           {/* Variacao */}
                           {simulacao.variacao_nome && (
-                            <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                            <span className="text-xs text-gray-500 bg-gray-800 px-2 py-1 rounded">
                               {simulacao.variacao_nome}
                             </span>
                           )}
@@ -387,7 +387,7 @@ export function Simulacoes() {
                             {/* Preco */}
                             <div className="text-right min-w-[100px]">
                               <p className="text-xs text-gray-400">Preco</p>
-                              <p className="font-semibold text-gray-900">
+                              <p className="font-semibold text-white">
                                 R$ {formatCurrency(simulacao.preco_venda)}
                               </p>
                             </div>
@@ -431,7 +431,7 @@ export function Simulacoes() {
                             <button
                               onClick={(e) => handleDuplicate(simulacao, e)}
                               disabled={duplicatingId === simulacao.id}
-                              className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors disabled:opacity-50"
+                              className="p-2 text-gray-400 hover:text-purple-400 hover:bg-purple-50 rounded-lg transition-colors disabled:opacity-50"
                               title="Duplicar simulacao"
                             >
                               {duplicatingId === simulacao.id ? (
@@ -466,16 +466,16 @@ export function Simulacoes() {
 
       {/* Resumo */}
       {produtosFiltrados.length > 0 && (
-        <div className="mt-6 p-4 bg-gray-50 rounded-xl border border-gray-200">
+        <div className="mt-6 p-4 bg-gray-800/50 rounded-xl border border-gray-700">
           <div className="flex items-center justify-between text-sm">
             <span className="text-gray-500">
               {searchTerm ? (
                 <>
-                  <strong className="text-gray-900">{produtosFiltrados.length}</strong> de {produtosAgrupados.length} {produtosAgrupados.length === 1 ? 'produto' : 'produtos'}
+                  <strong className="text-white">{produtosFiltrados.length}</strong> de {produtosAgrupados.length} {produtosAgrupados.length === 1 ? 'produto' : 'produtos'}
                 </>
               ) : (
                 <>
-                  <strong className="text-gray-900">{produtosAgrupados.length}</strong> {produtosAgrupados.length === 1 ? 'produto' : 'produtos'} · <strong className="text-gray-900">{simulacoes.length}</strong> {simulacoes.length === 1 ? 'simulacao' : 'simulacoes'}
+                  <strong className="text-white">{produtosAgrupados.length}</strong> {produtosAgrupados.length === 1 ? 'produto' : 'produtos'} · <strong className="text-white">{simulacoes.length}</strong> {simulacoes.length === 1 ? 'simulacao' : 'simulacoes'}
                 </>
               )}
             </span>

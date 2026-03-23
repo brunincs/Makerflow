@@ -206,7 +206,7 @@ export function Precificacao() {
       {veioDeSimulacoes && (
         <button
           onClick={() => navigate('/simulacoes')}
-          className="mb-4 flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+          className="mb-4 flex items-center gap-2 text-gray-600 hover:text-white transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
           <span className="text-sm font-medium">Voltar para Simulacoes</span>
@@ -216,9 +216,9 @@ export function Precificacao() {
       {/* Header */}
       <div className="mb-8 flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Calculator className="w-6 h-6 text-blue-600" />
+          <h1 className="text-2xl font-bold text-white flex items-center gap-3">
+            <div className="p-2 bg-emerald-500/20 rounded-lg">
+              <Calculator className="w-6 h-6 text-emerald-400" />
             </div>
             Precificacao
           </h1>
@@ -230,7 +230,7 @@ export function Precificacao() {
         {/* Botao Reset */}
         <button
           onClick={handleResetForm}
-          className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+          className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
         >
           <RotateCcw className="w-4 h-4" />
           Limpar
@@ -239,21 +239,21 @@ export function Precificacao() {
 
       {/* Banner de Simulacao Carregada */}
       {simulacaoCarregada && (
-        <div className="mb-6 p-4 bg-purple-50 border border-purple-200 rounded-xl">
+        <div className="mb-6 p-4 bg-purple-500/10 border border-purple-500/30 rounded-xl">
           <div className="flex items-center gap-3">
-            <Info className="w-5 h-5 text-purple-600 flex-shrink-0" />
+            <Info className="w-5 h-5 text-purple-400 flex-shrink-0" />
             <div className="flex-1">
-              <p className="text-sm font-medium text-purple-800">
+              <p className="text-sm font-medium text-purple-300">
                 Simulacao carregada: {simulacaoCarregada.nome_produto || 'Simulacao manual'}
                 {simulacaoCarregada.variacao_nome && ` (${simulacaoCarregada.variacao_nome})`}
               </p>
-              <p className="text-xs text-purple-600">
+              <p className="text-xs text-purple-400">
                 Modifique os valores para criar uma nova simulacao
               </p>
             </div>
             <button
               onClick={handleResetForm}
-              className="text-sm text-purple-600 hover:text-purple-800 font-medium"
+              className="text-sm text-purple-400 hover:text-purple-300 font-medium"
             >
               Limpar
             </button>
@@ -261,19 +261,19 @@ export function Precificacao() {
 
           {/* Aviso de mudanca no preco do filamento (dentro do banner) */}
           {filamentoMudou && (
-            <div className="mt-4 pt-4 border-t border-purple-200">
+            <div className="mt-4 pt-4 border-t border-purple-500/30">
               <div className="flex items-start gap-3">
                 <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-amber-800">
+                  <p className="text-sm font-medium text-amber-300">
                     O preco do filamento mudou desde esta simulacao.
                   </p>
                   <div className="mt-2 flex flex-wrap items-center gap-4 text-sm">
-                    <span className="text-amber-700">
+                    <span className="text-amber-400">
                       <Lock className="w-3.5 h-3.5 inline mr-1" />
                       Salvo: <strong>R$ {precoFilamentoSalvo.toFixed(2)}</strong>/kg
                     </span>
-                    <span className="text-amber-700">
+                    <span className="text-amber-400">
                       <RefreshCw className="w-3.5 h-3.5 inline mr-1" />
                       Atual: <strong>R$ {precoFilamentoAtual.toFixed(2)}</strong>/kg
                     </span>
@@ -281,7 +281,7 @@ export function Precificacao() {
                   <div className="mt-3 flex gap-2">
                     <button
                       onClick={handleManterCustoAntigo}
-                      className="px-3 py-1.5 text-sm bg-white border border-amber-300 text-amber-700 rounded-lg hover:bg-amber-50 transition-colors"
+                      className="px-3 py-1.5 text-sm bg-white border border-amber-300 text-amber-400 rounded-lg hover:bg-amber-50 transition-colors"
                     >
                       Manter custo antigo
                     </button>

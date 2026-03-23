@@ -151,31 +151,31 @@ export function AcessoriosConfig({
             key={acessorio.id}
             className={`flex items-center gap-3 p-3 rounded-lg border-2 transition-all ${
               estoqueZero
-                ? 'border-gray-200 bg-gray-100 opacity-60'
+                ? 'border-gray-700 bg-gray-800 opacity-60'
                 : isSelected
-                ? 'border-purple-500 bg-purple-50'
-                : 'border-gray-200 bg-white hover:border-gray-300'
+                ? 'border-purple-500 bg-purple-500/10'
+                : 'border-gray-700 bg-gray-800 hover:border-gray-600'
             }`}
           >
             <div className={`p-2 rounded-lg flex-shrink-0 ${
-              estoqueZero ? 'bg-gray-200' : isSelected ? 'bg-purple-100' : 'bg-gray-100'
+              estoqueZero ? 'bg-gray-700' : isSelected ? 'bg-purple-500/20' : 'bg-gray-700'
             }`}>
               <Lightbulb className={`w-4 h-4 ${
-                estoqueZero ? 'text-gray-400' : isSelected ? 'text-purple-600' : 'text-gray-400'
+                estoqueZero ? 'text-gray-500' : isSelected ? 'text-purple-400' : 'text-gray-500'
               }`} />
             </div>
 
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <p className={`text-sm font-medium truncate ${estoqueZero ? 'text-gray-400' : 'text-gray-900'}`}>
+                <p className={`text-sm font-medium truncate ${estoqueZero ? 'text-gray-500' : 'text-white'}`}>
                   {acessorio.nome}
                 </p>
                 {estoqueZero ? (
-                  <span className="flex items-center gap-1 px-1.5 py-0.5 bg-red-100 text-red-700 rounded text-xs">
+                  <span className="flex items-center gap-1 px-1.5 py-0.5 bg-red-500/20 text-red-400 rounded text-xs">
                     Sem estoque
                   </span>
                 ) : baixoEstoque && (
-                  <span className="flex items-center gap-1 px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-xs">
+                  <span className="flex items-center gap-1 px-1.5 py-0.5 bg-amber-500/20 text-amber-400 rounded text-xs">
                     <AlertTriangle className="w-3 h-3" />
                     Baixo
                   </span>
@@ -194,8 +194,8 @@ export function AcessoriosConfig({
                 disabled={quantidade === 0}
                 className={`p-1.5 rounded-lg transition-colors ${
                   quantidade === 0
-                    ? 'text-gray-300 cursor-not-allowed'
-                    : 'text-purple-600 hover:bg-purple-100'
+                    ? 'text-gray-600 cursor-not-allowed'
+                    : 'text-purple-400 hover:bg-purple-500/20'
                 }`}
               >
                 <Minus className="w-4 h-4" />
@@ -209,9 +209,9 @@ export function AcessoriosConfig({
                 onChange={(e) => handleQuantidadeInputChange(acessorio.id, e.target.value)}
                 placeholder="0"
                 disabled={estoqueZero}
-                className={`w-12 text-center px-1 py-1 border border-gray-300 rounded-lg text-sm
+                className={`w-12 text-center px-1 py-1 border border-gray-600 rounded-lg text-sm bg-gray-800 text-white
                   focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500
-                  ${estoqueZero ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                  ${estoqueZero ? 'bg-gray-700 cursor-not-allowed' : ''}`}
               />
 
               <button
@@ -220,8 +220,8 @@ export function AcessoriosConfig({
                 disabled={estoqueZero || atingiuLimite}
                 className={`p-1.5 rounded-lg transition-colors ${
                   estoqueZero || atingiuLimite
-                    ? 'text-gray-300 cursor-not-allowed'
-                    : 'text-purple-600 hover:bg-purple-100'
+                    ? 'text-gray-600 cursor-not-allowed'
+                    : 'text-purple-400 hover:bg-purple-500/20'
                 }`}
               >
                 <Plus className="w-4 h-4" />
@@ -230,7 +230,7 @@ export function AcessoriosConfig({
 
             {/* Custo do item */}
             {isSelected && (
-              <p className="text-sm font-semibold text-purple-700 flex-shrink-0 min-w-[80px] text-right">
+              <p className="text-sm font-semibold text-purple-400 flex-shrink-0 min-w-[80px] text-right">
                 R$ {formatCurrency(custoItem)}
               </p>
             )}
@@ -240,12 +240,12 @@ export function AcessoriosConfig({
 
       {/* Total dos acessorios */}
       {totalItens > 0 && (
-        <div className="mt-3 p-3 bg-purple-100 border border-purple-300 rounded-lg">
+        <div className="mt-3 p-3 bg-purple-500/20 border border-purple-500/40 rounded-lg">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-purple-700">
+            <span className="text-sm font-medium text-purple-400">
               Total acessorios ({totalItens} itens)
             </span>
-            <span className="text-lg font-bold text-purple-800">
+            <span className="text-lg font-bold text-purple-300">
               R$ {formatCurrency(custoTotalAcessorios)}
             </span>
           </div>

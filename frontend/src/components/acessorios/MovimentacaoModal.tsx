@@ -80,10 +80,10 @@ export function MovimentacaoModal({
     return (
       <Modal isOpen={isOpen} onClose={onClose} title={getTitulo()}>
         <div className="space-y-4">
-          <div className="bg-gray-50 p-4 rounded-lg">
+          <div className="bg-gray-800 p-4 rounded-lg">
             <div className="flex justify-between items-center">
-              <span className="text-gray-600">Estoque Atual:</span>
-              <span className="font-semibold text-lg">
+              <span className="text-gray-400">Estoque Atual:</span>
+              <span className="font-semibold text-lg text-white">
                 {acessorio.estoque_atual} {acessorio.unidade}(s)
               </span>
             </div>
@@ -102,19 +102,19 @@ export function MovimentacaoModal({
               {movimentacoes.map(mov => (
                 <div
                   key={mov.id}
-                  className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"
+                  className="flex items-center gap-3 p-3 bg-gray-800 rounded-lg"
                 >
                   {getIcon(mov.tipo)}
                   <div className="flex-1">
                     <div className="flex justify-between items-center">
-                      <span className="font-medium capitalize">{mov.tipo}</span>
+                      <span className="font-medium capitalize text-white">{mov.tipo}</span>
                       <span
                         className={`font-semibold ${
                           mov.tipo === 'entrada'
-                            ? 'text-green-600'
+                            ? 'text-green-500'
                             : mov.tipo === 'saida'
-                            ? 'text-red-600'
-                            : 'text-blue-600'
+                            ? 'text-red-500'
+                            : 'text-blue-500'
                         }`}
                       >
                         {mov.tipo === 'entrada' ? '+' : '-'}
@@ -122,9 +122,9 @@ export function MovimentacaoModal({
                       </span>
                     </div>
                     {mov.motivo && (
-                      <p className="text-sm text-gray-500">{mov.motivo}</p>
+                      <p className="text-sm text-gray-400">{mov.motivo}</p>
                     )}
-                    <div className="flex items-center gap-1 text-xs text-gray-400 mt-1">
+                    <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
                       <Clock className="w-3 h-3" />
                       {formatDate(mov.created_at)}
                     </div>
@@ -147,10 +147,10 @@ export function MovimentacaoModal({
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={getTitulo()}>
       <div className="space-y-4">
-        <div className="bg-gray-50 p-4 rounded-lg">
+        <div className="bg-gray-800 p-4 rounded-lg">
           <div className="flex justify-between items-center">
-            <span className="text-gray-600">Estoque Atual:</span>
-            <span className="font-semibold">
+            <span className="text-gray-400">Estoque Atual:</span>
+            <span className="font-semibold text-white">
               {acessorio.estoque_atual} {acessorio.unidade}(s)
             </span>
           </div>
@@ -178,7 +178,7 @@ export function MovimentacaoModal({
         />
 
         {tipo === 'saida' && quantidade && parseInt(quantidade) > acessorio.estoque_atual && (
-          <div className="bg-red-50 text-red-700 p-3 rounded-lg text-sm">
+          <div className="bg-red-500/10 text-red-400 p-3 rounded-lg text-sm border border-red-500/30">
             Quantidade maior que o estoque disponivel!
           </div>
         )}

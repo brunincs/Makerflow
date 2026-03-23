@@ -512,7 +512,7 @@ export function ResultadoCard({ state, canSave = true, onSaveSuccess, nomeProdut
   return (
     <div className="space-y-4">
       {/* Header */}
-      <h4 className="text-sm font-medium text-gray-900 flex items-center gap-2">
+      <h4 className="text-sm font-medium text-white flex items-center gap-2">
         <TrendingUp className="w-4 h-4" />
         Resultado da Precificacao
       </h4>
@@ -554,7 +554,7 @@ export function ResultadoCard({ state, canSave = true, onSaveSuccess, nomeProdut
       )}
 
       {/* Custos de Produção */}
-      <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+      <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-4">
         <h5 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
           Custos de Producao
         </h5>
@@ -563,10 +563,10 @@ export function ResultadoCard({ state, canSave = true, onSaveSuccess, nomeProdut
             <div key={item.label} className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <item.icon className="w-4 h-4 text-gray-400" />
-                <span className="text-sm text-gray-700">{item.label}</span>
+                <span className="text-sm text-gray-300">{item.label}</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-gray-900">
+                <span className="text-sm font-medium text-white">
                   R$ {formatCurrency(item.valor)}
                 </span>
                 <span className="text-xs text-gray-400 w-12 text-right">
@@ -575,9 +575,9 @@ export function ResultadoCard({ state, canSave = true, onSaveSuccess, nomeProdut
               </div>
             </div>
           ))}
-          <div className="border-t border-gray-200 pt-2 mt-2 flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-700">Subtotal</span>
-            <span className="text-sm font-bold text-gray-900">
+          <div className="border-t border-gray-700 pt-2 mt-2 flex items-center justify-between">
+            <span className="text-sm font-medium text-gray-300">Subtotal</span>
+            <span className="text-sm font-bold text-white">
               R$ {formatCurrency(totalCustosProducao)}
             </span>
           </div>
@@ -585,7 +585,7 @@ export function ResultadoCard({ state, canSave = true, onSaveSuccess, nomeProdut
       </div>
 
       {/* Custos de Venda */}
-      <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+      <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-4">
         <h5 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
           Custos de Venda
         </h5>
@@ -594,10 +594,10 @@ export function ResultadoCard({ state, canSave = true, onSaveSuccess, nomeProdut
             <div key={item.label} className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <item.icon className="w-4 h-4 text-gray-400" />
-                <span className="text-sm text-gray-700">{item.label}</span>
+                <span className="text-sm text-gray-300">{item.label}</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-gray-900">
+                <span className="text-sm font-medium text-white">
                   R$ {formatCurrency(item.valor)}
                 </span>
                 <span className="text-xs text-gray-400 w-12 text-right">
@@ -606,9 +606,9 @@ export function ResultadoCard({ state, canSave = true, onSaveSuccess, nomeProdut
               </div>
             </div>
           ))}
-          <div className="border-t border-gray-200 pt-2 mt-2 flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-700">Subtotal</span>
-            <span className="text-sm font-bold text-gray-900">
+          <div className="border-t border-gray-700 pt-2 mt-2 flex items-center justify-between">
+            <span className="text-sm font-medium text-gray-300">Subtotal</span>
+            <span className="text-sm font-bold text-white">
               R$ {formatCurrency(totalCustosVenda)}
             </span>
           </div>
@@ -617,12 +617,12 @@ export function ResultadoCard({ state, canSave = true, onSaveSuccess, nomeProdut
 
       {/* Lucro Líquido - Card Principal */}
       <div className={`rounded-xl p-5 border-2 ${
-        lucroLiquido >= 0 ? margemClass.borderColor + ' bg-gradient-to-br from-white to-gray-50' : 'border-red-300 bg-gradient-to-br from-red-50 to-red-100'
+        lucroLiquido >= 0 ? margemClass.borderColor + ' bg-gradient-to-br from-gray-800 to-gray-900' : 'border-red-500/30 bg-gradient-to-br from-red-900/20 to-red-900/30'
       }`}>
         <div className="flex items-start justify-between mb-4">
           <div>
-            <h5 className="text-sm font-medium text-gray-600 mb-1">Lucro Liquido</h5>
-            <p className={`text-4xl font-bold ${lucroLiquido >= 0 ? 'text-gray-900' : 'text-red-600'}`}>
+            <h5 className="text-sm font-medium text-gray-400 mb-1">Lucro Liquido</h5>
+            <p className={`text-4xl font-bold ${lucroLiquido >= 0 ? 'text-white' : 'text-red-500'}`}>
               R$ {formatCurrency(lucroLiquido)}
             </p>
           </div>
@@ -633,18 +633,18 @@ export function ResultadoCard({ state, canSave = true, onSaveSuccess, nomeProdut
         </div>
 
         {/* Info Row */}
-        <div className="flex items-center gap-4 pt-3 border-t border-gray-200">
+        <div className="flex items-center gap-4 pt-3 border-t border-gray-700">
           {tempoHoras > 0 && (
             <div className="flex items-center gap-2">
               <Clock className="w-4 h-4 text-gray-400" />
-              <span className="text-sm text-gray-600">
-                <strong className="text-gray-900">R$ {formatCurrency(lucroPorHora)}</strong>/hora
+              <span className="text-sm text-gray-400">
+                <strong className="text-white">R$ {formatCurrency(lucroPorHora)}</strong>/hora
               </span>
             </div>
           )}
           <div className="flex items-center gap-2">
             <Target className="w-4 h-4 text-gray-400" />
-            <span className="text-sm text-gray-600">
+            <span className="text-sm text-gray-400">
               Margem: <strong className={margemClass.color}>{margemLiquida.toFixed(1)}%</strong>
             </span>
           </div>
@@ -653,13 +653,13 @@ export function ResultadoCard({ state, canSave = true, onSaveSuccess, nomeProdut
 
       {/* Aviso de Margem Baixa */}
       {margemLiquida < 20 && margemLiquida >= 0 && (
-        <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl">
-          <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+        <div className="flex items-start gap-3 p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl">
+          <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm font-medium text-amber-800">
+            <p className="text-sm font-medium text-amber-400">
               {margemLiquida < 10 ? 'Margem muito arriscada' : 'Margem apertada'} — monitore seus custos
             </p>
-            <p className="text-xs text-amber-600 mt-1">
+            <p className="text-xs text-amber-500 mt-1">
               Considere aumentar o preco ou reduzir custos de producao
             </p>
           </div>
@@ -668,35 +668,35 @@ export function ResultadoCard({ state, canSave = true, onSaveSuccess, nomeProdut
 
       {/* Capacidade Produtiva */}
       {tempoHoras > 0 && pecasPorDia > 0 && (
-        <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
+        <div className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-4">
           <div className="flex items-center gap-2 mb-4">
-            <Factory className="w-4 h-4 text-purple-600" />
-            <h5 className="text-sm font-medium text-gray-700">Capacidade Produtiva</h5>
+            <Factory className="w-4 h-4 text-purple-500" />
+            <h5 className="text-sm font-medium text-gray-300">Capacidade Produtiva</h5>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <div className="bg-white rounded-lg p-3 border border-purple-100">
+            <div className="bg-gray-800 rounded-lg p-3 border border-purple-500/20">
               <p className="text-xs text-gray-500 mb-2 flex items-center gap-1">
                 <Calendar className="w-3 h-3" />
                 Potencial diario (20h)
               </p>
-              <p className="text-2xl font-bold text-purple-700">
+              <p className="text-2xl font-bold text-purple-400">
                 {pecasPorDia}
               </p>
               <p className="text-xs text-gray-500">{pecasPorDia === 1 ? 'peca' : 'pecas'}</p>
-              <p className="text-sm font-semibold text-purple-600 mt-2">
+              <p className="text-sm font-semibold text-purple-400 mt-2">
                 R$ {formatCurrency(lucroDiario)}
               </p>
             </div>
-            <div className="bg-white rounded-lg p-3 border border-purple-100">
+            <div className="bg-gray-800 rounded-lg p-3 border border-purple-500/20">
               <p className="text-xs text-gray-500 mb-2 flex items-center gap-1">
                 <Calendar className="w-3 h-3" />
                 Potencial mensal (30d)
               </p>
-              <p className="text-2xl font-bold text-purple-700">
+              <p className="text-2xl font-bold text-purple-400">
                 {pecasPorMes}
               </p>
               <p className="text-xs text-gray-500">pecas</p>
-              <p className="text-sm font-semibold text-purple-600 mt-2">
+              <p className="text-sm font-semibold text-purple-400 mt-2">
                 R$ {formatCurrency(lucroMensal)}
               </p>
             </div>
@@ -729,54 +729,54 @@ export function ResultadoCard({ state, canSave = true, onSaveSuccess, nomeProdut
 
       {/* Resumo de Multiplas Pecas */}
       {quantidadePecas > 1 && (
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4">
+        <div className="bg-gradient-to-r from-blue-900/20 to-indigo-900/20 border border-blue-500/30 rounded-xl p-4">
           <div className="flex items-center gap-2 mb-4">
-            <Layers className="w-4 h-4 text-blue-600" />
-            <h5 className="text-sm font-medium text-gray-700">
+            <Layers className="w-4 h-4 text-blue-500" />
+            <h5 className="text-sm font-medium text-gray-300">
               Calculo para {quantidadePecas} pecas
             </h5>
           </div>
 
           <div className="grid grid-cols-2 gap-4 mb-4">
             {/* Por Peca */}
-            <div className="bg-white rounded-lg p-3 border border-blue-100">
+            <div className="bg-gray-800 rounded-lg p-3 border border-blue-500/20">
               <p className="text-xs text-gray-500 mb-2">Por peca</p>
               <div className="space-y-1.5">
                 {pesoFilamento > 0 && (
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Filamento:</span>
-                    <span className="font-medium">{pesoFilamento.toFixed(2)}g</span>
+                    <span className="text-gray-400">Filamento:</span>
+                    <span className="font-medium text-white">{pesoFilamento.toFixed(2)}g</span>
                   </div>
                 )}
                 {tempoEfetivoPorPeca > 0 && (
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Tempo:</span>
-                    <span className="font-medium">
+                    <span className="text-gray-400">Tempo:</span>
+                    <span className="font-medium text-white">
                       {Math.floor(tempoEfetivoPorPeca)}h {Math.round((tempoEfetivoPorPeca % 1) * 60)}min
                     </span>
                   </div>
                 )}
-                <div className="flex justify-between text-sm pt-1.5 border-t border-gray-100">
-                  <span className="text-gray-600">Lucro:</span>
-                  <span className="font-semibold text-green-600">R$ {formatCurrency(lucroLiquido)}</span>
+                <div className="flex justify-between text-sm pt-1.5 border-t border-gray-700">
+                  <span className="text-gray-400">Lucro:</span>
+                  <span className="font-semibold text-green-500">R$ {formatCurrency(lucroLiquido)}</span>
                 </div>
               </div>
             </div>
 
             {/* Total */}
-            <div className="bg-blue-100 rounded-lg p-3 border border-blue-200">
-              <p className="text-xs text-blue-700 mb-2 font-medium">Total ({quantidadePecas} pecas)</p>
+            <div className="bg-blue-500/20 rounded-lg p-3 border border-blue-500/30">
+              <p className="text-xs text-blue-400 mb-2 font-medium">Total ({quantidadePecas} pecas)</p>
               <div className="space-y-1.5">
                 {pesoFilamento > 0 && (
                   <div className="flex justify-between text-sm">
-                    <span className="text-blue-700">Filamento:</span>
-                    <span className="font-bold text-blue-800">{(pesoFilamento * quantidadePecas).toFixed(2)}g</span>
+                    <span className="text-blue-400">Filamento:</span>
+                    <span className="font-bold text-blue-300">{(pesoFilamento * quantidadePecas).toFixed(2)}g</span>
                   </div>
                 )}
                 {tempoEfetivoPorPeca > 0 && (
                   <div className="flex justify-between text-sm">
-                    <span className="text-blue-700">Tempo:</span>
-                    <span className="font-bold text-blue-800">
+                    <span className="text-blue-400">Tempo:</span>
+                    <span className="font-bold text-blue-300">
                       {(() => {
                         // Tempo total: sempre tempo efetivo por peça * quantidade
                         const totalHoras = tempoEfetivoPorPeca * quantidadePecas;
@@ -787,16 +787,16 @@ export function ResultadoCard({ state, canSave = true, onSaveSuccess, nomeProdut
                     </span>
                   </div>
                 )}
-                <div className="flex justify-between text-sm pt-1.5 border-t border-blue-200">
-                  <span className="text-blue-700">Lucro:</span>
-                  <span className="font-bold text-blue-800">R$ {formatCurrency(lucroLiquido * quantidadePecas)}</span>
+                <div className="flex justify-between text-sm pt-1.5 border-t border-blue-500/30">
+                  <span className="text-blue-400">Lucro:</span>
+                  <span className="font-bold text-blue-300">R$ {formatCurrency(lucroLiquido * quantidadePecas)}</span>
                 </div>
               </div>
             </div>
           </div>
 
           {custos.multiplas_pecas && (
-            <p className="text-xs text-blue-600 text-center">
+            <p className="text-xs text-blue-400 text-center">
               Pecas impressas de uma vez (mesa cheia) - energia dividida
             </p>
           )}
@@ -805,8 +805,8 @@ export function ResultadoCard({ state, canSave = true, onSaveSuccess, nomeProdut
 
       {/* Nome Manual (quando não tem produto selecionado) */}
       {!temProdutoSelecionado && (
-        <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+        <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-4">
+          <label className="block text-sm font-medium text-gray-300 mb-2">
             Nome da simulacao *
           </label>
           <input
@@ -814,7 +814,7 @@ export function ResultadoCard({ state, canSave = true, onSaveSuccess, nomeProdut
             value={nomeManual}
             onChange={(e) => setNomeManual(e.target.value)}
             placeholder="Ex: Vaso decorativo, Suporte celular..."
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white
+            className="w-full px-3 py-2 border border-gray-600 rounded-lg bg-gray-800 text-white
               focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
           <p className="text-xs text-gray-500 mt-1.5">
@@ -889,8 +889,8 @@ export function ResultadoCard({ state, canSave = true, onSaveSuccess, nomeProdut
             saveSuccess
               ? 'bg-green-500 text-white'
               : canSave && temNomeValido
-                ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                : 'bg-gray-300 text-gray-500'
+                ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                : 'bg-gray-700 text-gray-500'
           } disabled:opacity-50 disabled:cursor-not-allowed`}
         >
           {isSaving ? (

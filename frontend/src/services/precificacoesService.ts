@@ -287,7 +287,51 @@ export interface CatalogoItem {
   imagem_url?: string;
 }
 
-export const getPrecificacoesVendaDireta = async (): Promise<CatalogoItem[]> => {
+export interface LojaInfo {
+  nome: string;
+  whatsapp?: string;
+  logo_url?: string;
+}
+
+// Buscar informacoes da loja pelo slug
+export const getLojaBySlug = async (slug: string): Promise<{ userId: string; info: LojaInfo } | null> => {
+  if (!isSupabaseConfigured() || !supabase) {
+    // Modo dev - retornar loja fake
+    if (slug === 'demo') {
+      return {
+        userId: 'dev-user',
+        info: {
+          nome: 'Loja Demo',
+          whatsapp: '5511999999999',
+        }
+      };
+    }
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, nome_fantasia, nome_empresa, whatsapp, logo_url')
+    .eq('slug_loja', slug)
+    .single();
+
+  if (error || !data) {
+    console.error('Erro ao buscar loja:', error);
+    return null;
+  }
+
+  return {
+    userId: data.id,
+    info: {
+      nome: data.nome_fantasia || data.nome_empresa || 'Loja',
+      whatsapp: data.whatsapp || undefined,
+      logo_url: data.logo_url || undefined,
+    }
+  };
+};
+
+// Buscar precificacoes de venda direta por user_id
+export const getPrecificacoesVendaDiretaByUser = async (userId: string): Promise<CatalogoItem[]> => {
   if (!isSupabaseConfigured() || !supabase) {
     const precificacoes = getLocalPrecificacoes();
     return precificacoes
@@ -302,11 +346,12 @@ export const getPrecificacoesVendaDireta = async (): Promise<CatalogoItem[]> => 
       }));
   }
 
-  // Buscar precificacoes de venda direta
+  // Buscar precificacoes de venda direta do usuario
   const { data, error } = await supabase
     .from('precificacoes')
     .select('id, nome_produto, variacao_nome, preco_venda, produto_id')
     .eq('marketplace', 'venda_direta')
+    .eq('user_id', userId)
     .order('nome_produto', { ascending: true });
 
   if (error) {
@@ -344,6 +389,77 @@ export const getPrecificacoesVendaDireta = async (): Promise<CatalogoItem[]> => 
     produto_id: p.produto_id || undefined,
     imagem_url: p.produto_id ? produtosMap.get(p.produto_id)?.imagem_url : undefined,
   }));
+};
+
+// Interface para precos de venda de um produto
+export interface PrecosProduto {
+  preco_min: number | null;
+  preco_max: number | null;
+  tem_precificacao: boolean;
+}
+
+// Buscar precos de venda de todos os produtos do usuario
+export const getPrecosVendaPorProduto = async (): Promise<Map<string, PrecosProduto>> => {
+  const resultado = new Map<string, PrecosProduto>();
+
+  if (!isSupabaseConfigured() || !supabase) {
+    const precificacoes = getLocalPrecificacoes();
+
+    // Agrupar por produto_id
+    const porProduto = new Map<string, number[]>();
+    precificacoes.forEach(p => {
+      if (p.produto_id && p.preco_venda) {
+        const precos = porProduto.get(p.produto_id) || [];
+        precos.push(p.preco_venda);
+        porProduto.set(p.produto_id, precos);
+      }
+    });
+
+    porProduto.forEach((precos, produtoId) => {
+      resultado.set(produtoId, {
+        preco_min: Math.min(...precos),
+        preco_max: Math.max(...precos),
+        tem_precificacao: true,
+      });
+    });
+
+    return resultado;
+  }
+
+  const user_id = await getCurrentUserId();
+  if (!user_id) return resultado;
+
+  // Buscar todas as precificacoes do usuario com produto_id
+  const { data, error } = await supabase
+    .from('precificacoes')
+    .select('produto_id, preco_venda, variacao_nome')
+    .eq('user_id', user_id)
+    .not('produto_id', 'is', null);
+
+  if (error || !data) {
+    console.error('Erro ao buscar precos:', error);
+    return resultado;
+  }
+
+  // Agrupar por produto_id
+  const porProduto = new Map<string, number[]>();
+  data.forEach(p => {
+    if (p.produto_id && p.preco_venda) {
+      const precos = porProduto.get(p.produto_id) || [];
+      precos.push(p.preco_venda);
+      porProduto.set(p.produto_id, precos);
+    }
+  });
+
+  porProduto.forEach((precos, produtoId) => {
+    resultado.set(produtoId, {
+      preco_min: Math.min(...precos),
+      preco_max: Math.max(...precos),
+      tem_precificacao: true,
+    });
+  });
+
+  return resultado;
 };
 
 // Deletar todas as precificações de um produto

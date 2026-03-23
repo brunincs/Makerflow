@@ -7,10 +7,10 @@ interface BadgeProps {
 
 export function Badge({ children, variant = 'default' }: BadgeProps) {
   const variants = {
-    teste: 'bg-blue-100 text-blue-800',
-    validado: 'bg-green-100 text-green-800',
-    rejeitado: 'bg-red-100 text-red-800',
-    default: 'bg-gray-100 text-gray-800',
+    teste: 'bg-amber-500/10 text-amber-400 border border-amber-500/20',
+    validado: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20',
+    rejeitado: 'bg-red-500/10 text-red-400 border border-red-500/20',
+    default: 'bg-gray-800 text-gray-400 border border-gray-700',
   };
 
   const labels = {
@@ -21,7 +21,7 @@ export function Badge({ children, variant = 'default' }: BadgeProps) {
   };
 
   return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${variants[variant]}`}>
+    <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium ${variants[variant]}`}>
       {labels[variant] || children}
     </span>
   );

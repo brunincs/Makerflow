@@ -84,9 +84,9 @@ function PrecoInput({
         onFocus={() => { isUserTyping.current = true; }}
         placeholder={placeholder}
         disabled={disabled}
-        className={`w-full pl-9 pr-3 py-3 border border-gray-300 rounded-lg bg-white text-lg font-semibold
+        className={`w-full pl-9 pr-3 py-3 border border-gray-600 rounded-lg bg-gray-800 text-white text-lg font-semibold
           focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500
-          ${disabled ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+          ${disabled ? 'bg-gray-700 cursor-not-allowed' : ''}`}
       />
     </div>
   );

@@ -1,6 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Card, CardBody } from '../../components/ui';
 import { getProdutos } from '../../services/produtosService';
 import { getPedidosPendentes } from '../../services/pedidosService';
 import { getEstoqueProdutos } from '../../services/estoqueProdutosService';
@@ -18,15 +17,13 @@ import {
   ShoppingCart,
   Plus,
   Printer,
-  ClipboardList,
   TrendingUp,
   AlertTriangle,
   CheckCircle2,
-  Trophy,
   Loader2,
   ArrowRight,
-  Factory,
   Zap,
+  Activity,
 } from 'lucide-react';
 
 // Formatar tempo
@@ -36,7 +33,7 @@ function formatarTempo(horas: number): string {
   const m = Math.round((horas - h) * 60);
   if (h === 0) return `${m}min`;
   if (m === 0) return `${h}h`;
-  return `${h}h${m}min`;
+  return `${h}h${m}`;
 }
 
 // Formatar moeda
@@ -169,7 +166,6 @@ export function Dashboard() {
     let lucro = 0;
 
     filaProducao.forEach(item => {
-      // Buscar precificação do produto
       const prec = precificacoes.find(p => p.produto_id === item.produto_id);
       if (prec) {
         receita += prec.preco_venda * item.quantidade_produzir;
@@ -180,7 +176,7 @@ export function Dashboard() {
     return { receita, lucro };
   }, [filaProducao, precificacoes]);
 
-  // Peças produzidas hoje (baseado nas impressões do dia)
+  // Peças produzidas hoje
   const pecasProduzidasHoje = useMemo(() => {
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
@@ -195,611 +191,317 @@ export function Dashboard() {
       .reduce((acc, imp) => acc + imp.quantidade, 0);
   }, [impressoes]);
 
-  // Produtos mais vendidos (baseado nos pedidos)
-  const produtosMaisVendidos = useMemo(() => {
-    const contagem = new Map<string, { nome: string; imagem_url?: string; quantidade: number; pedidos: number }>();
-
-    pedidos.forEach(pedido => {
-      const key = pedido.produto_id;
-      if (contagem.has(key)) {
-        const item = contagem.get(key)!;
-        item.quantidade += pedido.quantidade;
-        item.pedidos += 1;
-      } else {
-        contagem.set(key, {
-          nome: pedido.produto?.nome || 'Produto',
-          imagem_url: pedido.produto?.imagem_url,
-          quantidade: pedido.quantidade,
-          pedidos: 1,
-        });
-      }
-    });
-
-    return Array.from(contagem.values())
-      .sort((a, b) => b.quantidade - a.quantidade)
-      .slice(0, 5);
-  }, [pedidos]);
-
-  // Consumo de filamento necessário (agrupado por tipo/cor)
-  // Como não temos filamento_id nos produtos, vamos mostrar total necessário
+  // Consumo de filamento
   const consumoFilamento = useMemo(() => {
     const totalNecessario = totais.peso;
     const totalEmEstoque = filamentos.reduce((acc, f) => acc + f.estoque_gramas, 0);
     const aposProducao = totalEmEstoque - totalNecessario;
     const suficiente = aposProducao >= 0;
 
+    // Filamentos com estoque baixo (< 200g)
+    const filamentosBaixos = filamentos.filter(f => f.estoque_gramas < 200);
+
     return {
       necessario: totalNecessario,
       emEstoque: totalEmEstoque,
       aposProducao,
       suficiente,
-      filamentos: filamentos.slice(0, 5),
+      filamentosBaixos,
     };
   }, [totais.peso, filamentos]);
 
-  // Status da produção (itens em andamento)
-  const statusProducao = useMemo(() => {
-    const itens: { nome: string; variacao?: string; produzidos: number; total: number; percentual: number }[] = [];
+  // Alertas
+  const alertas = useMemo(() => {
+    const lista: { tipo: 'warning' | 'error'; texto: string }[] = [];
 
-    pedidos.forEach(pedido => {
-      const produzidos = pedido.quantidade_produzida || 0;
-      const total = pedido.quantidade;
-      if (total > 0) {
-        // Agrupar por produto+variação
-        const key = `${pedido.produto?.nome || 'Produto'}${pedido.variacao?.nome_variacao ? ` (${pedido.variacao.nome_variacao})` : ''}`;
-        const existing = itens.find(i => i.nome === key);
-        if (existing) {
-          existing.produzidos += produzidos;
-          existing.total += total;
-          existing.percentual = Math.round((existing.produzidos / existing.total) * 100);
-        } else {
-          itens.push({
-            nome: pedido.produto?.nome || 'Produto',
-            variacao: pedido.variacao?.nome_variacao,
-            produzidos,
-            total,
-            percentual: Math.round((produzidos / total) * 100),
-          });
-        }
-      }
+    if (!consumoFilamento.suficiente && consumoFilamento.necessario > 0) {
+      lista.push({ tipo: 'error', texto: 'Filamento insuficiente para producao' });
+    }
+
+    consumoFilamento.filamentosBaixos.forEach(f => {
+      lista.push({ tipo: 'warning', texto: `${f.nome_filamento} ${f.cor} com estoque baixo` });
     });
 
-    return itens.slice(0, 5);
-  }, [pedidos]);
-
-  // Indicador de carga
-  const cargaProducao = useMemo(() => {
-    const horas = totais.tempo;
-    const tempoFormatado = formatarTempo(horas);
-    if (horas <= 8) {
-      return { cor: 'text-green-600', bgCor: 'bg-green-100', texto: `Producao tranquila — ${tempoFormatado} de producao pendente` };
-    } else if (horas <= 16) {
-      return { cor: 'text-yellow-600', bgCor: 'bg-yellow-100', texto: `Producao moderada — ${tempoFormatado} de producao pendente` };
-    } else {
-      return { cor: 'text-red-600', bgCor: 'bg-red-100', texto: `Producao critica — ${tempoFormatado} de producao pendente` };
+    const pedidosUrgentes = pedidos.filter(p => p.prioridade === 'urgente');
+    if (pedidosUrgentes.length > 0) {
+      lista.push({ tipo: 'error', texto: `${pedidosUrgentes.length} pedido(s) urgente(s)` });
     }
-  }, [totais.tempo]);
+
+    return lista;
+  }, [consumoFilamento, pedidos]);
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+      <div className="flex items-center justify-center py-32">
+        <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
       </div>
     );
   }
 
   return (
-    <div>
+    <div className="space-y-6">
       {/* Header */}
-      <div className="mb-8 flex items-start justify-between">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Painel de Operacao</h1>
-          <p className="text-gray-500 mt-1">
-            Visao geral da sua producao de impressao 3D
+          <h1 className="text-2xl font-bold text-white">Dashboard</h1>
+          <p className="text-gray-500 text-sm mt-1">
+            Visao geral da operacao
           </p>
         </div>
 
-        {/* Atalhos Rápidos */}
-        <div className="flex items-center gap-2">
+        <Link
+          to="/fila-producao"
+          className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-white bg-emerald-600 rounded-xl hover:bg-emerald-500 transition-colors"
+        >
+          <Plus className="w-4 h-4" />
+          Novo Pedido
+        </Link>
+      </div>
+
+      {!isSupabaseConfigured() && (
+        <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-medium text-amber-400">Modo offline</p>
+            <p className="text-sm text-amber-400/70">Dados salvos localmente</p>
+          </div>
+        </div>
+      )}
+
+      {/* Cards Principais */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Pedidos Hoje */}
+        <div className="bg-gray-900 rounded-2xl border border-gray-800 p-5">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="p-2.5 bg-blue-500/10 rounded-xl">
+              <ShoppingCart className="w-5 h-5 text-blue-400" />
+            </div>
+            <span className="text-sm text-gray-400">Pedidos na fila</span>
+          </div>
+          <p className="text-3xl font-bold text-white">{pedidos.length}</p>
+        </div>
+
+        {/* Produção Ativa */}
+        <div className="bg-gray-900 rounded-2xl border border-gray-800 p-5">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="p-2.5 bg-emerald-500/10 rounded-xl">
+              <Zap className="w-5 h-5 text-emerald-400" />
+            </div>
+            <span className="text-sm text-gray-400">Produzidas hoje</span>
+          </div>
+          <p className="text-3xl font-bold text-white">{pecasProduzidasHoje}</p>
+        </div>
+
+        {/* Receita Estimada */}
+        <div className="bg-gray-900 rounded-2xl border border-gray-800 p-5">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="p-2.5 bg-green-500/10 rounded-xl">
+              <DollarSign className="w-5 h-5 text-green-400" />
+            </div>
+            <span className="text-sm text-gray-400">Receita estimada</span>
+          </div>
+          <p className="text-3xl font-bold text-white">
+            {lucroEstimado.receita > 0 ? formatarMoeda(lucroEstimado.receita) : '—'}
+          </p>
+        </div>
+
+        {/* Alertas */}
+        <div className="bg-gray-900 rounded-2xl border border-gray-800 p-5">
+          <div className="flex items-center gap-3 mb-3">
+            <div className={`p-2.5 rounded-xl ${alertas.length > 0 ? 'bg-red-500/10' : 'bg-gray-800'}`}>
+              <AlertTriangle className={`w-5 h-5 ${alertas.length > 0 ? 'text-red-400' : 'text-gray-500'}`} />
+            </div>
+            <span className="text-sm text-gray-400">Alertas</span>
+          </div>
+          <p className={`text-3xl font-bold ${alertas.length > 0 ? 'text-red-400' : 'text-white'}`}>
+            {alertas.length}
+          </p>
+        </div>
+      </div>
+
+      {/* Bloco de Produção */}
+      {filaProducao.length > 0 && (
+        <div className="bg-gray-900 rounded-2xl border border-gray-800 p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-purple-500/10 rounded-xl">
+                <Activity className="w-5 h-5 text-purple-400" />
+              </div>
+              <h2 className="text-lg font-semibold text-white">Producao Pendente</h2>
+            </div>
+            <Link
+              to="/fila-producao"
+              className="text-sm text-emerald-400 hover:text-emerald-300 flex items-center gap-1 transition-colors"
+            >
+              Ver fila <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+
+          {/* Barra de Progresso Visual */}
+          <div className="mb-6">
+            <div className="flex items-center justify-between text-sm mb-2">
+              <span className="text-gray-400">Progresso geral</span>
+              <span className="text-white font-medium">
+                {totais.pecas} pecas restantes
+              </span>
+            </div>
+            <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
+              <div className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full" style={{ width: '0%' }} />
+            </div>
+          </div>
+
+          {/* Stats */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-gray-800/50 rounded-xl p-4 text-center">
+              <Package className="w-5 h-5 text-blue-400 mx-auto mb-2" />
+              <p className="text-2xl font-bold text-white">{totais.pecas}</p>
+              <p className="text-xs text-gray-500">Pecas</p>
+            </div>
+            <div className="bg-gray-800/50 rounded-xl p-4 text-center">
+              <Cylinder className="w-5 h-5 text-orange-400 mx-auto mb-2" />
+              <p className="text-2xl font-bold text-white">
+                {totais.peso >= 1000 ? `${(totais.peso / 1000).toFixed(1)}kg` : `${totais.peso.toFixed(0)}g`}
+              </p>
+              <p className="text-xs text-gray-500">Filamento</p>
+            </div>
+            <div className="bg-gray-800/50 rounded-xl p-4 text-center">
+              <Clock className="w-5 h-5 text-purple-400 mx-auto mb-2" />
+              <p className="text-2xl font-bold text-white">{formatarTempo(totais.tempo)}</p>
+              <p className="text-xs text-gray-500">Tempo</p>
+            </div>
+            <div className="bg-gray-800/50 rounded-xl p-4 text-center">
+              <TrendingUp className="w-5 h-5 text-green-400 mx-auto mb-2" />
+              <p className="text-2xl font-bold text-emerald-400">
+                {lucroEstimado.lucro > 0 ? formatarMoeda(lucroEstimado.lucro) : '—'}
+              </p>
+              <p className="text-xs text-gray-500">Lucro</p>
+            </div>
+          </div>
+
+          {/* Lista de itens */}
+          <div className="mt-6 space-y-2">
+            {filaProducao.slice(0, 5).map((item, idx) => (
+              <div
+                key={`${item.produto_id}-${item.variacao_id || idx}`}
+                className="flex items-center gap-4 p-3 bg-gray-800/30 rounded-xl hover:bg-gray-800/50 transition-colors"
+              >
+                {item.imagem_url ? (
+                  <img
+                    src={item.imagem_url}
+                    alt={item.nome_produto}
+                    className="w-10 h-10 rounded-lg object-cover"
+                  />
+                ) : (
+                  <div className="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center">
+                    <Package className="w-5 h-5 text-gray-600" />
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-white truncate">
+                    {item.nome_produto}
+                    {item.nome_variacao && (
+                      <span className="text-gray-500 font-normal"> · {item.nome_variacao}</span>
+                    )}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    {formatarTempo(item.tempo_total)} · {item.peso_total.toFixed(0)}g
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-lg font-bold text-emerald-400">{item.quantidade_produzir}</p>
+                  <p className="text-xs text-gray-500">pecas</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Sem produção */}
+      {filaProducao.length === 0 && (
+        <div className="bg-gray-900 rounded-2xl border border-gray-800 p-12 text-center">
+          <CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-white mb-2">Nenhuma producao pendente</h3>
+          <p className="text-gray-500 mb-6">Adicione um pedido para comecar</p>
           <Link
             to="/fila-producao"
-            className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <ClipboardList className="w-4 h-4" />
-            Ver Fila
-          </Link>
-          <Link
-            to="/impressoes"
-            className="flex items-center gap-2 px-3 py-2 text-sm border border-indigo-600 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-          >
-            <Printer className="w-4 h-4" />
-            Registrar Impressao
-          </Link>
-          <Link
-            to="/fila-producao"
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-emerald-600 rounded-xl hover:bg-emerald-500 transition-colors"
           >
             <Plus className="w-4 h-4" />
             Novo Pedido
           </Link>
         </div>
-      </div>
+      )}
 
-      {!isSupabaseConfigured() && (
-        <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-          <div>
-            <p className="text-sm font-medium text-yellow-800">
-              Supabase nao configurado
-            </p>
-            <p className="text-sm text-yellow-700 mt-1">
-              Os dados estao sendo salvos localmente.
-            </p>
+      {/* Alertas */}
+      {alertas.length > 0 && (
+        <div className="bg-gray-900 rounded-2xl border border-gray-800 p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2.5 bg-red-500/10 rounded-xl">
+              <AlertTriangle className="w-5 h-5 text-red-400" />
+            </div>
+            <h2 className="text-lg font-semibold text-white">Alertas</h2>
+          </div>
+
+          <div className="space-y-2">
+            {alertas.map((alerta, idx) => (
+              <div
+                key={idx}
+                className={`flex items-center gap-3 p-3 rounded-xl ${
+                  alerta.tipo === 'error' ? 'bg-red-500/10' : 'bg-amber-500/10'
+                }`}
+              >
+                <AlertCircle className={`w-4 h-4 ${
+                  alerta.tipo === 'error' ? 'text-red-400' : 'text-amber-400'
+                }`} />
+                <span className={`text-sm ${
+                  alerta.tipo === 'error' ? 'text-red-300' : 'text-amber-300'
+                }`}>
+                  {alerta.texto}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
       )}
 
-      {/* Indicador de Carga */}
-      {filaProducao.length > 0 && (
-        <div className={`mb-6 p-4 ${cargaProducao.bgCor} rounded-lg flex items-center gap-3`}>
-          {totais.tempo <= 8 ? (
-            <TrendingUp className={`w-5 h-5 ${cargaProducao.cor}`} />
-          ) : totais.tempo <= 16 ? (
-            <Clock className={`w-5 h-5 ${cargaProducao.cor}`} />
-          ) : (
-            <AlertTriangle className={`w-5 h-5 ${cargaProducao.cor}`} />
-          )}
-          <span className={`font-semibold ${cargaProducao.cor}`}>
-            {cargaProducao.texto}
-          </span>
-        </div>
-      )}
+      {/* Atalhos Rápidos */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <Link
+          to="/fila-producao"
+          className="bg-gray-900 rounded-2xl border border-gray-800 p-5 hover:border-gray-700 hover:bg-gray-900/80 transition-all group"
+        >
+          <Printer className="w-6 h-6 text-gray-500 group-hover:text-emerald-400 transition-colors mb-3" />
+          <p className="font-medium text-white">Fila de Producao</p>
+          <p className="text-sm text-gray-500">{pedidos.length} pedidos</p>
+        </Link>
 
-      {/* Cards de Resumo */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
-        <Card>
-          <CardBody className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-emerald-100 rounded-lg">
-                <Zap className="w-5 h-5 text-emerald-600" />
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">Produzidas hoje</p>
-                <p className="text-2xl font-bold text-emerald-600">{pecasProduzidasHoje}</p>
-              </div>
-            </div>
-          </CardBody>
-        </Card>
+        <Link
+          to="/impressoes"
+          className="bg-gray-900 rounded-2xl border border-gray-800 p-5 hover:border-gray-700 hover:bg-gray-900/80 transition-all group"
+        >
+          <Zap className="w-6 h-6 text-gray-500 group-hover:text-emerald-400 transition-colors mb-3" />
+          <p className="font-medium text-white">Registrar Impressao</p>
+          <p className="text-sm text-gray-500">{impressoes.length} registros</p>
+        </Link>
 
-        <Card>
-          <CardBody className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <ShoppingCart className="w-5 h-5 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">Pedidos na fila</p>
-                <p className="text-2xl font-bold text-gray-900">{pedidos.length}</p>
-              </div>
-            </div>
-          </CardBody>
-        </Card>
+        <Link
+          to="/radar-produtos"
+          className="bg-gray-900 rounded-2xl border border-gray-800 p-5 hover:border-gray-700 hover:bg-gray-900/80 transition-all group"
+        >
+          <Package className="w-6 h-6 text-gray-500 group-hover:text-emerald-400 transition-colors mb-3" />
+          <p className="font-medium text-white">Radar de Produtos</p>
+          <p className="text-sm text-gray-500">{produtos.length} produtos</p>
+        </Link>
 
-        <Card>
-          <CardBody className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-indigo-100 rounded-lg">
-                <Package className="w-5 h-5 text-indigo-600" />
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">Pecas a produzir</p>
-                <p className="text-2xl font-bold text-gray-900">{totais.pecas}</p>
-              </div>
-            </div>
-          </CardBody>
-        </Card>
-
-        <Card>
-          <CardBody className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <Clock className="w-5 h-5 text-purple-600" />
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">Tempo restante</p>
-                <p className="text-2xl font-bold text-gray-900">{formatarTempo(totais.tempo)}</p>
-              </div>
-            </div>
-          </CardBody>
-        </Card>
-
-        <Card>
-          <CardBody className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-orange-100 rounded-lg">
-                <Cylinder className="w-5 h-5 text-orange-600" />
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">Filamento</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {totais.peso >= 1000 ? `${(totais.peso / 1000).toFixed(1)}kg` : `${totais.peso.toFixed(0)}g`}
-                </p>
-              </div>
-            </div>
-          </CardBody>
-        </Card>
-
-        <Card>
-          <CardBody className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <DollarSign className="w-5 h-5 text-green-600" />
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">Lucro estimado</p>
-                <p className="text-2xl font-bold text-green-600">
-                  {lucroEstimado.lucro > 0 ? formatarMoeda(lucroEstimado.lucro) : '-'}
-                </p>
-              </div>
-            </div>
-          </CardBody>
-        </Card>
-      </div>
-
-      {/* Grid principal */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        {/* Produção do Dia */}
-        <Card className="lg:col-span-2">
-          <CardBody>
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <Factory className="w-5 h-5 text-indigo-600" />
-                <h2 className="text-lg font-semibold text-gray-900">
-                  Producao do Dia
-                </h2>
-              </div>
-              <Link
-                to="/fila-producao"
-                className="text-sm text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
-              >
-                Ver tudo <ArrowRight className="w-4 h-4" />
-              </Link>
-            </div>
-
-            {filaProducao.length === 0 ? (
-              <div className="text-center py-8">
-                <CheckCircle2 className="w-12 h-12 text-green-400 mx-auto mb-3" />
-                <p className="text-gray-500">Nenhuma producao pendente!</p>
-                <Link
-                  to="/fila-producao"
-                  className="text-sm text-indigo-600 hover:text-indigo-700 mt-2 inline-block"
-                >
-                  Adicionar pedido
-                </Link>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {filaProducao.slice(0, 5).map((item, idx) => (
-                  <div
-                    key={`${item.produto_id}-${item.variacao_id || idx}`}
-                    className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"
-                  >
-                    <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center flex-shrink-0">
-                      <span className="text-sm font-bold text-indigo-600">{idx + 1}</span>
-                    </div>
-                    {item.imagem_url ? (
-                      <img
-                        src={item.imagem_url}
-                        alt={item.nome_produto}
-                        className="w-10 h-10 rounded object-cover"
-                      />
-                    ) : (
-                      <div className="w-10 h-10 bg-gray-200 rounded flex items-center justify-center">
-                        <Package className="w-5 h-5 text-gray-400" />
-                      </div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-gray-900 truncate">
-                        {item.nome_produto}
-                        {item.nome_variacao && (
-                          <span className="text-gray-500 font-normal"> ({item.nome_variacao})</span>
-                        )}
-                      </p>
-                      <div className="flex items-center gap-3 text-xs text-gray-500">
-                        <span className="font-semibold text-indigo-600">{item.quantidade_produzir} pecas</span>
-                        <span>{formatarTempo(item.tempo_por_peca)}/peca</span>
-                        <span className="text-blue-600 font-medium">{formatarTempo(item.tempo_total)} total</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardBody>
-        </Card>
-
-        {/* Produtos Mais Vendidos */}
-        <Card>
-          <CardBody>
-            <div className="flex items-center gap-3 mb-4">
-              <Trophy className="w-5 h-5 text-yellow-500" />
-              <h2 className="text-lg font-semibold text-gray-900">
-                Mais Vendidos
-              </h2>
-            </div>
-
-            {produtosMaisVendidos.length === 0 ? (
-              <p className="text-gray-500 text-center py-6">
-                Nenhum pedido ainda
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {produtosMaisVendidos.map((item, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-center gap-3"
-                  >
-                    <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${
-                      idx === 0 ? 'bg-yellow-100' : idx === 1 ? 'bg-gray-200' : idx === 2 ? 'bg-orange-100' : 'bg-gray-100'
-                    }`}>
-                      <span className={`text-xs font-bold ${
-                        idx === 0 ? 'text-yellow-600' : idx === 1 ? 'text-gray-500' : idx === 2 ? 'text-orange-600' : 'text-gray-400'
-                      }`}>
-                        {idx + 1}
-                      </span>
-                    </div>
-                    {item.imagem_url ? (
-                      <img
-                        src={item.imagem_url}
-                        alt={item.nome}
-                        className="w-8 h-8 rounded object-cover"
-                      />
-                    ) : (
-                      <div className="w-8 h-8 bg-gray-200 rounded flex items-center justify-center">
-                        <Package className="w-4 h-4 text-gray-400" />
-                      </div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-gray-900 text-sm truncate">{item.nome}</p>
-                      <p className="text-xs text-gray-500">{item.pedidos} {item.pedidos === 1 ? 'pedido' : 'pedidos'}</p>
-                    </div>
-                    <span className="text-sm font-bold text-indigo-600">{item.quantidade} un</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardBody>
-        </Card>
-      </div>
-
-      {/* Segunda linha */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Status da Produção */}
-        <Card>
-          <CardBody>
-            <div className="flex items-center gap-3 mb-4">
-              <TrendingUp className="w-5 h-5 text-green-600" />
-              <h2 className="text-lg font-semibold text-gray-900">
-                Status da Producao
-              </h2>
-            </div>
-
-            {statusProducao.length === 0 ? (
-              <p className="text-gray-500 text-center py-6">
-                Nenhum item em producao
-              </p>
-            ) : (
-              <div className="space-y-4">
-                {statusProducao.map((item, idx) => (
-                  <div key={idx}>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-medium text-gray-700 truncate">
-                        {item.nome}
-                        {item.variacao && <span className="text-gray-400"> ({item.variacao})</span>}
-                      </span>
-                      <span className="text-sm text-gray-500">
-                        Produzidos: {item.produzidos} / {item.total} ({item.percentual}%)
-                      </span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className={`h-2 rounded-full transition-all ${
-                          item.percentual === 100 ? 'bg-green-500' : 'bg-indigo-500'
-                        }`}
-                        style={{ width: `${item.percentual}%` }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardBody>
-        </Card>
-
-        {/* Consumo de Filamento */}
-        <Card>
-          <CardBody>
-            <div className="flex items-center gap-3 mb-4">
-              <Cylinder className="w-5 h-5 text-purple-600" />
-              <h2 className="text-lg font-semibold text-gray-900">
-                Consumo de Filamento
-              </h2>
-            </div>
-
-            <div className="space-y-4">
-              {/* Resumo */}
-              <div className="p-3 bg-gray-50 rounded-lg space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Necessario:</span>
-                  <span className="font-bold text-gray-900">
-                    {consumoFilamento.necessario >= 1000
-                      ? `${(consumoFilamento.necessario / 1000).toFixed(2)}kg`
-                      : `${consumoFilamento.necessario.toFixed(0)}g`}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Em estoque:</span>
-                  <span className="font-bold text-gray-900">
-                    {(consumoFilamento.emEstoque / 1000).toFixed(2)}kg
-                  </span>
-                </div>
-                <div className="border-t border-gray-200 pt-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Apos producao restara:</span>
-                    <span className={`font-bold ${consumoFilamento.suficiente ? 'text-green-600' : 'text-red-600'}`}>
-                      {consumoFilamento.aposProducao >= 1000 || consumoFilamento.aposProducao <= -1000
-                        ? `${(consumoFilamento.aposProducao / 1000).toFixed(2)}kg`
-                        : `${consumoFilamento.aposProducao.toFixed(0)}g`}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Alerta se insuficiente */}
-              {!consumoFilamento.suficiente && consumoFilamento.necessario > 0 && (
-                <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4 text-red-600" />
-                  <span className="text-sm text-red-700 font-medium">
-                    Filamento insuficiente — faltam {Math.abs(consumoFilamento.aposProducao) >= 1000
-                      ? `${(Math.abs(consumoFilamento.aposProducao) / 1000).toFixed(2)}kg`
-                      : `${Math.abs(consumoFilamento.aposProducao).toFixed(0)}g`}
-                  </span>
-                </div>
-              )}
-
-              {/* Lista de filamentos */}
-              {consumoFilamento.filamentos.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-xs text-gray-500 font-medium">Seu estoque:</p>
-                  {consumoFilamento.filamentos.map((fil) => (
-                    <div key={fil.id} className="flex items-center justify-between text-sm">
-                      <span className="text-gray-700">{fil.nome_filamento} {fil.cor}</span>
-                      <span className="font-medium">{(fil.estoque_gramas / 1000).toFixed(2)}kg</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </CardBody>
-        </Card>
-
-        {/* Lucro Estimado */}
-        <Card>
-          <CardBody>
-            <div className="flex items-center gap-3 mb-4">
-              <DollarSign className="w-5 h-5 text-green-600" />
-              <h2 className="text-lg font-semibold text-gray-900">
-                Lucro Estimado
-              </h2>
-            </div>
-
-            {lucroEstimado.receita === 0 ? (
-              <div className="text-center py-6">
-                <p className="text-gray-500 text-sm">
-                  Precifique seus produtos para ver o lucro estimado
-                </p>
-                <Link
-                  to="/precificacao"
-                  className="text-sm text-indigo-600 hover:text-indigo-700 mt-2 inline-block"
-                >
-                  Ir para calculadora
-                </Link>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="p-4 bg-gray-50 rounded-lg">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-sm text-gray-600">Receita estimada:</span>
-                    <span className="text-lg font-bold text-gray-900">
-                      {formatarMoeda(lucroEstimado.receita)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Lucro liquido:</span>
-                    <span className="text-2xl font-bold text-green-600">
-                      {formatarMoeda(lucroEstimado.lucro)}
-                    </span>
-                  </div>
-                </div>
-
-                <p className="text-xs text-gray-400 text-center">
-                  * Baseado nas precificacoes salvas
-                </p>
-              </div>
-            )}
-          </CardBody>
-        </Card>
-      </div>
-
-      {/* Radar de Produtos */}
-      <div className="mt-6">
-        <Card>
-          <CardBody>
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <Package className="w-5 h-5 text-blue-600" />
-                <h2 className="text-lg font-semibold text-gray-900">
-                  Radar de Produtos
-                </h2>
-              </div>
-              <Link
-                to="/radar-produtos"
-                className="text-sm text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
-              >
-                Ver todos <ArrowRight className="w-4 h-4" />
-              </Link>
-            </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-              <div className="p-3 bg-gray-50 rounded-lg text-center">
-                <p className="text-2xl font-bold text-gray-900">{produtos.length}</p>
-                <p className="text-xs text-gray-500">Total</p>
-              </div>
-              <div className="p-3 bg-blue-50 rounded-lg text-center">
-                <p className="text-2xl font-bold text-blue-600">
-                  {produtos.filter(p => p.status === 'teste').length}
-                </p>
-                <p className="text-xs text-blue-600">Em Teste</p>
-              </div>
-              <div className="p-3 bg-green-50 rounded-lg text-center">
-                <p className="text-2xl font-bold text-green-600">
-                  {produtos.filter(p => p.status === 'validado').length}
-                </p>
-                <p className="text-xs text-green-600">Validados</p>
-              </div>
-              <div className="p-3 bg-red-50 rounded-lg text-center">
-                <p className="text-2xl font-bold text-red-600">
-                  {produtos.filter(p => p.status === 'rejeitado').length}
-                </p>
-                <p className="text-xs text-red-600">Rejeitados</p>
-              </div>
-            </div>
-
-            {produtos.length > 0 && (
-              <div className="flex items-center gap-2 overflow-x-auto pb-2">
-                {produtos.slice(0, 8).map((produto) => (
-                  <div
-                    key={produto.id}
-                    className="flex-shrink-0 w-20 text-center"
-                  >
-                    {produto.imagem_url ? (
-                      <img
-                        src={produto.imagem_url}
-                        alt={produto.nome}
-                        className="w-16 h-16 rounded-lg object-cover mx-auto"
-                      />
-                    ) : (
-                      <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center mx-auto">
-                        <Package className="w-6 h-6 text-gray-400" />
-                      </div>
-                    )}
-                    <p className="text-xs text-gray-700 mt-1 truncate">{produto.nome}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardBody>
-        </Card>
+        <Link
+          to="/filamentos"
+          className="bg-gray-900 rounded-2xl border border-gray-800 p-5 hover:border-gray-700 hover:bg-gray-900/80 transition-all group"
+        >
+          <Cylinder className="w-6 h-6 text-gray-500 group-hover:text-emerald-400 transition-colors mb-3" />
+          <p className="font-medium text-white">Filamentos</p>
+          <p className="text-sm text-gray-500">{filamentos.length} cadastrados</p>
+        </Link>
       </div>
     </div>
   );

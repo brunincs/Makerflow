@@ -107,15 +107,15 @@ export function ImpressoraEnergiaConfig({
 
   return (
     <div>
-      <h4 className="text-sm font-medium text-gray-900 mb-3 flex items-center gap-2">
+      <h4 className="text-sm font-medium text-white mb-3 flex items-center gap-2">
         <Zap className="w-4 h-4" />
         Impressora & Energia
       </h4>
 
-      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-5">
+      <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 space-y-5">
         {/* Impressora */}
         <div>
-          <label className="text-sm font-medium text-gray-700 flex items-center gap-2 mb-2">
+          <label className="text-sm font-medium text-gray-300 flex items-center gap-2 mb-2">
             <Printer className="w-4 h-4" />
             Impressora
           </label>
@@ -134,7 +134,7 @@ export function ImpressoraEnergiaConfig({
               <select
                 value={impressoraId || ''}
                 onChange={(e) => handleSelectChange(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm
+                className="px-3 py-2 border border-gray-600 rounded-lg bg-gray-800 text-white text-sm
                   focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
                   min-w-[280px]"
               >
@@ -148,7 +148,7 @@ export function ImpressoraEnergiaConfig({
 
               {/* Mostrar consumo da impressora selecionada */}
               {impressoraId && consumoKwh !== undefined && consumoKwh > 0 && (
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-100 rounded-full">
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-500/20 rounded-full">
                   <Zap className="w-3.5 h-3.5 text-blue-600" />
                   <span className="text-xs font-medium text-blue-700">
                     Consumo: {consumoKwh} kWh/h
@@ -160,23 +160,23 @@ export function ImpressoraEnergiaConfig({
         </div>
 
         {/* Tempo de Impressao */}
-        <div className="border-t border-blue-200 pt-4">
+        <div className="border-t border-blue-500/30 pt-4">
           {hasTempoProduto ? (
             // Produto selecionado - mostrar tempo do produto
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <Clock className="w-4 h-4 text-blue-600" />
-                <span className="text-sm font-medium text-gray-700">Tempo de impressao</span>
+                <span className="text-sm font-medium text-gray-300">Tempo de impressao</span>
               </div>
 
               <div className="flex items-center gap-3">
-                <div className="flex-1 p-3 bg-white border border-blue-200 rounded-lg">
+                <div className="flex-1 p-3 bg-gray-800 border border-blue-500/30 rounded-lg">
                   <p className="text-2xl font-bold text-blue-700">
                     {formatarTempo(tempoProduto.horas, tempoProduto.minutos)}
                   </p>
                 </div>
 
-                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-100 rounded-full">
+                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500/20 rounded-full">
                   <Package className="w-3.5 h-3.5 text-blue-600" />
                   <span className="text-xs font-medium text-blue-700">
                     {modoKit ? 'Tempo total do kit' : 'Tempo carregado do produto'}
@@ -195,7 +195,7 @@ export function ImpressoraEnergiaConfig({
             <div>
               <div className="flex items-center gap-2 mb-3">
                 <Clock className="w-4 h-4 text-blue-600" />
-                <span className="text-sm font-medium text-gray-700">Tempo de impressao</span>
+                <span className="text-sm font-medium text-gray-300">Tempo de impressao</span>
               </div>
 
               <div className="grid grid-cols-2 gap-3 max-w-xs">
@@ -211,7 +211,7 @@ export function ImpressoraEnergiaConfig({
                       value={tempoHoras || ''}
                       onChange={(e) => onTempoHorasChange(parseInt(e.target.value) || 0)}
                       placeholder="0"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white
+                      className="w-full px-3 py-2 border border-gray-600 rounded-lg bg-gray-800 text-white
                         focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
                         [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     />
@@ -233,7 +233,7 @@ export function ImpressoraEnergiaConfig({
                       value={tempoMinutos || ''}
                       onChange={(e) => onTempoMinutosChange(parseInt(e.target.value) || 0)}
                       placeholder="0"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white
+                      className="w-full px-3 py-2 border border-gray-600 rounded-lg bg-gray-800 text-white
                         focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
                         [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     />
@@ -248,13 +248,13 @@ export function ImpressoraEnergiaConfig({
         </div>
 
         {/* Valor do kWh */}
-        <div className="border-t border-blue-200 pt-4">
+        <div className="border-t border-blue-500/30 pt-4">
           <div className="flex items-center justify-between mb-2">
-            <label className="text-sm font-medium text-gray-700">
+            <label className="text-sm font-medium text-gray-300">
               Valor do kWh (R$)
             </label>
             {valorKwhDoPerfil && (
-              <span className="flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full">
+              <span className="flex items-center gap-1 px-2 py-0.5 bg-green-500/20 text-green-700 text-xs rounded-full">
                 <Settings className="w-3 h-3" />
                 Do perfil
               </span>
@@ -268,7 +268,7 @@ export function ImpressoraEnergiaConfig({
               value={valorKwh}
               onChange={onValorKwhChange}
               placeholder="0.85"
-              className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg bg-white
+              className="w-full pl-9 pr-3 py-2 border border-gray-600 rounded-lg bg-gray-800 text-white
                 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>

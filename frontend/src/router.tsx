@@ -41,7 +41,7 @@ export const router = createBrowserRouter([
       },
       // Rota Publica do Catalogo (sem autenticacao)
       {
-        path: '/loja',
+        path: '/loja/:slug',
         element: <CatalogoPublico />,
       },
       // Rotas Protegidas

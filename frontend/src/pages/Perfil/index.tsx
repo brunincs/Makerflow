@@ -17,6 +17,9 @@ import {
   Zap,
   Moon,
   Sun,
+  Store,
+  Copy,
+  ExternalLink,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../services/supabaseClient';
@@ -62,6 +65,7 @@ export function Perfil() {
   const [emailComercial, setEmailComercial] = useState(profile?.email_comercial || '');
   const [logoUrl, setLogoUrl] = useState(profile?.logo_url || '');
   const [valorKwh, setValorKwh] = useState(profile?.valor_kwh || 0.85);
+  const [slugLoja, setSlugLoja] = useState(profile?.slug_loja || '');
 
   // Tema
   const [tema, setTema] = useState<'claro' | 'noturno'>(() => {
@@ -106,6 +110,7 @@ export function Perfil() {
       setEmailComercial(profile.email_comercial || '');
       setLogoUrl(profile.logo_url || '');
       setValorKwh(profile.valor_kwh || 0.85);
+      setSlugLoja(profile.slug_loja || '');
     }
   }, [profile]);
 
@@ -136,6 +141,7 @@ export function Perfil() {
       email_comercial: emailComercial || null,
       logo_url: logoUrl || null,
       valor_kwh: valorKwh || null,
+      slug_loja: slugLoja || null,
     });
 
     setSaving(false);
@@ -684,6 +690,81 @@ export function Perfil() {
                   Noturno
                 </span>
               </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Catalogo / Loja Publica */}
+        <div className="bg-gray-900 rounded-xl p-6 border border-gray-800">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 bg-green-500/20 rounded-lg">
+              <Store className="w-5 h-5 text-green-400" />
+            </div>
+            <h2 className="text-lg font-semibold text-white">Catalogo Publico</h2>
+          </div>
+
+          <div className="space-y-4">
+            <p className="text-sm text-gray-400">
+              Configure o link da sua loja para compartilhar com clientes
+            </p>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1">
+                Slug da Loja
+              </label>
+              <div className="flex gap-2">
+                <div className="flex-1 relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">
+                    /loja/
+                  </span>
+                  <input
+                    type="text"
+                    value={slugLoja}
+                    onChange={(e) => setSlugLoja(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                    placeholder="minhaloja"
+                    className="w-full pl-14 pr-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-green-500"
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Use apenas letras minusculas, numeros e hifen
+              </p>
+            </div>
+
+            {slugLoja && (
+              <div className="bg-gray-800 rounded-lg p-3">
+                <p className="text-xs text-gray-400 mb-2">Link da sua loja:</p>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 text-sm text-green-400 bg-gray-900 px-3 py-2 rounded truncate">
+                    {window.location.origin}/loja/{slugLoja}
+                  </code>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(`${window.location.origin}/loja/${slugLoja}`);
+                    }}
+                    className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
+                    title="Copiar link"
+                  >
+                    <Copy className="w-4 h-4" />
+                  </button>
+                  <a
+                    href={`/loja/${slugLoja}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
+                    title="Abrir loja"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                  </a>
+                </div>
+              </div>
+            )}
+
+            <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
+              <p className="text-sm text-blue-300">
+                <strong>Dica:</strong> O catalogo mostra todos os produtos precificados como "Venda Direta".
+                Configure tambem seu WhatsApp nos dados de contato para receber pedidos.
+              </p>
             </div>
           </div>
         </div>

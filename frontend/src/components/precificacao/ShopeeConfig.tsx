@@ -37,7 +37,7 @@ export function ShopeeConfigComponent({ value, onChange, produtoSelecionado, onP
     <div className="space-y-6">
       {/* Tipo de Vendedor */}
       <div>
-        <h4 className="text-sm font-medium text-gray-900 mb-3 flex items-center gap-2">
+        <h4 className="text-sm font-medium text-white mb-3 flex items-center gap-2">
           <User className="w-4 h-4" />
           Tipo de vendedor
         </h4>
@@ -47,17 +47,17 @@ export function ShopeeConfigComponent({ value, onChange, produtoSelecionado, onP
             onClick={() => handleVendedorChange('cnpj')}
             className={`p-4 rounded-xl border-2 transition-all text-left ${
               value.tipo_vendedor === 'cnpj'
-                ? 'border-orange-500 bg-orange-50'
-                : 'border-gray-200 hover:border-gray-300 bg-white'
+                ? 'border-orange-500 bg-orange-500/10'
+                : 'border-gray-700 hover:border-gray-600 bg-gray-800'
             }`}
           >
             <div className="flex items-center gap-3 mb-2">
-              <div className={`p-2 rounded-lg ${value.tipo_vendedor === 'cnpj' ? 'bg-orange-100' : 'bg-gray-100'}`}>
-                <Building2 className={`w-5 h-5 ${value.tipo_vendedor === 'cnpj' ? 'text-orange-600' : 'text-gray-500'}`} />
+              <div className={`p-2 rounded-lg ${value.tipo_vendedor === 'cnpj' ? 'bg-orange-500/20' : 'bg-gray-700'}`}>
+                <Building2 className={`w-5 h-5 ${value.tipo_vendedor === 'cnpj' ? 'text-orange-500' : 'text-gray-500'}`} />
               </div>
-              <span className="font-semibold text-gray-900">CNPJ</span>
+              <span className="font-semibold text-white">CNPJ</span>
             </div>
-            <p className="text-xs text-gray-500">Tabela padrao de comissao</p>
+            <p className="text-xs text-gray-400">Tabela padrao de comissao</p>
           </button>
 
           <button
@@ -65,17 +65,17 @@ export function ShopeeConfigComponent({ value, onChange, produtoSelecionado, onP
             onClick={() => handleVendedorChange('cpf')}
             className={`p-4 rounded-xl border-2 transition-all text-left ${
               value.tipo_vendedor === 'cpf'
-                ? 'border-orange-500 bg-orange-50'
-                : 'border-gray-200 hover:border-gray-300 bg-white'
+                ? 'border-orange-500 bg-orange-500/10'
+                : 'border-gray-700 hover:border-gray-600 bg-gray-800'
             }`}
           >
             <div className="flex items-center gap-3 mb-2">
-              <div className={`p-2 rounded-lg ${value.tipo_vendedor === 'cpf' ? 'bg-orange-100' : 'bg-gray-100'}`}>
-                <User className={`w-5 h-5 ${value.tipo_vendedor === 'cpf' ? 'text-orange-600' : 'text-gray-500'}`} />
+              <div className={`p-2 rounded-lg ${value.tipo_vendedor === 'cpf' ? 'bg-orange-500/20' : 'bg-gray-700'}`}>
+                <User className={`w-5 h-5 ${value.tipo_vendedor === 'cpf' ? 'text-orange-500' : 'text-gray-500'}`} />
               </div>
-              <span className="font-semibold text-gray-900">CPF</span>
+              <span className="font-semibold text-white">CPF</span>
             </div>
-            <p className="text-xs text-gray-500">+R$3 por item (baixo volume)</p>
+            <p className="text-xs text-gray-400">+R$3 por item (baixo volume)</p>
           </button>
         </div>
       </div>
@@ -90,12 +90,12 @@ export function ShopeeConfigComponent({ value, onChange, produtoSelecionado, onP
 
       {/* Opcoes Adicionais */}
       <div className="space-y-4">
-        <h4 className="text-sm font-medium text-gray-900 flex items-center gap-2">
+        <h4 className="text-sm font-medium text-white flex items-center gap-2">
           <Tag className="w-4 h-4" />
           Opcoes adicionais
         </h4>
 
-        <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 space-y-4">
+        <div className="bg-orange-500/10 border border-orange-500/30 rounded-xl p-4 space-y-4">
           <Toggle
             checked={value.campanha_destaque}
             onChange={(checked) => handleToggle('campanha_destaque', checked)}
@@ -103,7 +103,7 @@ export function ShopeeConfigComponent({ value, onChange, produtoSelecionado, onP
             description="+2.5% de comissao durante a campanha"
           />
 
-          <div className="border-t border-orange-200 pt-4">
+          <div className="border-t border-orange-500/30 pt-4">
             <Toggle
               checked={value.cupom_desconto}
               onChange={(checked) => handleToggle('cupom_desconto', checked)}
@@ -121,7 +121,6 @@ export function ShopeeConfigComponent({ value, onChange, produtoSelecionado, onP
                   placeholder="Ex: 5.00"
                   value={value.valor_cupom?.toString() || ''}
                   onChange={(e) => handleCupomValor(e.target.value)}
-                  className="bg-white"
                 />
               </div>
             )}
@@ -131,35 +130,35 @@ export function ShopeeConfigComponent({ value, onChange, produtoSelecionado, onP
 
       {/* Tabela de Taxas */}
       <div>
-        <h4 className="text-sm font-medium text-gray-900 mb-3 flex items-center gap-2">
+        <h4 className="text-sm font-medium text-white mb-3 flex items-center gap-2">
           <Percent className="w-4 h-4" />
           Tabela de taxas Shopee
         </h4>
 
-        <div className="bg-gray-50 border border-gray-200 rounded-xl overflow-hidden">
+        <div className="bg-gray-800/50 border border-gray-700 rounded-xl overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-gray-100">
-                <th className="px-4 py-3 text-left font-medium text-gray-600">Faixa de preco</th>
-                <th className="px-4 py-3 text-right font-medium text-gray-600">Comissao</th>
-                <th className="px-4 py-3 text-right font-medium text-gray-600">Taxa fixa</th>
+              <tr className="bg-gray-800">
+                <th className="px-4 py-3 text-left font-medium text-gray-400">Faixa de preco</th>
+                <th className="px-4 py-3 text-right font-medium text-gray-400">Comissao</th>
+                <th className="px-4 py-3 text-right font-medium text-gray-400">Taxa fixa</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
+            <tbody className="divide-y divide-gray-700">
               {FAIXAS_COMISSAO.map((faixa, index) => (
-                <tr key={index} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 text-gray-900">{faixa.label}</td>
-                  <td className="px-4 py-3 text-right text-gray-900">{faixa.percentual}%</td>
-                  <td className="px-4 py-3 text-right text-gray-900">R$ {faixa.taxa_fixa.toFixed(2)}</td>
+                <tr key={index} className="hover:bg-gray-800">
+                  <td className="px-4 py-3 text-white">{faixa.label}</td>
+                  <td className="px-4 py-3 text-right text-white">{faixa.percentual}%</td>
+                  <td className="px-4 py-3 text-right text-white">R$ {faixa.taxa_fixa.toFixed(2)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
 
-          <div className="px-4 py-3 bg-orange-50 border-t border-orange-200">
+          <div className="px-4 py-3 bg-orange-500/10 border-t border-orange-500/30">
             <div className="flex items-start gap-2">
-              <Info className="w-4 h-4 text-orange-600 flex-shrink-0 mt-0.5" />
-              <p className="text-xs text-orange-800">
+              <Info className="w-4 h-4 text-orange-500 flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-orange-400">
                 <strong>Teto de comissao:</strong> R$100,00 por item
               </p>
             </div>

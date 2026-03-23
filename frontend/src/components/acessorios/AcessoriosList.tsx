@@ -116,7 +116,7 @@ export function AcessoriosList() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-xl font-semibold text-gray-900">Acessorios</h2>
+          <h2 className="text-xl font-semibold text-white">Acessorios</h2>
           <p className="text-sm text-gray-500">
             Gerencie LEDs, parafusos, plantas e outros acessorios
           </p>
@@ -161,9 +161,9 @@ export function AcessoriosList() {
           </div>
         </Card>
       ) : (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="bg-gray-900 rounded-xl shadow-sm border border-gray-700 overflow-hidden">
           <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+            <thead className="bg-gray-800">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Acessorio
@@ -185,14 +185,14 @@ export function AcessoriosList() {
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-gray-900 divide-y divide-gray-200">
               {acessorios
                 .filter(a => a.ativo)
                 .map(acessorio => (
-                  <tr key={acessorio.id} className="hover:bg-gray-50">
+                  <tr key={acessorio.id} className="hover:bg-gray-800">
                     <td className="px-6 py-4">
                       <div>
-                        <div className="font-medium text-gray-900">{acessorio.nome}</div>
+                        <div className="font-medium text-white">{acessorio.nome}</div>
                         {acessorio.descricao && (
                           <div className="text-sm text-gray-500">{acessorio.descricao}</div>
                         )}
@@ -201,13 +201,13 @@ export function AcessoriosList() {
                     <td className="px-6 py-4 text-sm text-gray-500 capitalize">
                       {acessorio.unidade}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-900">
+                    <td className="px-6 py-4 text-sm text-white">
                       {formatCurrency(acessorio.custo_unitario)}
                     </td>
                     <td className="px-6 py-4">
                       <span
                         className={`font-medium ${
-                          isEstoqueBaixo(acessorio) ? 'text-red-600' : 'text-gray-900'
+                          isEstoqueBaixo(acessorio) ? 'text-red-600' : 'text-white'
                         }`}
                       >
                         {acessorio.estoque_atual}

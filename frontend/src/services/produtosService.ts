@@ -199,12 +199,20 @@ export const getProdutos = async (): Promise<ProdutoConcorrente[]> => {
     }));
   }
 
+  // Obter user_id do usuario logado
+  const user_id = await getCurrentUserId();
+  if (!user_id) {
+    console.error('Usuario nao autenticado');
+    return [];
+  }
+
   const { data, error } = await supabase
     .from('produtos_concorrentes')
     .select(`
       *,
       variacoes:variacoes_produto(*)
     `)
+    .eq('user_id', user_id)
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -242,6 +250,13 @@ export const searchProdutos = async (termo: string): Promise<ProdutoConcorrente[
       }));
   }
 
+  // Obter user_id do usuario logado
+  const user_id = await getCurrentUserId();
+  if (!user_id) {
+    console.error('Usuario nao autenticado');
+    return [];
+  }
+
   // Buscar produtos pelo nome ou SKU
   const { data: produtosPorNome, error: erroPorNome } = await supabase
     .from('produtos_concorrentes')
@@ -249,6 +264,7 @@ export const searchProdutos = async (termo: string): Promise<ProdutoConcorrente[
       *,
       variacoes:variacoes_produto(*)
     `)
+    .eq('user_id', user_id)
     .or(`nome.ilike.%${termoLower}%,sku.ilike.%${termoLower}%`)
     .order('nome')
     .limit(20);
@@ -261,6 +277,7 @@ export const searchProdutos = async (termo: string): Promise<ProdutoConcorrente[
   const { data: variacoesPorSku, error: erroPorSku } = await supabase
     .from('variacoes_produto')
     .select('produto_id')
+    .eq('user_id', user_id)
     .ilike('sku', `%${termoLower}%`)
     .limit(20);
 
@@ -283,6 +300,7 @@ export const searchProdutos = async (termo: string): Promise<ProdutoConcorrente[
         *,
         variacoes:variacoes_produto(*)
       `)
+      .eq('user_id', user_id)
       .in('id', idsNovos);
 
     if (!error && data) {
@@ -333,6 +351,13 @@ export const getProdutoBySku = async (sku: string): Promise<{ produto: ProdutoCo
     return null;
   }
 
+  // Obter user_id do usuario logado
+  const user_id = await getCurrentUserId();
+  if (!user_id) {
+    console.error('Usuario nao autenticado');
+    return null;
+  }
+
   // Buscar no SKU do produto
   const { data: produtoPorSku, error: erroProduto } = await supabase
     .from('produtos_concorrentes')
@@ -340,6 +365,7 @@ export const getProdutoBySku = async (sku: string): Promise<{ produto: ProdutoCo
       *,
       variacoes:variacoes_produto(*)
     `)
+    .eq('user_id', user_id)
     .ilike('sku', skuUpper)
     .single();
 
@@ -351,6 +377,7 @@ export const getProdutoBySku = async (sku: string): Promise<{ produto: ProdutoCo
   const { data: variacaoPorSku, error: erroVariacao } = await supabase
     .from('variacoes_produto')
     .select('*')
+    .eq('user_id', user_id)
     .ilike('sku', skuUpper)
     .single();
 
@@ -361,6 +388,7 @@ export const getProdutoBySku = async (sku: string): Promise<{ produto: ProdutoCo
         *,
         variacoes:variacoes_produto(*)
       `)
+      .eq('user_id', user_id)
       .eq('id', variacaoPorSku.produto_id)
       .single();
 

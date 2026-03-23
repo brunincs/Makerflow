@@ -22,6 +22,8 @@ export interface Profile {
   email_comercial?: string | null;
   // Configuracoes de custo
   valor_kwh?: number | null; // Custo da energia em R$/kWh
+  // Catalogo/Loja
+  slug_loja?: string | null; // URL amigavel da loja (ex: bruno3d)
   created_at: string;
   updated_at: string;
 }

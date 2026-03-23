@@ -7,10 +7,12 @@ interface MainLayoutProps {
 
 export function MainLayout({ children }: MainLayoutProps) {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#0a0d14]">
       <Sidebar />
-      <main className="ml-64 p-8">
-        {children}
+      <main className="ml-56 min-h-screen">
+        <div className="p-6 lg:p-8">
+          {children}
+        </div>
       </main>
     </div>
   );

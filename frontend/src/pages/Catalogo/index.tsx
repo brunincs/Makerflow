@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
-import { getPrecificacoesVendaDireta, CatalogoItem } from '../../services/precificacoesService';
-import { Package, Search, X, MessageCircle, ChevronLeft, Share2 } from 'lucide-react';
-
-// Numero de WhatsApp para pedidos (pode ser configuravel no futuro via perfil)
-const WHATSAPP_NUMBER = '5511999999999'; // Substituir pelo numero real
+import { useParams } from 'react-router-dom';
+import { getPrecificacoesVendaDiretaByUser, getLojaBySlug, CatalogoItem, LojaInfo } from '../../services/precificacoesService';
+import { Package, Search, X, MessageCircle, ChevronLeft, Share2, Store, AlertCircle } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface CatalogoCardProps {
   item: CatalogoItem;
@@ -152,21 +151,70 @@ function DetalhesProduto({ item, onClose, onPedir }: DetalhesProdutoProps) {
   );
 }
 
-// Componente principal do Catalogo (pode ser usado tanto na rota protegida quanto publica)
-export function CatalogoContent() {
+// Componente de erro - loja nao encontrada
+function LojaNaoEncontrada() {
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <div className="text-center">
+        <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <AlertCircle className="w-10 h-10 text-red-500" />
+        </div>
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">
+          Loja nao encontrada
+        </h1>
+        <p className="text-gray-500">
+          Verifique se o link esta correto
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// Componente principal do Catalogo Publico
+interface CatalogoContentProps {
+  slug?: string;
+  isPublic?: boolean;
+}
+
+function CatalogoContent({ slug, isPublic = false }: CatalogoContentProps) {
+  const { profile } = useAuth();
   const [items, setItems] = useState<CatalogoItem[]>([]);
+  const [lojaInfo, setLojaInfo] = useState<LojaInfo | null>(null);
   const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [itemSelecionado, setItemSelecionado] = useState<CatalogoItem | null>(null);
 
   useEffect(() => {
-    loadItems();
-  }, []);
+    loadData();
+  }, [slug, profile]);
 
-  const loadItems = async () => {
+  const loadData = async () => {
     setLoading(true);
-    const data = await getPrecificacoesVendaDireta();
-    setItems(data);
+    setNotFound(false);
+
+    if (isPublic && slug) {
+      // Rota publica - buscar loja pelo slug
+      const loja = await getLojaBySlug(slug);
+      if (!loja) {
+        setNotFound(true);
+        setLoading(false);
+        return;
+      }
+      setLojaInfo(loja.info);
+      const data = await getPrecificacoesVendaDiretaByUser(loja.userId);
+      setItems(data);
+    } else if (profile?.id) {
+      // Rota privada - usar id do usuario logado
+      setLojaInfo({
+        nome: profile.nome_fantasia || profile.name || 'Minha Loja',
+        whatsapp: profile.whatsapp || undefined,
+        logo_url: profile.logo_url || undefined,
+      });
+      const data = await getPrecificacoesVendaDiretaByUser(profile.id);
+      setItems(data);
+    }
+
     setLoading(false);
   };
 
@@ -181,8 +229,9 @@ export function CatalogoContent() {
       ? `${item.nome_produto} - ${item.variacao_nome}`
       : item.nome_produto;
 
+    const whatsapp = lojaInfo?.whatsapp || '5511999999999';
     const mensagem = encodeURIComponent(`Ola, quero esse produto: ${nomeProduto}`);
-    const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${mensagem}`;
+    const url = `https://wa.me/${whatsapp}?text=${mensagem}`;
     window.open(url, '_blank');
   };
 
@@ -191,7 +240,7 @@ export function CatalogoContent() {
     if (navigator.share) {
       try {
         await navigator.share({
-          title: 'Catalogo de Produtos',
+          title: lojaInfo?.nome || 'Catalogo',
           url: url,
         });
       } catch {
@@ -203,6 +252,10 @@ export function CatalogoContent() {
       alert('Link copiado!');
     }
   };
+
+  if (notFound) {
+    return <LojaNaoEncontrada />;
+  }
 
   // Se tem item selecionado, mostrar tela de detalhes
   if (itemSelecionado) {
@@ -220,9 +273,22 @@ export function CatalogoContent() {
       {/* Header */}
       <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-4 py-4">
         <div className="flex items-center justify-between mb-3">
-          <h1 className="text-xl font-bold text-gray-900">
-            Catalogo
-          </h1>
+          <div className="flex items-center gap-3">
+            {lojaInfo?.logo_url ? (
+              <img
+                src={lojaInfo.logo_url}
+                alt={lojaInfo.nome}
+                className="w-10 h-10 rounded-full object-cover"
+              />
+            ) : (
+              <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                <Store className="w-5 h-5 text-green-600" />
+              </div>
+            )}
+            <h1 className="text-xl font-bold text-gray-900">
+              {lojaInfo?.nome || 'Catalogo'}
+            </h1>
+          </div>
           <button
             onClick={handleShare}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
@@ -304,20 +370,32 @@ export function CatalogoContent() {
           </>
         )}
       </div>
+
+      {/* Aviso de configuracao (apenas na rota privada) */}
+      {!isPublic && !profile?.slug_loja && items.length > 0 && (
+        <div className="fixed bottom-4 left-4 right-4 bg-yellow-50 border border-yellow-200 rounded-xl p-4 shadow-lg">
+          <p className="text-sm text-yellow-800">
+            <strong>Dica:</strong> Configure o slug da sua loja no perfil para ter uma URL publica como{' '}
+            <span className="font-mono bg-yellow-100 px-1 rounded">makerflow.vercel.app/loja/seu-nome</span>
+          </p>
+        </div>
+      )}
     </div>
   );
 }
 
-// Componente de pagina (dentro do layout protegido)
+// Componente de pagina privada (dentro do layout protegido)
 export function Catalogo() {
-  return <CatalogoContent />;
+  return <CatalogoContent isPublic={false} />;
 }
 
 // Componente de pagina publica (sem layout, sem autenticacao)
 export function CatalogoPublico() {
+  const { slug } = useParams<{ slug: string }>();
+
   return (
     <div className="min-h-screen bg-gray-50">
-      <CatalogoContent />
+      <CatalogoContent slug={slug} isPublic={true} />
     </div>
   );
 }

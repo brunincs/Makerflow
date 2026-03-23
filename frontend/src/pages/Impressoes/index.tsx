@@ -385,9 +385,9 @@ export function Impressoes() {
     return (
       <div>
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Printer className="w-6 h-6 text-blue-600" />
+          <h1 className="text-2xl font-bold text-white flex items-center gap-3">
+            <div className="p-2 bg-emerald-500/20 rounded-lg">
+              <Printer className="w-6 h-6 text-emerald-400" />
             </div>
             Impressoes
           </h1>
@@ -404,9 +404,9 @@ export function Impressoes() {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Printer className="w-6 h-6 text-blue-600" />
+          <h1 className="text-2xl font-bold text-white flex items-center gap-3">
+            <div className="p-2 bg-emerald-500/20 rounded-lg">
+              <Printer className="w-6 h-6 text-emerald-400" />
             </div>
             Impressoes
           </h1>
@@ -418,7 +418,7 @@ export function Impressoes() {
         {!showForm && (
           <button
             onClick={() => setShowForm(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-500 transition-colors"
           >
             <Plus className="w-4 h-4" />
             Registrar impressao
@@ -428,29 +428,29 @@ export function Impressoes() {
 
       {/* Resumo de Produção de Hoje */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+        <Card className="bg-gray-900 border-gray-800">
           <CardBody className="p-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-500 rounded-lg">
-                <Package className="w-5 h-5 text-white" />
+              <div className="p-2 bg-emerald-500/20 rounded-lg">
+                <Package className="w-5 h-5 text-emerald-400" />
               </div>
               <div>
-                <p className="text-sm text-blue-600">Pecas hoje</p>
-                <p className="text-2xl font-bold text-blue-800">{resumoHoje.pecas}</p>
+                <p className="text-sm text-gray-400">Pecas hoje</p>
+                <p className="text-2xl font-bold text-white">{resumoHoje.pecas}</p>
               </div>
             </div>
           </CardBody>
         </Card>
 
-        <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+        <Card className="bg-gray-900 border-gray-800">
           <CardBody className="p-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-green-500 rounded-lg">
-                <Scale className="w-5 h-5 text-white" />
+              <div className="p-2 bg-green-500/20 rounded-lg">
+                <Scale className="w-5 h-5 text-green-400" />
               </div>
               <div>
-                <p className="text-sm text-green-600">Filamento hoje</p>
-                <p className="text-2xl font-bold text-green-800">
+                <p className="text-sm text-gray-400">Filamento hoje</p>
+                <p className="text-2xl font-bold text-white">
                   {(resumoHoje.filamento / 1000).toFixed(2)} kg
                 </p>
               </div>
@@ -458,15 +458,15 @@ export function Impressoes() {
           </CardBody>
         </Card>
 
-        <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
+        <Card className="bg-gray-900 border-gray-800">
           <CardBody className="p-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-purple-500 rounded-lg">
-                <Clock className="w-5 h-5 text-white" />
+              <div className="p-2 bg-purple-500/20 rounded-lg">
+                <Clock className="w-5 h-5 text-purple-400" />
               </div>
               <div>
-                <p className="text-sm text-purple-600">Tempo hoje</p>
-                <p className="text-2xl font-bold text-purple-800">
+                <p className="text-sm text-gray-400">Tempo hoje</p>
+                <p className="text-2xl font-bold text-white">
                   {formatarTempo(resumoHoje.tempo)}
                 </p>
               </div>
@@ -479,14 +479,14 @@ export function Impressoes() {
       {showForm && (
         <Card>
           <CardBody className="p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+            <h3 className="text-lg font-semibold text-white mb-4">
               Nova impressao
             </h3>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Seletor de Modo */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-300 mb-2">
                   Modo de impressao
                 </label>
                 <div className="flex gap-2">
@@ -499,7 +499,7 @@ export function Impressoes() {
                     className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 transition-colors ${
                       form.modo === 'radar'
                         ? 'border-blue-500 bg-blue-50 text-blue-700'
-                        : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                        : 'border-gray-700 bg-gray-900 text-gray-600 hover:border-gray-600'
                     }`}
                   >
                     <Package className="w-5 h-5" />
@@ -515,7 +515,7 @@ export function Impressoes() {
                     className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 transition-colors ${
                       form.modo === 'manual'
                         ? 'border-blue-500 bg-blue-50 text-blue-700'
-                        : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                        : 'border-gray-700 bg-gray-900 text-gray-600 hover:border-gray-600'
                     }`}
                   >
                     <PenLine className="w-5 h-5" />
@@ -528,7 +528,7 @@ export function Impressoes() {
               {form.modo === 'manual' && (
                 <div className="space-y-4 p-4 bg-amber-50 border border-amber-200 rounded-xl">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-300 mb-1">
                       Nome da peca *
                     </label>
                     <input
@@ -536,27 +536,27 @@ export function Impressoes() {
                       value={form.nome_peca_manual}
                       onChange={(e) => setForm(prev => ({ ...prev, nome_peca_manual: e.target.value }))}
                       placeholder="Ex: Suporte de celular, Vaso decorativo..."
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white
+                      className="w-full px-3 py-2 border border-gray-600 rounded-lg bg-gray-900
                         focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-sm font-medium text-gray-300 mb-1">
                         Peso por peca (g) *
                       </label>
                       <DecimalInput
                         value={form.peso_peca_g}
                         onChange={(value) => setForm(prev => ({ ...prev, peso_peca_g: value }))}
                         placeholder="Ex: 25.5"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white
+                        className="w-full px-3 py-2 border border-gray-600 rounded-lg bg-gray-900
                           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-sm font-medium text-gray-300 mb-1">
                         Tempo de impressao
                       </label>
                       <div className="flex gap-2">
@@ -567,7 +567,7 @@ export function Impressoes() {
                             value={form.tempo_horas || ''}
                             onChange={(e) => setForm(prev => ({ ...prev, tempo_horas: parseInt(e.target.value) || 0 }))}
                             placeholder="0"
-                            className="w-full px-3 py-2 pr-8 border border-gray-300 rounded-lg bg-white
+                            className="w-full px-3 py-2 pr-8 border border-gray-600 rounded-lg bg-gray-900
                               focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                           />
                           <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">h</span>
@@ -580,7 +580,7 @@ export function Impressoes() {
                             value={form.tempo_minutos || ''}
                             onChange={(e) => setForm(prev => ({ ...prev, tempo_minutos: Math.min(59, parseInt(e.target.value) || 0) }))}
                             placeholder="0"
-                            className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg bg-white
+                            className="w-full px-3 py-2 pr-10 border border-gray-600 rounded-lg bg-gray-900
                               focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                           />
                           <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">min</span>
@@ -594,12 +594,12 @@ export function Impressoes() {
               {/* Seletor de Produto (somente modo radar) */}
               {form.modo === 'radar' && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-300 mb-2">
                   Produto *
                 </label>
 
                 {selectedProduto ? (
-                  <div className="bg-white border border-gray-200 rounded-xl p-4">
+                  <div className="bg-gray-900 border border-gray-700 rounded-xl p-4">
                     <div className="flex items-start gap-3">
                       {selectedProduto.imagem_url ? (
                         <img
@@ -608,14 +608,14 @@ export function Impressoes() {
                           className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
                         />
                       ) : (
-                        <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <div className="w-16 h-16 bg-gray-800 rounded-lg flex items-center justify-center flex-shrink-0">
                           <Package className="w-8 h-8 text-gray-300" />
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
                           <div>
-                            <h5 className="font-semibold text-gray-900">{selectedProduto.nome}</h5>
+                            <h5 className="font-semibold text-white">{selectedProduto.nome}</h5>
                             {selectedVariacao && (
                               <p className="text-sm text-purple-600 mt-0.5">
                                 Variacao: {selectedVariacao.nome_variacao}
@@ -625,7 +625,7 @@ export function Impressoes() {
                           <button
                             type="button"
                             onClick={handleClearProduto}
-                            className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
+                            className="p-1 hover:bg-gray-800 rounded-lg transition-colors"
                           >
                             <X className="w-4 h-4 text-gray-400" />
                           </button>
@@ -650,7 +650,7 @@ export function Impressoes() {
 
                     {/* Seletor de variacao */}
                     {selectedProduto.variacoes && selectedProduto.variacoes.length > 0 && (
-                      <div className="mt-3 pt-3 border-t border-gray-100">
+                      <div className="mt-3 pt-3 border-t border-gray-800">
                         <button
                           type="button"
                           onClick={() => setShowVariacoes(!showVariacoes)}
@@ -673,7 +673,7 @@ export function Impressoes() {
                               className={`w-full flex items-center justify-between p-2 rounded-lg text-sm transition-colors ${
                                 !selectedVariacao
                                   ? 'bg-purple-100 text-purple-800'
-                                  : 'bg-gray-50 hover:bg-gray-100 text-gray-700'
+                                  : 'bg-gray-800/50 hover:bg-gray-800 text-gray-300'
                               }`}
                             >
                               <span className="font-medium">Padrao (sem variacao)</span>
@@ -697,7 +697,7 @@ export function Impressoes() {
                                 className={`w-full flex items-center justify-between p-2 rounded-lg text-sm transition-colors ${
                                   selectedVariacao?.id === variacao.id
                                     ? 'bg-purple-100 text-purple-800'
-                                    : 'bg-gray-50 hover:bg-gray-100 text-gray-700'
+                                    : 'bg-gray-800/50 hover:bg-gray-800 text-gray-300'
                                 }`}
                               >
                                 <span className="font-medium">{variacao.nome_variacao}</span>
@@ -720,15 +720,15 @@ export function Impressoes() {
                   <div className="relative">
                     <div
                       onClick={() => setShowProdutoSearch(true)}
-                      className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl cursor-pointer hover:border-gray-300 transition-colors flex items-center gap-3"
+                      className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-xl cursor-pointer hover:border-gray-600 transition-colors flex items-center gap-3"
                     >
                       <Search className="w-5 h-5 text-gray-400" />
                       <span className="text-gray-500">Buscar produto do Radar...</span>
                     </div>
 
                     {showProdutoSearch && (
-                      <div className="absolute z-20 w-full mt-2 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
-                        <div className="p-3 border-b border-gray-100">
+                      <div className="absolute z-20 w-full mt-2 bg-gray-900 border border-gray-700 rounded-xl shadow-lg overflow-hidden">
+                        <div className="p-3 border-b border-gray-800">
                           <div className="relative">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                             <input
@@ -736,7 +736,7 @@ export function Impressoes() {
                               placeholder="Digite para buscar..."
                               value={produtoSearch}
                               onChange={(e) => setProdutoSearch(e.target.value)}
-                              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              className="w-full pl-10 pr-4 py-2 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                               autoFocus
                             />
                           </div>
@@ -753,7 +753,7 @@ export function Impressoes() {
                                 key={produto.id}
                                 type="button"
                                 onClick={() => handleSelectProduto(produto)}
-                                className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 transition-colors text-left"
+                                className="w-full flex items-center gap-3 p-3 hover:bg-gray-800/50 transition-colors text-left"
                               >
                                 {produto.imagem_url ? (
                                   <img
@@ -762,12 +762,12 @@ export function Impressoes() {
                                     className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
                                   />
                                 ) : (
-                                  <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                  <div className="w-12 h-12 bg-gray-800 rounded-lg flex items-center justify-center flex-shrink-0">
                                     <Package className="w-6 h-6 text-gray-300" />
                                   </div>
                                 )}
                                 <div className="flex-1 min-w-0">
-                                  <p className="font-medium text-gray-900 truncate">{produto.nome}</p>
+                                  <p className="font-medium text-white truncate">{produto.nome}</p>
                                   <div className="flex items-center gap-2 mt-0.5 text-xs text-gray-500">
                                     {produto.peso_filamento && (
                                       <span>{produto.peso_filamento}g</span>
@@ -782,11 +782,11 @@ export function Impressoes() {
                           )}
                         </div>
 
-                        <div className="p-2 border-t border-gray-100">
+                        <div className="p-2 border-t border-gray-800">
                           <button
                             type="button"
                             onClick={() => setShowProdutoSearch(false)}
-                            className="w-full px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 rounded-lg"
+                            className="w-full px-3 py-2 text-sm text-gray-600 hover:bg-gray-800/50 rounded-lg"
                           >
                             Cancelar
                           </button>
@@ -801,13 +801,13 @@ export function Impressoes() {
               <div className={`grid grid-cols-1 md:grid-cols-2 ${form.modo === 'radar' ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-4`}>
                 {/* Filamento */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
                     Filamento *
                   </label>
                   <select
                     value={form.filamento_id}
                     onChange={(e) => setForm(prev => ({ ...prev, filamento_id: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white
+                    className="w-full px-3 py-2 border border-gray-600 rounded-lg bg-gray-900
                       focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="">Selecione...</option>
@@ -836,7 +836,7 @@ export function Impressoes() {
 
                 {/* Quantidade */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
                     Quantidade *
                   </label>
                   <input
@@ -845,7 +845,7 @@ export function Impressoes() {
                     step="1"
                     value={form.quantidade}
                     onChange={(e) => setForm(prev => ({ ...prev, quantidade: parseInt(e.target.value) || 0 }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white
+                    className="w-full px-3 py-2 border border-gray-600 rounded-lg bg-gray-900
                       focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
@@ -853,7 +853,7 @@ export function Impressoes() {
                 {/* Peso por peca (somente leitura) - apenas modo radar */}
                 {form.modo === 'radar' && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-300 mb-1">
                       Peso por peca (g)
                     </label>
                     <input
@@ -861,20 +861,20 @@ export function Impressoes() {
                       value={form.peso_peca_g}
                       readOnly
                       disabled
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
+                      className="w-full px-3 py-2 border border-gray-700 rounded-lg bg-gray-800/50 text-gray-600 cursor-not-allowed"
                     />
                   </div>
                 )}
 
                 {/* Impressora */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
                     Impressora *
                   </label>
                   <select
                     value={form.impressora_id}
                     onChange={(e) => setForm(prev => ({ ...prev, impressora_id: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white
+                    className="w-full px-3 py-2 border border-gray-600 rounded-lg bg-gray-900
                       focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="">Selecione...</option>
@@ -937,11 +937,11 @@ export function Impressoes() {
               )}
 
               {/* Botoes */}
-              <div className="flex items-center gap-3 pt-4 border-t border-gray-200">
+              <div className="flex items-center gap-3 pt-4 border-t border-gray-700">
                 <button
                   type="submit"
                   disabled={saving || semEstoque || estoqueInsuficiente}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {saving ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -953,7 +953,7 @@ export function Impressoes() {
                 <button
                   type="button"
                   onClick={handleCancel}
-                  className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
                 >
                   <X className="w-4 h-4" />
                   Cancelar
@@ -967,7 +967,7 @@ export function Impressoes() {
       {/* Historico de Impressões */}
       <div>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+          <h2 className="text-lg font-semibold text-white flex items-center gap-2">
             <Calendar className="w-5 h-5 text-gray-500" />
             Historico de Producao
           </h2>
@@ -982,7 +982,7 @@ export function Impressoes() {
                 className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
                   filtroHistorico === filtro
                     ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    : 'bg-gray-800 text-gray-600 hover:bg-gray-200'
                 }`}
               >
                 {filtro === 'hoje' && 'Hoje'}
@@ -998,7 +998,7 @@ export function Impressoes() {
           <Card>
             <CardBody className="p-12 text-center">
               <AlertCircle className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
+              <h3 className="text-lg font-medium text-white mb-2">
                 Nenhuma impressao registrada
               </h3>
               <p className="text-gray-500 mb-4">
@@ -1013,7 +1013,7 @@ export function Impressoes() {
               {!showForm && (
                 <button
                   onClick={() => setShowForm(true)}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-500 transition-colors"
                 >
                   <Plus className="w-4 h-4" />
                   Registrar impressao
@@ -1036,7 +1036,7 @@ export function Impressoes() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-4">
                         <div>
-                          <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                          <h3 className="font-semibold text-white flex items-center gap-2">
                             {impressao.nome_peca_manual || impressao.produto?.nome || 'Produto'}
                             {impressao.nome_peca_manual && (
                               <span className="px-2 py-0.5 text-xs bg-amber-100 text-amber-700 rounded">
@@ -1076,7 +1076,7 @@ export function Impressoes() {
                           <Package className="w-4 h-4 text-gray-400" />
                           <div>
                             <p className="text-xs text-gray-500">Quantidade</p>
-                            <p className="font-semibold text-gray-900">{impressao.quantidade} pecas</p>
+                            <p className="font-semibold text-white">{impressao.quantidade} pecas</p>
                           </div>
                         </div>
 
@@ -1113,7 +1113,7 @@ export function Impressoes() {
                             <Printer className="w-4 h-4 text-gray-500" />
                             <div>
                               <p className="text-xs text-gray-500">Impressora</p>
-                              <p className="font-semibold text-gray-700 truncate">
+                              <p className="font-semibold text-gray-300 truncate">
                                 {impressao.impressora_info.apelido || impressao.impressora_info.modelo}
                               </p>
                             </div>

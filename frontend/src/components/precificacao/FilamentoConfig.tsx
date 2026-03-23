@@ -93,15 +93,15 @@ export function FilamentoConfig({
 
   return (
     <div>
-      <h4 className="text-sm font-medium text-gray-900 mb-3 flex items-center gap-2">
+      <h4 className="text-sm font-medium text-white mb-3 flex items-center gap-2">
         <Cylinder className="w-4 h-4" />
         Filamento
       </h4>
 
-      <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 space-y-5">
+      <div className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-4 space-y-5">
         {/* Seletor de Filamento */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-300 mb-2">
             Selecionar filamento
           </label>
           {loading ? (
@@ -113,7 +113,7 @@ export function FilamentoConfig({
             <select
               value={filamentoId || ''}
               onChange={(e) => handleFilamentoChange(e.target.value)}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg bg-white
+              className="w-full px-3 py-2.5 border border-gray-600 rounded-lg bg-gray-800 text-white
                 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500
                 text-sm"
             >
@@ -136,11 +136,11 @@ export function FilamentoConfig({
 
         {/* Mostrar info do filamento selecionado */}
         {filamentoSelecionado && (
-          <div className="bg-white border border-purple-200 rounded-lg p-3">
+          <div className="bg-gray-800 border border-purple-500/30 rounded-lg p-3">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-purple-600 font-medium">{filamentoSelecionado.marca}</p>
-                <p className="text-sm font-semibold text-gray-900">{filamentoSelecionado.nome_filamento}</p>
+                <p className="text-sm font-semibold text-white">{filamentoSelecionado.nome_filamento}</p>
                 <p className="text-xs text-gray-500">
                   {filamentoSelecionado.material} {filamentoSelecionado.cor && `• ${filamentoSelecionado.cor}`}
                 </p>
@@ -156,8 +156,8 @@ export function FilamentoConfig({
         )}
 
         {/* Valor do kg - sempre visível, editável apenas no modo manual */}
-        <div className="border-t border-purple-200 pt-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+        <div className="border-t border-purple-500/30 pt-4">
+          <label className="block text-sm font-medium text-gray-300 mb-2 flex items-center gap-2">
             Valor do kg (R$)
             {!isModoManual && (
               <span className="flex items-center gap-1 text-xs text-purple-600 font-normal">
@@ -177,7 +177,7 @@ export function FilamentoConfig({
               disabled={!isModoManual}
               className={`w-full pl-9 pr-14 py-2 border border-gray-300 rounded-lg
                 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500
-                ${!isModoManual ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : 'bg-white'}`}
+                ${!isModoManual ? 'bg-gray-700 text-gray-400 cursor-not-allowed' : 'bg-white'}`}
             />
             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 pointer-events-none">
               /kg
@@ -186,22 +186,22 @@ export function FilamentoConfig({
         </div>
 
         {/* Peso do Filamento */}
-        <div className="border-t border-purple-200 pt-4">
+        <div className="border-t border-purple-500/30 pt-4">
           {hasPesoProduto ? (
             // Produto selecionado - mostrar peso do produto
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-sm font-medium text-gray-700">Peso usado na peca</span>
+                <span className="text-sm font-medium text-gray-300">Peso usado na peca</span>
               </div>
 
               <div className="flex items-center gap-3">
-                <div className="flex-1 p-3 bg-white border border-purple-200 rounded-lg">
+                <div className="flex-1 p-3 bg-gray-800 border border-purple-500/30 rounded-lg">
                   <p className="text-2xl font-bold text-purple-700">
                     {pesoProduto.toFixed(2)}g
                   </p>
                 </div>
 
-                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-100 rounded-full">
+                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-500/20 rounded-full">
                   <Package className="w-3.5 h-3.5 text-purple-600" />
                   <span className="text-xs font-medium text-purple-700">
                     {modoKit ? 'Peso total do kit' : 'Peso carregado do produto'}
@@ -218,7 +218,7 @@ export function FilamentoConfig({
           ) : (
             // Sem produto - mostrar campo manual
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-300 mb-2">
                 Peso usado na peca (g)
               </label>
               <div className="relative max-w-[150px]">
@@ -226,7 +226,7 @@ export function FilamentoConfig({
                   value={pesoFilamentoG}
                   onChange={onPesoFilamentoGChange}
                   placeholder="25.50"
-                  className="w-full px-3 py-2 pr-8 border border-gray-300 rounded-lg bg-white
+                  className="w-full px-3 py-2 pr-8 border border-gray-600 rounded-lg bg-gray-800 text-white
                     focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                 />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 pointer-events-none">

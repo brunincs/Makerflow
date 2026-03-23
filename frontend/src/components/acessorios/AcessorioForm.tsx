@@ -62,14 +62,14 @@ export function AcessorioForm({ acessorio, onSave, onCancel, isLoading }: Acesso
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-gray-300 mb-1">
             Unidade
           </label>
           <select
             value={unidade}
             onChange={e => setUnidade(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm
-              focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full px-3 py-2 border border-gray-600 rounded-lg bg-gray-800 text-white
+              focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
           >
             {UNIDADES_ACESSORIO.map(u => (
               <option key={u.value} value={u.value}>

@@ -2,8 +2,6 @@ import { NavLink, useNavigate, Link } from 'react-router-dom';
 import {
   LayoutDashboard,
   Radar,
-  Calculator,
-  LineChart,
   Package,
   Cylinder,
   BoxIcon,
@@ -13,21 +11,45 @@ import {
   LogOut,
   User,
   Store,
+  Settings,
+  Layers,
+  Zap,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { isSupabaseConfigured } from '../../services/supabaseClient';
 
-const menuItems = [
-  { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/radar-produtos', icon: Radar, label: 'Radar de Produtos' },
-  { to: '/catalogo', icon: Store, label: 'Catalogo' },
-  { to: '/precificacao', icon: Calculator, label: 'Calculadora' },
-  { to: '/simulacoes', icon: LineChart, label: 'Precificados' },
-  { to: '/fila-producao', icon: ClipboardList, label: 'Fila de Producao' },
-  { to: '/impressoes', icon: Printer, label: 'Impressoes' },
-  { to: '/estoque', icon: BoxIcon, label: 'Estoque' },
-  { to: '/filamentos', icon: Cylinder, label: 'Filamentos' },
-  { to: '/embalagens', icon: Package, label: 'Embalagens' },
+// Menu organizado por seções
+const menuSections = [
+  {
+    title: 'Operacao',
+    items: [
+      { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
+      { to: '/fila-producao', icon: ClipboardList, label: 'Fila de Producao' },
+      { to: '/impressoes', icon: Printer, label: 'Impressoes' },
+    ],
+  },
+  {
+    title: 'Produtos',
+    items: [
+      { to: '/radar-produtos', icon: Radar, label: 'Radar' },
+      { to: '/catalogo', icon: Store, label: 'Catalogo' },
+    ],
+  },
+  {
+    title: 'Recursos',
+    items: [
+      { to: '/estoque', icon: Layers, label: 'Estoque' },
+      { to: '/filamentos', icon: Cylinder, label: 'Filamentos' },
+      { to: '/embalagens', icon: Package, label: 'Embalagens' },
+    ],
+  },
+  {
+    title: 'Ferramentas',
+    items: [
+      { to: '/precificacao', icon: Zap, label: 'Calculadora' },
+      { to: '/simulacoes', icon: BoxIcon, label: 'Precificados' },
+    ],
+  },
 ];
 
 export function Sidebar() {
@@ -41,63 +63,96 @@ export function Sidebar() {
   };
 
   return (
-    <aside className="fixed left-0 top-0 h-screen w-64 bg-gray-900 text-white flex flex-col">
-      <div className="p-6 border-b border-gray-800">
-        <h1 className="text-2xl font-bold tracking-tight">
-          <span className="text-blue-500">MAKER</span>FLOW
+    <aside className="fixed left-0 top-0 h-screen w-56 bg-[#0c0f1a] text-white flex flex-col border-r border-gray-800/50">
+      {/* Logo */}
+      <div className="px-5 py-6">
+        <h1 className="text-xl font-bold tracking-tight">
+          <span className="text-emerald-400">MAKER</span>
+          <span className="text-white">FLOW</span>
         </h1>
-        <p className="text-xs text-gray-500 mt-1">Gestao de Impressao 3D</p>
       </div>
 
-      <nav className="flex-1 p-4 overflow-y-auto">
-        <ul className="space-y-1">
-          {menuItems.map((item) => (
-            <li key={item.label}>
-              <NavLink
-                to={item.to}
-                className={({ isActive }) =>
-                  `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                    isActive
-                      ? 'bg-blue-600 text-white'
-                      : 'text-gray-300 hover:bg-gray-800 hover:text-white'
-                  }`
-                }
-              >
-                <item.icon className="w-5 h-5" />
-                <span>{item.label}</span>
-              </NavLink>
-            </li>
-          ))}
+      {/* Navigation */}
+      <nav className="flex-1 px-3 overflow-y-auto">
+        {menuSections.map((section) => (
+          <div key={section.title} className="mb-6">
+            <h3 className="px-3 mb-2 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
+              {section.title}
+            </h3>
+            <ul className="space-y-0.5">
+              {section.items.map((item) => (
+                <li key={item.label}>
+                  <NavLink
+                    to={item.to}
+                    className={({ isActive }) =>
+                      `flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium transition-all duration-200 ${
+                        isActive
+                          ? 'bg-emerald-500/10 text-emerald-400'
+                          : 'text-gray-400 hover:text-white hover:bg-white/5'
+                      }`
+                    }
+                  >
+                    <item.icon className="w-4 h-4" />
+                    <span>{item.label}</span>
+                  </NavLink>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
 
-          {/* Link Admin */}
-          {showAuth && isAdmin && (
-            <li className="pt-4 mt-4 border-t border-gray-800">
+        {/* Sistema */}
+        <div className="mb-6">
+          <h3 className="px-3 mb-2 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
+            Sistema
+          </h3>
+          <ul className="space-y-0.5">
+            <li>
               <NavLink
-                to="/admin"
+                to="/perfil"
                 className={({ isActive }) =>
-                  `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                  `flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium transition-all duration-200 ${
                     isActive
-                      ? 'bg-blue-600 text-white'
-                      : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                      ? 'bg-emerald-500/10 text-emerald-400'
+                      : 'text-gray-400 hover:text-white hover:bg-white/5'
                   }`
                 }
               >
-                <Shield className="w-5 h-5" />
-                <span>Admin</span>
+                <Settings className="w-4 h-4" />
+                <span>Configuracoes</span>
               </NavLink>
             </li>
-          )}
-        </ul>
+
+            {/* Link Admin */}
+            {showAuth && isAdmin && (
+              <li>
+                <NavLink
+                  to="/admin"
+                  className={({ isActive }) =>
+                    `flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium transition-all duration-200 ${
+                      isActive
+                        ? 'bg-emerald-500/10 text-emerald-400'
+                        : 'text-gray-400 hover:text-white hover:bg-white/5'
+                    }`
+                  }
+                >
+                  <Shield className="w-4 h-4" />
+                  <span>Admin</span>
+                </NavLink>
+              </li>
+            )}
+          </ul>
+        </div>
       </nav>
 
       {/* User Profile Section */}
       {showAuth && isAuthenticated && (
-        <div className="p-4 border-t border-gray-800">
+        <div className="p-3 border-t border-gray-800/50">
           <Link
             to="/perfil"
-            className="flex items-center gap-3 mb-3 p-2 -m-2 rounded-lg hover:bg-gray-800 transition-colors cursor-pointer"
+            className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 transition-colors cursor-pointer"
           >
-            <div className="w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center overflow-hidden">
+            <div className="w-8 h-8 bg-gray-800 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0">
               {profile?.logo_url ? (
                 <img
                   src={profile.logo_url}
@@ -105,33 +160,27 @@ export function Sidebar() {
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <User className="w-5 h-5 text-gray-400" />
+                <User className="w-4 h-4 text-gray-500" />
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-white truncate">
+              <p className="text-xs font-medium text-white truncate">
                 {profile?.nome_fantasia || profile?.name || 'Usuario'}
               </p>
-              <p className="text-xs text-gray-500 truncate">
+              <p className="text-[10px] text-gray-500 truncate">
                 {profile?.email}
               </p>
             </div>
-            {isAdmin && (
-              <span className="px-2 py-0.5 text-xs bg-blue-500/10 text-blue-400 rounded">
-                Admin
-              </span>
-            )}
           </Link>
           <button
             onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg transition-colors"
+            className="w-full flex items-center justify-center gap-2 mt-2 px-3 py-2 text-xs font-medium text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
           >
-            <LogOut className="w-4 h-4" />
+            <LogOut className="w-3.5 h-3.5" />
             <span>Sair</span>
           </button>
         </div>
       )}
-
     </aside>
   );
 }

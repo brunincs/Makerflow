@@ -203,7 +203,7 @@ export function Embalagens() {
     return (
       <div>
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+          <h1 className="text-2xl font-bold text-white flex items-center gap-3">
             <div className="p-2 bg-amber-100 rounded-lg">
               <Package className="w-6 h-6 text-amber-600" />
             </div>
@@ -225,7 +225,7 @@ export function Embalagens() {
     <div>
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+        <h1 className="text-2xl font-bold text-white flex items-center gap-3">
           <div className="p-2 bg-amber-100 rounded-lg">
             <Package className="w-6 h-6 text-amber-600" />
           </div>
@@ -237,14 +237,14 @@ export function Embalagens() {
       </div>
 
       {/* Tabs */}
-      <div className="mb-6 border-b border-gray-200">
+      <div className="mb-6 border-b border-gray-700">
         <nav className="-mb-px flex space-x-8">
           <button
             onClick={() => setActiveTab('embalagens')}
             className={`flex items-center gap-2 py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
               activeTab === 'embalagens'
                 ? 'border-amber-500 text-amber-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                : 'border-transparent text-gray-500 hover:text-gray-300 hover:border-gray-600'
             }`}
           >
             <Package className="w-4 h-4" />
@@ -255,7 +255,7 @@ export function Embalagens() {
             className={`flex items-center gap-2 py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
               activeTab === 'acessorios'
                 ? 'border-amber-500 text-amber-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                : 'border-transparent text-gray-500 hover:text-gray-300 hover:border-gray-600'
             }`}
           >
             <Lightbulb className="w-4 h-4" />
@@ -300,9 +300,9 @@ export function Embalagens() {
                   {embalagensBaixoEstoque.map(e => (
                     <span
                       key={e.id}
-                      className="inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-orange-200 rounded-lg text-sm"
+                      className="inline-flex items-center gap-2 px-3 py-1.5 bg-gray-900 border border-orange-200 rounded-lg text-sm"
                     >
-                      <span className="font-medium text-gray-900">
+                      <span className="font-medium text-white">
                         {e.nome_embalagem}
                       </span>
                       <span className="text-orange-600 font-bold">
@@ -321,7 +321,7 @@ export function Embalagens() {
       {showForm && (
         <Card className="mb-6">
           <CardBody className="p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+            <h3 className="text-lg font-semibold text-white mb-4">
               {editingId ? 'Editar embalagem' : 'Nova embalagem'}
             </h3>
 
@@ -329,7 +329,7 @@ export function Embalagens() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Nome da Embalagem */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
                     Nome da embalagem *
                   </label>
                   <input
@@ -337,14 +337,14 @@ export function Embalagens() {
                     value={form.nome_embalagem}
                     onChange={(e) => setForm(prev => ({ ...prev, nome_embalagem: e.target.value }))}
                     placeholder="Ex: Envelope kraft, Plastico bolha..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white
+                    className="w-full px-3 py-2 border border-gray-600 rounded-lg bg-gray-900
                       focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                   />
                 </div>
 
                 {/* Preco Unitario */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
                     Preco unitario *
                   </label>
                   <div className="relative">
@@ -355,7 +355,7 @@ export function Embalagens() {
                       value={form.preco_unitario}
                       onChange={(value) => setForm(prev => ({ ...prev, preco_unitario: value }))}
                       placeholder="0.80"
-                      className="w-full pl-9 px-3 py-2 border border-gray-300 rounded-lg bg-white
+                      className="w-full pl-9 px-3 py-2 border border-gray-600 rounded-lg bg-gray-900
                         focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                     />
                   </div>
@@ -365,7 +365,7 @@ export function Embalagens() {
               {/* Quantidade inicial - apenas na criação */}
               {!editingId && (
                 <div className="max-w-xs">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
                     Quantidade inicial em estoque
                   </label>
                   <input
@@ -375,14 +375,14 @@ export function Embalagens() {
                     value={form.quantidade}
                     onChange={(e) => setForm(prev => ({ ...prev, quantidade: parseInt(e.target.value) || 0 }))}
                     placeholder="0"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white
+                    className="w-full px-3 py-2 border border-gray-600 rounded-lg bg-gray-900
                       focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                   />
                 </div>
               )}
 
               {/* Botoes */}
-              <div className="flex items-center gap-3 pt-4 border-t border-gray-200">
+              <div className="flex items-center gap-3 pt-4 border-t border-gray-700">
                 <button
                   type="submit"
                   disabled={saving}
@@ -398,7 +398,7 @@ export function Embalagens() {
                 <button
                   type="button"
                   onClick={handleCancel}
-                  className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
                 >
                   <X className="w-4 h-4" />
                   Cancelar
@@ -414,7 +414,7 @@ export function Embalagens() {
         <Card>
           <CardBody className="p-12 text-center">
             <AlertCircle className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
+            <h3 className="text-lg font-medium text-white mb-2">
               Nenhuma embalagem cadastrada
             </h3>
             <p className="text-gray-500 mb-4">
@@ -447,7 +447,7 @@ export function Embalagens() {
                   {/* Info */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <h3 className="font-semibold text-gray-900 truncate">
+                      <h3 className="font-semibold text-white truncate">
                         {embalagem.nome_embalagem}
                       </h3>
                       {baixoEstoque && (
@@ -459,7 +459,7 @@ export function Embalagens() {
                   </div>
 
                   {/* Estoque */}
-                  <div className="text-center px-4 border-l border-gray-200">
+                  <div className="text-center px-4 border-l border-gray-700">
                     <div className={`flex items-center gap-1 ${baixoEstoque ? 'text-orange-600' : 'text-green-600'}`}>
                       {baixoEstoque && <AlertTriangle className="w-4 h-4" />}
                       <span className="text-lg font-bold">{embalagem.quantidade || 0}</span>
@@ -468,7 +468,7 @@ export function Embalagens() {
                   </div>
 
                   {/* Preco */}
-                  <div className="text-right px-4 border-l border-gray-200">
+                  <div className="text-right px-4 border-l border-gray-700">
                     <p className="text-lg font-bold text-amber-700">
                       R$ {formatCurrency(embalagem.preco_unitario)}
                     </p>
@@ -476,7 +476,7 @@ export function Embalagens() {
                   </div>
 
                   {/* Acoes */}
-                  <div className="flex items-center gap-1 border-l border-gray-200 pl-4">
+                  <div className="flex items-center gap-1 border-l border-gray-700 pl-4">
                     {/* Botões de estoque */}
                     <button
                       onClick={() => handleOpenEstoqueModal('entrada', embalagem.id)}
@@ -532,13 +532,13 @@ export function Embalagens() {
 
       {/* Resumo */}
       {embalagens.length > 0 && (
-        <div className="mt-6 p-4 bg-gray-50 rounded-xl border border-gray-200">
+        <div className="mt-6 p-4 bg-gray-800/50 rounded-xl border border-gray-700">
           <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-500">
-              <strong className="text-gray-900">{embalagens.length}</strong> {embalagens.length === 1 ? 'embalagem cadastrada' : 'embalagens cadastradas'}
+            <span className="text-gray-400">
+              <strong className="text-white">{embalagens.length}</strong> {embalagens.length === 1 ? 'embalagem cadastrada' : 'embalagens cadastradas'}
             </span>
-            <span className="text-gray-500">
-              Estoque total: <strong className="text-gray-900">
+            <span className="text-gray-400">
+              Estoque total: <strong className="text-white">
                 {embalagens.reduce((acc, e) => acc + (e.quantidade || 0), 0)} unidades
               </strong>
             </span>
@@ -551,10 +551,10 @@ export function Embalagens() {
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="fixed inset-0 bg-black/50" onClick={handleCloseEstoqueModal} />
           <div className="flex min-h-full items-center justify-center p-4">
-            <div className={`relative bg-white rounded-xl shadow-xl w-full ${showEstoqueModal === 'historico' ? 'max-w-lg' : 'max-w-sm'}`}>
-              <div className="px-6 py-4 border-b border-gray-200">
+            <div className={`relative bg-gray-900 rounded-xl shadow-xl w-full ${showEstoqueModal === 'historico' ? 'max-w-lg' : 'max-w-sm'}`}>
+              <div className="px-6 py-4 border-b border-gray-700">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <h3 className="text-lg font-semibold text-white flex items-center gap-2">
                     {showEstoqueModal === 'entrada' ? (
                       <>
                         <ArrowUpCircle className="w-5 h-5 text-green-600" />
@@ -572,7 +572,7 @@ export function Embalagens() {
                       </>
                     )}
                   </h3>
-                  <button onClick={handleCloseEstoqueModal} className="p-2 hover:bg-gray-100 rounded-lg">
+                  <button onClick={handleCloseEstoqueModal} className="p-2 hover:bg-gray-800 rounded-lg">
                     <X className="w-5 h-5 text-gray-500" />
                   </button>
                 </div>
@@ -587,7 +587,7 @@ export function Embalagens() {
               {(showEstoqueModal === 'entrada' || showEstoqueModal === 'saida') && (
                 <div className="p-6 space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-300 mb-1">
                       Quantidade
                     </label>
                     <input
@@ -597,7 +597,7 @@ export function Embalagens() {
                       step="1"
                       value={estoqueQuantidade}
                       onChange={(e) => setEstoqueQuantidade(parseInt(e.target.value) || 1)}
-                      className={`w-full px-3 py-2 border border-gray-300 rounded-lg bg-white
+                      className={`w-full px-3 py-2 border border-gray-600 rounded-lg bg-gray-900
                         focus:outline-none focus:ring-2 ${
                           showEstoqueModal === 'entrada'
                             ? 'focus:ring-green-500 focus:border-green-500'
@@ -612,7 +612,7 @@ export function Embalagens() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-300 mb-1">
                       Motivo (opcional)
                     </label>
                     <input
@@ -620,7 +620,7 @@ export function Embalagens() {
                       value={estoqueMotivo}
                       onChange={(e) => setEstoqueMotivo(e.target.value)}
                       placeholder={showEstoqueModal === 'entrada' ? 'Ex: Compra, Reposicao...' : 'Ex: Producao, Venda...'}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white
+                      className="w-full px-3 py-2 border border-gray-600 rounded-lg bg-gray-900
                         focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-gray-400"
                     />
                   </div>
@@ -672,7 +672,7 @@ export function Embalagens() {
                     </button>
                     <button
                       onClick={handleCloseEstoqueModal}
-                      className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+                      className="px-4 py-2 text-gray-600 hover:bg-gray-800 rounded-lg"
                     >
                       Cancelar
                     </button>
@@ -737,10 +737,10 @@ export function Embalagens() {
                       ))}
                     </div>
                   )}
-                  <div className="mt-4 pt-4 border-t border-gray-200">
+                  <div className="mt-4 pt-4 border-t border-gray-700">
                     <button
                       onClick={handleCloseEstoqueModal}
-                      className="w-full px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+                      className="w-full px-4 py-2 text-gray-600 hover:bg-gray-800 rounded-lg"
                     >
                       Fechar
                     </button>

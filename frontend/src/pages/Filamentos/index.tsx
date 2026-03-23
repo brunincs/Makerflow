@@ -340,7 +340,7 @@ export function Filamentos() {
     return (
       <div>
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+          <h1 className="text-2xl font-bold text-white flex items-center gap-3">
             <div className="p-2 bg-purple-100 rounded-lg">
               <Cylinder className="w-6 h-6 text-purple-600" />
             </div>
@@ -363,7 +363,7 @@ export function Filamentos() {
       {/* Header */}
       <div className="mb-8 flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+          <h1 className="text-2xl font-bold text-white flex items-center gap-3">
             <div className="p-2 bg-purple-100 rounded-lg">
               <Cylinder className="w-6 h-6 text-purple-600" />
             </div>
@@ -401,9 +401,9 @@ export function Filamentos() {
                   {filamentosBaixoEstoque.map(f => (
                     <span
                       key={f.id}
-                      className="inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-orange-200 rounded-lg text-sm"
+                      className="inline-flex items-center gap-2 px-3 py-1.5 bg-gray-900 border border-orange-200 rounded-lg text-sm"
                     >
-                      <span className="font-medium text-gray-900">{f.nome_filamento}</span>
+                      <span className="font-medium text-white">{f.nome_filamento}</span>
                       {f.cor && <span className="text-gray-500">({f.cor})</span>}
                       <span className="text-orange-600 font-bold">
                         {formatEstoque(f.estoque_gramas || 0)} kg
@@ -421,7 +421,7 @@ export function Filamentos() {
       {showForm && (
         <Card className="mb-6">
           <CardBody className="p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+            <h3 className="text-lg font-semibold text-white mb-4">
               {editingId ? 'Editar filamento' : 'Novo filamento'}
             </h3>
 
@@ -429,7 +429,7 @@ export function Filamentos() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Marca */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
                     Marca *
                   </label>
                   <input
@@ -437,20 +437,20 @@ export function Filamentos() {
                     value={form.marca}
                     onChange={(e) => setForm(prev => ({ ...prev, marca: e.target.value }))}
                     placeholder="Ex: Voolt, 3D Fila, Flashforge..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white
+                    className="w-full px-3 py-2 border border-gray-600 rounded-lg bg-gray-900
                       focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                   />
                 </div>
 
                 {/* Material */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
                     Material *
                   </label>
                   <select
                     value={form.material}
                     onChange={(e) => setForm(prev => ({ ...prev, material: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white
+                    className="w-full px-3 py-2 border border-gray-600 rounded-lg bg-gray-900
                       focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                   >
                     {MATERIAIS.map(m => (
@@ -461,7 +461,7 @@ export function Filamentos() {
 
                 {/* Nome do Filamento */}
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
                     Nome do Filamento *
                   </label>
                   <input
@@ -469,14 +469,14 @@ export function Filamentos() {
                     value={form.nome_filamento}
                     onChange={(e) => setForm(prev => ({ ...prev, nome_filamento: e.target.value }))}
                     placeholder="Ex: PLA Aluminio V-Silk High Speed Premium"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white
+                    className="w-full px-3 py-2 border border-gray-600 rounded-lg bg-gray-900
                       focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                   />
                 </div>
 
                 {/* Cor */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
                     Cor
                   </label>
                   <input
@@ -484,7 +484,7 @@ export function Filamentos() {
                     value={form.cor}
                     onChange={(e) => setForm(prev => ({ ...prev, cor: e.target.value }))}
                     placeholder="Ex: Aluminio, Preto, Branco..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white
+                    className="w-full px-3 py-2 border border-gray-600 rounded-lg bg-gray-900
                       focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                   />
                 </div>
@@ -492,7 +492,7 @@ export function Filamentos() {
                 {/* Preco - apenas na criação */}
                 {!editingId && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-300 mb-1">
                       Preco pago por rolo (R$) *
                     </label>
                     <div className="relative">
@@ -503,7 +503,7 @@ export function Filamentos() {
                         value={form.preco_pago}
                         onChange={(value) => setForm(prev => ({ ...prev, preco_pago: value }))}
                         placeholder="89.90"
-                        className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg bg-white
+                        className="w-full pl-9 pr-3 py-2 border border-gray-600 rounded-lg bg-gray-900
                           focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                       />
                     </div>
@@ -516,7 +516,7 @@ export function Filamentos() {
                 {/* Quantidade de Rolos - apenas na criação */}
                 {!editingId && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-300 mb-1">
                       Quantidade de rolos inicial
                     </label>
                     <div className="relative">
@@ -528,7 +528,7 @@ export function Filamentos() {
                         value={form.quantidade_rolos}
                         onChange={(e) => setForm(prev => ({ ...prev, quantidade_rolos: parseInt(e.target.value) || 1 }))}
                         placeholder="1"
-                        className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg bg-white
+                        className="w-full pl-10 pr-3 py-2 border border-gray-600 rounded-lg bg-gray-900
                           focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                       />
                     </div>
@@ -540,7 +540,7 @@ export function Filamentos() {
               </div>
 
               {/* Botoes */}
-              <div className="flex items-center gap-3 pt-4 border-t border-gray-200">
+              <div className="flex items-center gap-3 pt-4 border-t border-gray-700">
                 <button
                   type="submit"
                   disabled={saving}
@@ -556,7 +556,7 @@ export function Filamentos() {
                 <button
                   type="button"
                   onClick={handleCancel}
-                  className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
                 >
                   <X className="w-4 h-4" />
                   Cancelar
@@ -572,7 +572,7 @@ export function Filamentos() {
         <Card>
           <CardBody className="p-12 text-center">
             <AlertCircle className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
+            <h3 className="text-lg font-medium text-white mb-2">
               Nenhum filamento cadastrado
             </h3>
             <p className="text-gray-500 mb-4">
@@ -604,7 +604,7 @@ export function Filamentos() {
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-sm font-medium text-purple-600">{filamento.marca}</span>
                     <span className="text-gray-300">•</span>
-                    <span className="px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-600 rounded">
+                    <span className="px-2 py-0.5 text-xs font-medium bg-gray-800 text-gray-600 rounded">
                       {filamento.material}
                     </span>
                     {filamento.cor && (
@@ -619,13 +619,13 @@ export function Filamentos() {
                       </span>
                     )}
                   </div>
-                  <h3 className="font-semibold text-gray-900 truncate">
+                  <h3 className="font-semibold text-white truncate">
                     {filamento.nome_filamento}
                   </h3>
                 </div>
 
                 {/* Estoque */}
-                <div className="text-center px-4 border-l border-gray-200">
+                <div className="text-center px-4 border-l border-gray-700">
                   <div className={`flex items-center gap-1 ${
                     isEstoqueBaixo(filamento.estoque_gramas || 0) ? 'text-orange-600' : 'text-green-600'
                   }`}>
@@ -640,7 +640,7 @@ export function Filamentos() {
                 </div>
 
                 {/* Preco Medio */}
-                <div className="text-right px-4 border-l border-gray-200">
+                <div className="text-right px-4 border-l border-gray-700">
                   <p className="text-lg font-bold text-purple-700">
                     R$ {formatCurrency(filamento.preco_por_kg)}
                   </p>
@@ -648,7 +648,7 @@ export function Filamentos() {
                 </div>
 
                 {/* Acoes */}
-                <div className="flex items-center gap-1 border-l border-gray-200 pl-4">
+                <div className="flex items-center gap-1 border-l border-gray-700 pl-4">
                   {/* Botões de movimentação */}
                   <button
                     onClick={() => handleOpenModal('entrada', filamento.id)}
@@ -666,7 +666,7 @@ export function Filamentos() {
                   </button>
                   <button
                     onClick={() => handleOpenModal('ajuste', filamento.id)}
-                    className="flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                    className="flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-gray-600 bg-gray-800 rounded-lg hover:bg-gray-200 transition-colors"
                     title="Ajustar estoque"
                   >
                     <Settings className="w-3.5 h-3.5" />
@@ -711,13 +711,13 @@ export function Filamentos() {
 
       {/* Resumo */}
       {filamentos.length > 0 && (
-        <div className="mt-6 p-4 bg-gray-50 rounded-xl border border-gray-200">
+        <div className="mt-6 p-4 bg-gray-800/50 rounded-xl border border-gray-700">
           <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-500">
-              <strong className="text-gray-900">{filamentos.length}</strong> {filamentos.length === 1 ? 'filamento cadastrado' : 'filamentos cadastrados'}
+            <span className="text-gray-400">
+              <strong className="text-white">{filamentos.length}</strong> {filamentos.length === 1 ? 'filamento cadastrado' : 'filamentos cadastrados'}
             </span>
-            <span className="text-gray-500">
-              Estoque total: <strong className="text-gray-900">
+            <span className="text-gray-400">
+              Estoque total: <strong className="text-white">
                 {formatEstoque(filamentos.reduce((acc, f) => acc + (f.estoque_gramas || 0), 0))} kg
               </strong>
             </span>
@@ -730,14 +730,14 @@ export function Filamentos() {
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="fixed inset-0 bg-black/50" onClick={handleCloseModal} />
           <div className="flex min-h-full items-center justify-center p-4">
-            <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md">
-              <div className="px-6 py-4 border-b border-gray-200">
+            <div className="relative bg-gray-900 rounded-xl shadow-xl w-full max-w-md">
+              <div className="px-6 py-4 border-b border-gray-700">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <h3 className="text-lg font-semibold text-white flex items-center gap-2">
                     <Plus className="w-5 h-5 text-green-600" />
                     Adicionar Estoque
                   </h3>
-                  <button onClick={handleCloseModal} className="p-2 hover:bg-gray-100 rounded-lg">
+                  <button onClick={handleCloseModal} className="p-2 hover:bg-gray-800 rounded-lg">
                     <X className="w-5 h-5 text-gray-500" />
                   </button>
                 </div>
@@ -750,7 +750,7 @@ export function Filamentos() {
 
               <form onSubmit={handleSubmitEntrada} className="p-6 space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
                     Quantidade de rolos *
                   </label>
                   <input
@@ -759,14 +759,14 @@ export function Filamentos() {
                     step="1"
                     value={entradaForm.quantidade_rolos}
                     onChange={(e) => setEntradaForm(prev => ({ ...prev, quantidade_rolos: parseInt(e.target.value) || 1 }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white
+                    className="w-full px-3 py-2 border border-gray-600 rounded-lg bg-gray-900
                       focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
                   />
                   <p className="text-xs text-gray-500 mt-1">Cada rolo = 1kg</p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
                     Preco pago por rolo (R$) *
                   </label>
                   <div className="relative">
@@ -775,7 +775,7 @@ export function Filamentos() {
                       value={entradaForm.preco_por_rolo}
                       onChange={(value) => setEntradaForm(prev => ({ ...prev, preco_por_rolo: value }))}
                       placeholder="89.90"
-                      className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg bg-white
+                      className="w-full pl-9 pr-3 py-2 border border-gray-600 rounded-lg bg-gray-900
                         focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
                     />
                   </div>
@@ -811,7 +811,7 @@ export function Filamentos() {
                     {savingModal ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                     Adicionar
                   </button>
-                  <button type="button" onClick={handleCloseModal} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">
+                  <button type="button" onClick={handleCloseModal} className="px-4 py-2 text-gray-600 hover:bg-gray-800 rounded-lg">
                     Cancelar
                   </button>
                 </div>
@@ -826,14 +826,14 @@ export function Filamentos() {
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="fixed inset-0 bg-black/50" onClick={handleCloseModal} />
           <div className="flex min-h-full items-center justify-center p-4">
-            <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md">
-              <div className="px-6 py-4 border-b border-gray-200">
+            <div className="relative bg-gray-900 rounded-xl shadow-xl w-full max-w-md">
+              <div className="px-6 py-4 border-b border-gray-700">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <h3 className="text-lg font-semibold text-white flex items-center gap-2">
                     <Minus className="w-5 h-5 text-red-600" />
                     Remover Estoque
                   </h3>
-                  <button onClick={handleCloseModal} className="p-2 hover:bg-gray-100 rounded-lg">
+                  <button onClick={handleCloseModal} className="p-2 hover:bg-gray-800 rounded-lg">
                     <X className="w-5 h-5 text-gray-500" />
                   </button>
                 </div>
@@ -846,7 +846,7 @@ export function Filamentos() {
 
               <form onSubmit={handleSubmitSaida} className="p-6 space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
                     Quantidade de rolos *
                   </label>
                   <input
@@ -856,7 +856,7 @@ export function Filamentos() {
                     step="1"
                     value={saidaForm.quantidade_rolos}
                     onChange={(e) => setSaidaForm(prev => ({ ...prev, quantidade_rolos: parseInt(e.target.value) || 1 }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white
+                    className="w-full px-3 py-2 border border-gray-600 rounded-lg bg-gray-900
                       focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
                   />
                   <p className="text-xs text-gray-500 mt-1">
@@ -865,7 +865,7 @@ export function Filamentos() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
                     Motivo (opcional)
                   </label>
                   <input
@@ -873,7 +873,7 @@ export function Filamentos() {
                     value={saidaForm.motivo}
                     onChange={(e) => setSaidaForm(prev => ({ ...prev, motivo: e.target.value }))}
                     placeholder="Ex: Defeito, perda, doação..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white
+                    className="w-full px-3 py-2 border border-gray-600 rounded-lg bg-gray-900
                       focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
                   />
                 </div>
@@ -903,7 +903,7 @@ export function Filamentos() {
                     {savingModal ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                     Remover
                   </button>
-                  <button type="button" onClick={handleCloseModal} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">
+                  <button type="button" onClick={handleCloseModal} className="px-4 py-2 text-gray-600 hover:bg-gray-800 rounded-lg">
                     Cancelar
                   </button>
                 </div>
@@ -918,14 +918,14 @@ export function Filamentos() {
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="fixed inset-0 bg-black/50" onClick={handleCloseModal} />
           <div className="flex min-h-full items-center justify-center p-4">
-            <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md">
-              <div className="px-6 py-4 border-b border-gray-200">
+            <div className="relative bg-gray-900 rounded-xl shadow-xl w-full max-w-md">
+              <div className="px-6 py-4 border-b border-gray-700">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <h3 className="text-lg font-semibold text-white flex items-center gap-2">
                     <Settings className="w-5 h-5 text-gray-600" />
                     Ajustar Estoque
                   </h3>
-                  <button onClick={handleCloseModal} className="p-2 hover:bg-gray-100 rounded-lg">
+                  <button onClick={handleCloseModal} className="p-2 hover:bg-gray-800 rounded-lg">
                     <X className="w-5 h-5 text-gray-500" />
                   </button>
                 </div>
@@ -942,20 +942,20 @@ export function Filamentos() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
                     Novo estoque total (kg) *
                   </label>
                   <DecimalInput
                     value={ajusteForm.novo_estoque_kg}
                     onChange={(value) => setAjusteForm(prev => ({ ...prev, novo_estoque_kg: value }))}
                     placeholder="0.00"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white
+                    className="w-full px-3 py-2 border border-gray-600 rounded-lg bg-gray-900
                       focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
                     Novo preco medio (R$/kg) - opcional
                   </label>
                   <div className="relative">
@@ -964,7 +964,7 @@ export function Filamentos() {
                       value={ajusteForm.novo_preco_medio}
                       onChange={(value) => setAjusteForm(prev => ({ ...prev, novo_preco_medio: value }))}
                       placeholder="Manter atual"
-                      className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg bg-white
+                      className="w-full pl-9 pr-3 py-2 border border-gray-600 rounded-lg bg-gray-900
                         focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                     />
                   </div>
@@ -974,7 +974,7 @@ export function Filamentos() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
                     Motivo
                   </label>
                   <input
@@ -982,17 +982,17 @@ export function Filamentos() {
                     value={ajusteForm.motivo}
                     onChange={(e) => setAjusteForm(prev => ({ ...prev, motivo: e.target.value }))}
                     placeholder="Ex: Inventario, correcao, contagem..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white
+                    className="w-full px-3 py-2 border border-gray-600 rounded-lg bg-gray-900
                       focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                   />
                 </div>
 
-                <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg text-sm space-y-1">
+                <div className="p-4 bg-gray-800/50 border border-gray-700 rounded-lg text-sm space-y-1">
                   <div className="flex justify-between">
                     <span className="text-gray-600">Estoque atual:</span>
                     <span className="font-medium">{formatEstoque(getFilamentoAtual()?.estoque_gramas || 0)} kg</span>
                   </div>
-                  <div className="flex justify-between border-t border-gray-200 pt-1">
+                  <div className="flex justify-between border-t border-gray-700 pt-1">
                     <span className="text-gray-600">Novo estoque:</span>
                     <span className="font-bold">{ajusteForm.novo_estoque_kg.toFixed(2)} kg</span>
                   </div>
@@ -1013,7 +1013,7 @@ export function Filamentos() {
                     {savingModal ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                     Ajustar
                   </button>
-                  <button type="button" onClick={handleCloseModal} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">
+                  <button type="button" onClick={handleCloseModal} className="px-4 py-2 text-gray-600 hover:bg-gray-800 rounded-lg">
                     Cancelar
                   </button>
                 </div>
@@ -1028,14 +1028,14 @@ export function Filamentos() {
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="fixed inset-0 bg-black/50" onClick={handleCloseModal} />
           <div className="flex min-h-full items-center justify-center p-4">
-            <div className="relative bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col">
-              <div className="px-6 py-4 border-b border-gray-200">
+            <div className="relative bg-gray-900 rounded-xl shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col">
+              <div className="px-6 py-4 border-b border-gray-700">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <h3 className="text-lg font-semibold text-white flex items-center gap-2">
                     <History className="w-5 h-5 text-purple-600" />
                     Histórico de Uso
                   </h3>
-                  <button onClick={handleCloseModal} className="p-2 hover:bg-gray-100 rounded-lg">
+                  <button onClick={handleCloseModal} className="p-2 hover:bg-gray-800 rounded-lg">
                     <X className="w-5 h-5 text-gray-500" />
                   </button>
                 </div>
@@ -1092,7 +1092,7 @@ export function Filamentos() {
                       return (
                         <div
                           key={impressao.id}
-                          className="p-4 bg-white border border-gray-200 rounded-lg hover:border-purple-200 transition-colors"
+                          className="p-4 bg-gray-900 border border-gray-700 rounded-lg hover:border-purple-200 transition-colors"
                         >
                           <div className="flex items-start gap-3">
                             <div className="p-2 bg-purple-100 rounded-lg flex-shrink-0">
@@ -1101,11 +1101,11 @@ export function Filamentos() {
 
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-1">
-                                <h4 className="font-medium text-gray-900 truncate">
+                                <h4 className="font-medium text-white truncate">
                                   {nomeProduto}
                                 </h4>
                                 {nomeVariacao && (
-                                  <span className="px-2 py-0.5 text-xs bg-gray-100 text-gray-600 rounded">
+                                  <span className="px-2 py-0.5 text-xs bg-gray-800 text-gray-600 rounded">
                                     {nomeVariacao}
                                   </span>
                                 )}
@@ -1140,11 +1140,11 @@ export function Filamentos() {
                 )}
               </div>
 
-              <div className="px-6 py-4 border-t border-gray-200">
+              <div className="px-6 py-4 border-t border-gray-700">
                 <button
                   type="button"
                   onClick={handleCloseModal}
-                  className="w-full px-4 py-2 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                  className="w-full px-4 py-2 text-gray-600 bg-gray-800 hover:bg-gray-200 rounded-lg transition-colors"
                 >
                   Fechar
                 </button>
