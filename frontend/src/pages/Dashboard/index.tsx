@@ -243,15 +243,15 @@ export function Dashboard() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">Dashboard</h1>
-          <p className="text-gray-500 text-sm mt-1">
+          <h1 className="text-2xl font-bold text-[#f9fafb]">Dashboard</h1>
+          <p className="text-[#6b7280] text-sm mt-1">
             Visao geral da operacao
           </p>
         </div>
 
         <Link
           to="/fila-producao"
-          className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-white bg-emerald-600 rounded-xl hover:bg-emerald-500 transition-colors"
+          className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-500 transition-all duration-200 hover:-translate-y-0.5 shadow-lg shadow-emerald-500/20"
         >
           <Plus className="w-4 h-4" />
           Novo Pedido
@@ -271,49 +271,49 @@ export function Dashboard() {
       {/* Cards Principais */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Pedidos Hoje */}
-        <div className="bg-gray-900 rounded-2xl border border-gray-800 p-5">
+        <div className="bg-[#111827] rounded-xl border border-[#1f2937] p-5 shadow-[0_4px_6px_-1px_rgba(0,0,0,0.3)] hover:shadow-[0_10px_15px_-3px_rgba(0,0,0,0.4)] hover:-translate-y-0.5 transition-all duration-200">
           <div className="flex items-center gap-3 mb-3">
-            <div className="p-2.5 bg-blue-500/10 rounded-xl">
+            <div className="p-2.5 bg-blue-500/10 rounded-lg">
               <ShoppingCart className="w-5 h-5 text-blue-400" />
             </div>
-            <span className="text-sm text-gray-400">Pedidos na fila</span>
+            <span className="text-sm text-[#9ca3af]">Pedidos na fila</span>
           </div>
-          <p className="text-3xl font-bold text-white">{pedidos.length}</p>
+          <p className="text-3xl font-bold text-[#f9fafb]">{pedidos.length}</p>
         </div>
 
         {/* Produção Ativa */}
-        <div className="bg-gray-900 rounded-2xl border border-gray-800 p-5">
+        <div className="bg-[#111827] rounded-xl border border-[#1f2937] p-5 shadow-[0_4px_6px_-1px_rgba(0,0,0,0.3)] hover:shadow-[0_10px_15px_-3px_rgba(0,0,0,0.4)] hover:-translate-y-0.5 transition-all duration-200">
           <div className="flex items-center gap-3 mb-3">
-            <div className="p-2.5 bg-emerald-500/10 rounded-xl">
+            <div className="p-2.5 bg-emerald-500/10 rounded-lg">
               <Zap className="w-5 h-5 text-emerald-400" />
             </div>
-            <span className="text-sm text-gray-400">Produzidas hoje</span>
+            <span className="text-sm text-[#9ca3af]">Produzidas hoje</span>
           </div>
-          <p className="text-3xl font-bold text-white">{pecasProduzidasHoje}</p>
+          <p className="text-3xl font-bold text-[#f9fafb]">{pecasProduzidasHoje}</p>
         </div>
 
         {/* Receita Estimada */}
-        <div className="bg-gray-900 rounded-2xl border border-gray-800 p-5">
+        <div className="bg-[#111827] rounded-xl border border-[#1f2937] p-5 shadow-[0_4px_6px_-1px_rgba(0,0,0,0.3)] hover:shadow-[0_10px_15px_-3px_rgba(0,0,0,0.4)] hover:-translate-y-0.5 transition-all duration-200">
           <div className="flex items-center gap-3 mb-3">
-            <div className="p-2.5 bg-green-500/10 rounded-xl">
-              <DollarSign className="w-5 h-5 text-green-400" />
+            <div className="p-2.5 bg-emerald-500/10 rounded-lg">
+              <DollarSign className="w-5 h-5 text-emerald-400" />
             </div>
-            <span className="text-sm text-gray-400">Receita estimada</span>
+            <span className="text-sm text-[#9ca3af]">Receita estimada</span>
           </div>
-          <p className="text-3xl font-bold text-white">
+          <p className="text-3xl font-bold text-[#f9fafb]">
             {lucroEstimado.receita > 0 ? formatarMoeda(lucroEstimado.receita) : '—'}
           </p>
         </div>
 
         {/* Alertas */}
-        <div className="bg-gray-900 rounded-2xl border border-gray-800 p-5">
+        <div className="bg-[#111827] rounded-xl border border-[#1f2937] p-5 shadow-[0_4px_6px_-1px_rgba(0,0,0,0.3)] hover:shadow-[0_10px_15px_-3px_rgba(0,0,0,0.4)] hover:-translate-y-0.5 transition-all duration-200">
           <div className="flex items-center gap-3 mb-3">
-            <div className={`p-2.5 rounded-xl ${alertas.length > 0 ? 'bg-red-500/10' : 'bg-gray-800'}`}>
-              <AlertTriangle className={`w-5 h-5 ${alertas.length > 0 ? 'text-red-400' : 'text-gray-500'}`} />
+            <div className={`p-2.5 rounded-lg ${alertas.length > 0 ? 'bg-red-500/10' : 'bg-[#1f2937]'}`}>
+              <AlertTriangle className={`w-5 h-5 ${alertas.length > 0 ? 'text-red-400' : 'text-[#6b7280]'}`} />
             </div>
-            <span className="text-sm text-gray-400">Alertas</span>
+            <span className="text-sm text-[#9ca3af]">Alertas</span>
           </div>
-          <p className={`text-3xl font-bold ${alertas.length > 0 ? 'text-red-400' : 'text-white'}`}>
+          <p className={`text-3xl font-bold ${alertas.length > 0 ? 'text-red-400' : 'text-[#f9fafb]'}`}>
             {alertas.length}
           </p>
         </div>
@@ -321,13 +321,13 @@ export function Dashboard() {
 
       {/* Bloco de Produção */}
       {filaProducao.length > 0 && (
-        <div className="bg-gray-900 rounded-2xl border border-gray-800 p-6">
+        <div className="bg-[#111827] rounded-xl border border-[#1f2937] p-6 shadow-[0_4px_6px_-1px_rgba(0,0,0,0.3)]">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-purple-500/10 rounded-xl">
+              <div className="p-2.5 bg-purple-500/10 rounded-lg">
                 <Activity className="w-5 h-5 text-purple-400" />
               </div>
-              <h2 className="text-lg font-semibold text-white">Producao Pendente</h2>
+              <h2 className="text-lg font-semibold text-[#f9fafb]">Producao Pendente</h2>
             </div>
             <Link
               to="/fila-producao"
@@ -340,41 +340,41 @@ export function Dashboard() {
           {/* Barra de Progresso Visual */}
           <div className="mb-6">
             <div className="flex items-center justify-between text-sm mb-2">
-              <span className="text-gray-400">Progresso geral</span>
-              <span className="text-white font-medium">
+              <span className="text-[#9ca3af]">Progresso geral</span>
+              <span className="text-[#f9fafb] font-medium">
                 {totais.pecas} pecas restantes
               </span>
             </div>
-            <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
-              <div className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full" style={{ width: '0%' }} />
+            <div className="h-2 bg-[#1f2937] rounded-full overflow-hidden">
+              <div className="h-full bg-gradient-to-r from-emerald-600 to-emerald-400 rounded-full" style={{ width: '0%' }} />
             </div>
           </div>
 
           {/* Stats */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-gray-800/50 rounded-xl p-4 text-center">
+            <div className="bg-[#1f2937] rounded-xl p-4 text-center border border-[#374151]">
               <Package className="w-5 h-5 text-blue-400 mx-auto mb-2" />
-              <p className="text-2xl font-bold text-white">{totais.pecas}</p>
-              <p className="text-xs text-gray-500">Pecas</p>
+              <p className="text-2xl font-bold text-[#f9fafb]">{totais.pecas}</p>
+              <p className="text-xs text-[#6b7280]">Pecas</p>
             </div>
-            <div className="bg-gray-800/50 rounded-xl p-4 text-center">
+            <div className="bg-[#1f2937] rounded-xl p-4 text-center border border-[#374151]">
               <Cylinder className="w-5 h-5 text-orange-400 mx-auto mb-2" />
-              <p className="text-2xl font-bold text-white">
+              <p className="text-2xl font-bold text-[#f9fafb]">
                 {totais.peso >= 1000 ? `${(totais.peso / 1000).toFixed(1)}kg` : `${totais.peso.toFixed(0)}g`}
               </p>
-              <p className="text-xs text-gray-500">Filamento</p>
+              <p className="text-xs text-[#6b7280]">Filamento</p>
             </div>
-            <div className="bg-gray-800/50 rounded-xl p-4 text-center">
+            <div className="bg-[#1f2937] rounded-xl p-4 text-center border border-[#374151]">
               <Clock className="w-5 h-5 text-purple-400 mx-auto mb-2" />
-              <p className="text-2xl font-bold text-white">{formatarTempo(totais.tempo)}</p>
-              <p className="text-xs text-gray-500">Tempo</p>
+              <p className="text-2xl font-bold text-[#f9fafb]">{formatarTempo(totais.tempo)}</p>
+              <p className="text-xs text-[#6b7280]">Tempo</p>
             </div>
-            <div className="bg-gray-800/50 rounded-xl p-4 text-center">
-              <TrendingUp className="w-5 h-5 text-green-400 mx-auto mb-2" />
+            <div className="bg-[#1f2937] rounded-xl p-4 text-center border border-[#374151]">
+              <TrendingUp className="w-5 h-5 text-emerald-400 mx-auto mb-2" />
               <p className="text-2xl font-bold text-emerald-400">
                 {lucroEstimado.lucro > 0 ? formatarMoeda(lucroEstimado.lucro) : '—'}
               </p>
-              <p className="text-xs text-gray-500">Lucro</p>
+              <p className="text-xs text-[#6b7280]">Lucro</p>
             </div>
           </div>
 
@@ -383,7 +383,7 @@ export function Dashboard() {
             {filaProducao.slice(0, 5).map((item, idx) => (
               <div
                 key={`${item.produto_id}-${item.variacao_id || idx}`}
-                className="flex items-center gap-4 p-3 bg-gray-800/30 rounded-xl hover:bg-gray-800/50 transition-colors"
+                className="flex items-center gap-4 p-4 bg-[#1f2937]/50 rounded-xl hover:bg-[#1f2937] transition-all duration-200 border border-transparent hover:border-[#374151]"
               >
                 {item.imagem_url ? (
                   <img
@@ -392,24 +392,24 @@ export function Dashboard() {
                     className="w-10 h-10 rounded-lg object-cover"
                   />
                 ) : (
-                  <div className="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center">
-                    <Package className="w-5 h-5 text-gray-600" />
+                  <div className="w-10 h-10 bg-[#374151] rounded-lg flex items-center justify-center">
+                    <Package className="w-5 h-5 text-[#6b7280]" />
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-white truncate">
+                  <p className="font-medium text-[#f9fafb] truncate">
                     {item.nome_produto}
                     {item.nome_variacao && (
-                      <span className="text-gray-500 font-normal"> · {item.nome_variacao}</span>
+                      <span className="text-[#6b7280] font-normal"> · {item.nome_variacao}</span>
                     )}
                   </p>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-[#6b7280]">
                     {formatarTempo(item.tempo_total)} · {item.peso_total.toFixed(0)}g
                   </p>
                 </div>
                 <div className="text-right">
                   <p className="text-lg font-bold text-emerald-400">{item.quantidade_produzir}</p>
-                  <p className="text-xs text-gray-500">pecas</p>
+                  <p className="text-xs text-[#6b7280]">pecas</p>
                 </div>
               </div>
             ))}
@@ -419,13 +419,13 @@ export function Dashboard() {
 
       {/* Sem produção */}
       {filaProducao.length === 0 && (
-        <div className="bg-gray-900 rounded-2xl border border-gray-800 p-12 text-center">
+        <div className="bg-[#111827] rounded-xl border border-[#1f2937] p-12 text-center shadow-[0_4px_6px_-1px_rgba(0,0,0,0.3)]">
           <CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-white mb-2">Nenhuma producao pendente</h3>
-          <p className="text-gray-500 mb-6">Adicione um pedido para comecar</p>
+          <h3 className="text-lg font-semibold text-[#f9fafb] mb-2">Nenhuma producao pendente</h3>
+          <p className="text-[#6b7280] mb-6">Adicione um pedido para comecar</p>
           <Link
             to="/fila-producao"
-            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-emerald-600 rounded-xl hover:bg-emerald-500 transition-colors"
+            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-500 transition-all duration-200 hover:-translate-y-0.5 shadow-lg shadow-emerald-500/20"
           >
             <Plus className="w-4 h-4" />
             Novo Pedido
@@ -435,20 +435,22 @@ export function Dashboard() {
 
       {/* Alertas */}
       {alertas.length > 0 && (
-        <div className="bg-gray-900 rounded-2xl border border-gray-800 p-6">
+        <div className="bg-[#111827] rounded-xl border border-[#1f2937] p-6 shadow-[0_4px_6px_-1px_rgba(0,0,0,0.3)]">
           <div className="flex items-center gap-3 mb-4">
-            <div className="p-2.5 bg-red-500/10 rounded-xl">
+            <div className="p-2.5 bg-red-500/10 rounded-lg">
               <AlertTriangle className="w-5 h-5 text-red-400" />
             </div>
-            <h2 className="text-lg font-semibold text-white">Alertas</h2>
+            <h2 className="text-lg font-semibold text-[#f9fafb]">Alertas</h2>
           </div>
 
           <div className="space-y-2">
             {alertas.map((alerta, idx) => (
               <div
                 key={idx}
-                className={`flex items-center gap-3 p-3 rounded-xl ${
-                  alerta.tipo === 'error' ? 'bg-red-500/10' : 'bg-amber-500/10'
+                className={`flex items-center gap-3 p-3 rounded-lg border ${
+                  alerta.tipo === 'error'
+                    ? 'bg-red-500/10 border-red-500/20'
+                    : 'bg-amber-500/10 border-amber-500/20'
                 }`}
               >
                 <AlertCircle className={`w-4 h-4 ${
@@ -469,38 +471,38 @@ export function Dashboard() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Link
           to="/fila-producao"
-          className="bg-gray-900 rounded-2xl border border-gray-800 p-5 hover:border-gray-700 hover:bg-gray-900/80 transition-all group"
+          className="bg-[#111827] rounded-xl border border-[#1f2937] p-5 hover:border-[#374151] hover:shadow-[0_10px_15px_-3px_rgba(0,0,0,0.4)] hover:-translate-y-0.5 transition-all duration-200 group"
         >
-          <Printer className="w-6 h-6 text-gray-500 group-hover:text-emerald-400 transition-colors mb-3" />
-          <p className="font-medium text-white">Fila de Producao</p>
-          <p className="text-sm text-gray-500">{pedidos.length} pedidos</p>
+          <Printer className="w-6 h-6 text-[#6b7280] group-hover:text-emerald-400 transition-colors mb-3" />
+          <p className="font-medium text-[#f9fafb]">Fila de Producao</p>
+          <p className="text-sm text-[#6b7280]">{pedidos.length} pedidos</p>
         </Link>
 
         <Link
           to="/impressoes"
-          className="bg-gray-900 rounded-2xl border border-gray-800 p-5 hover:border-gray-700 hover:bg-gray-900/80 transition-all group"
+          className="bg-[#111827] rounded-xl border border-[#1f2937] p-5 hover:border-[#374151] hover:shadow-[0_10px_15px_-3px_rgba(0,0,0,0.4)] hover:-translate-y-0.5 transition-all duration-200 group"
         >
-          <Zap className="w-6 h-6 text-gray-500 group-hover:text-emerald-400 transition-colors mb-3" />
-          <p className="font-medium text-white">Registrar Impressao</p>
-          <p className="text-sm text-gray-500">{impressoes.length} registros</p>
+          <Zap className="w-6 h-6 text-[#6b7280] group-hover:text-emerald-400 transition-colors mb-3" />
+          <p className="font-medium text-[#f9fafb]">Registrar Impressao</p>
+          <p className="text-sm text-[#6b7280]">{impressoes.length} registros</p>
         </Link>
 
         <Link
           to="/radar-produtos"
-          className="bg-gray-900 rounded-2xl border border-gray-800 p-5 hover:border-gray-700 hover:bg-gray-900/80 transition-all group"
+          className="bg-[#111827] rounded-xl border border-[#1f2937] p-5 hover:border-[#374151] hover:shadow-[0_10px_15px_-3px_rgba(0,0,0,0.4)] hover:-translate-y-0.5 transition-all duration-200 group"
         >
-          <Package className="w-6 h-6 text-gray-500 group-hover:text-emerald-400 transition-colors mb-3" />
-          <p className="font-medium text-white">Radar de Produtos</p>
-          <p className="text-sm text-gray-500">{produtos.length} produtos</p>
+          <Package className="w-6 h-6 text-[#6b7280] group-hover:text-emerald-400 transition-colors mb-3" />
+          <p className="font-medium text-[#f9fafb]">Radar de Produtos</p>
+          <p className="text-sm text-[#6b7280]">{produtos.length} produtos</p>
         </Link>
 
         <Link
           to="/filamentos"
-          className="bg-gray-900 rounded-2xl border border-gray-800 p-5 hover:border-gray-700 hover:bg-gray-900/80 transition-all group"
+          className="bg-[#111827] rounded-xl border border-[#1f2937] p-5 hover:border-[#374151] hover:shadow-[0_10px_15px_-3px_rgba(0,0,0,0.4)] hover:-translate-y-0.5 transition-all duration-200 group"
         >
-          <Cylinder className="w-6 h-6 text-gray-500 group-hover:text-emerald-400 transition-colors mb-3" />
-          <p className="font-medium text-white">Filamentos</p>
-          <p className="text-sm text-gray-500">{filamentos.length} cadastrados</p>
+          <Cylinder className="w-6 h-6 text-[#6b7280] group-hover:text-emerald-400 transition-colors mb-3" />
+          <p className="font-medium text-[#f9fafb]">Filamentos</p>
+          <p className="text-sm text-[#6b7280]">{filamentos.length} cadastrados</p>
         </Link>
       </div>
     </div>

@@ -58,29 +58,30 @@ export function Register() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-950 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-[#0f172a] flex items-center justify-center px-4">
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-white">
-            <span className="text-blue-500">MAKER</span>FLOW
+          <h1 className="text-3xl font-bold">
+            <span className="text-emerald-400">MAKER</span>
+            <span className="text-[#f9fafb]">FLOW</span>
           </h1>
-          <p className="text-gray-500 mt-2">Gestao de Impressao 3D</p>
+          <p className="text-[#6b7280] mt-2">Gestao de Impressao 3D</p>
         </div>
 
-        <div className="bg-gray-900 rounded-xl p-8 border border-gray-800">
-          <h2 className="text-xl font-semibold text-white mb-6 text-center">
+        <div className="bg-[#111827] rounded-xl p-8 border border-[#1f2937] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)]">
+          <h2 className="text-xl font-semibold text-[#f9fafb] mb-6 text-center">
             Criar sua conta
           </h2>
 
           {error && (
-            <div className="mb-4 p-3 bg-red-900/50 border border-red-700 rounded-lg flex items-center gap-2 text-red-200">
+            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2 text-red-300">
               <AlertCircle className="w-5 h-5 flex-shrink-0" />
               <span className="text-sm">{error}</span>
             </div>
           )}
 
           {success && (
-            <div className="mb-4 p-3 bg-green-900/50 border border-green-700 rounded-lg flex items-center gap-2 text-green-200">
+            <div className="mb-4 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg flex items-center gap-2 text-emerald-300">
               <CheckCircle className="w-5 h-5 flex-shrink-0" />
               <span className="text-sm">
                 Conta criada com sucesso! Redirecionando...
@@ -90,45 +91,45 @@ export function Register() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-[#f9fafb] mb-1.5">
                 Nome
               </label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-[#6b7280]" />
                 <input
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Seu nome"
                   required
-                  className="w-full pl-10 pr-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  className="w-full pl-11 pr-4 py-2.5 bg-[#1e293b] border border-[#1f2937] rounded-lg text-[#f9fafb] placeholder-[#6b7280] focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/30 transition-all"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-[#f9fafb] mb-1.5">
                 Email
               </label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-[#6b7280]" />
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="seu@email.com"
                   required
-                  className="w-full pl-10 pr-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  className="w-full pl-11 pr-4 py-2.5 bg-[#1e293b] border border-[#1f2937] rounded-lg text-[#f9fafb] placeholder-[#6b7280] focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/30 transition-all"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-[#f9fafb] mb-1.5">
                 Senha
               </label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-[#6b7280]" />
                 <input
                   type="password"
                   value={password}
@@ -136,17 +137,17 @@ export function Register() {
                   placeholder="Minimo 6 caracteres"
                   required
                   minLength={6}
-                  className="w-full pl-10 pr-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  className="w-full pl-11 pr-4 py-2.5 bg-[#1e293b] border border-[#1f2937] rounded-lg text-[#f9fafb] placeholder-[#6b7280] focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/30 transition-all"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-[#f9fafb] mb-1.5">
                 Confirmar Senha
               </label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-[#6b7280]" />
                 <input
                   type="password"
                   value={confirmPassword}
@@ -154,7 +155,7 @@ export function Register() {
                   placeholder="Repita a senha"
                   required
                   minLength={6}
-                  className="w-full pl-10 pr-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  className="w-full pl-11 pr-4 py-2.5 bg-[#1e293b] border border-[#1f2937] rounded-lg text-[#f9fafb] placeholder-[#6b7280] focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/30 transition-all"
                 />
               </div>
             </div>
@@ -162,7 +163,7 @@ export function Register() {
             <button
               type="submit"
               disabled={loading || success}
-              className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 disabled:cursor-not-allowed text-white font-medium rounded-lg flex items-center justify-center gap-2 transition-colors"
+              className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-800 disabled:cursor-not-allowed text-white font-medium rounded-lg flex items-center justify-center gap-2 transition-all duration-200 hover:-translate-y-0.5 shadow-lg shadow-emerald-500/20"
             >
               {loading ? (
                 <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -175,9 +176,9 @@ export function Register() {
             </button>
           </form>
 
-          <p className="text-center text-gray-400 mt-6">
+          <p className="text-center text-[#9ca3af] mt-6">
             Ja tem uma conta?{' '}
-            <Link to="/login" className="text-blue-500 hover:text-blue-400">
+            <Link to="/login" className="text-emerald-400 hover:text-emerald-300 transition-colors">
               Fazer login
             </Link>
           </p>

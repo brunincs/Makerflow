@@ -18,20 +18,35 @@ export function Toggle({ checked, onChange, label, description, disabled = false
           className="sr-only"
         />
         <div
-          className={`w-11 h-6 rounded-full transition-colors ${
-            checked ? 'bg-blue-600' : 'bg-gray-300'
-          }`}
+          className={`
+            w-11
+            h-6
+            rounded-full
+            transition-all
+            duration-200
+            ${checked ? 'bg-emerald-600' : 'bg-[#374151]'}
+          `}
         />
         <div
-          className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
-            checked ? 'translate-x-5' : 'translate-x-0'
-          }`}
+          className={`
+            absolute
+            top-0.5
+            left-0.5
+            w-5
+            h-5
+            bg-[#f9fafb]
+            rounded-full
+            shadow-lg
+            transition-transform
+            duration-200
+            ${checked ? 'translate-x-5' : 'translate-x-0'}
+          `}
         />
       </div>
       <div className="flex-1">
-        <span className="text-sm font-medium text-gray-900">{label}</span>
+        <span className="text-sm font-medium text-[#f9fafb]">{label}</span>
         {description && (
-          <p className="text-xs text-gray-500 mt-0.5">{description}</p>
+          <p className="text-xs text-[#6b7280] mt-0.5">{description}</p>
         )}
       </div>
     </label>

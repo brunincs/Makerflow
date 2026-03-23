@@ -1,78 +1,281 @@
 @import "tailwindcss";
 
-/* Tema Noturno */
-.dark {
-  --tw-bg-opacity: 1;
+/* ============================================
+   TEMA DARK PREMIUM - MAKERFLOW
+   Sistema 100% dark mode
+   ============================================ */
+
+:root {
+  /* Background */
+  --bg-primary: #0f172a;
+  --bg-card: #111827;
+  --bg-hover: #1f2937;
+  --bg-input: #1e293b;
+
+  /* Texto */
+  --text-primary: #f9fafb;
+  --text-secondary: #9ca3af;
+  --text-muted: #6b7280;
+
+  /* Bordas */
+  --border-color: #1f2937;
+  --border-light: #374151;
+
+  /* Cores de ação */
+  --color-success: #10b981;
+  --color-success-light: #059669;
+  --color-info: #3b82f6;
+  --color-info-light: #2563eb;
+  --color-warning: #f59e0b;
+  --color-warning-light: #d97706;
+  --color-danger: #ef4444;
+  --color-danger-light: #dc2626;
+
+  /* Accent (Emerald) */
+  --color-accent: #10b981;
+  --color-accent-light: #34d399;
+  --color-accent-dark: #059669;
+
+  /* Sombras */
+  --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.2);
+  --shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -4px rgba(0, 0, 0, 0.3);
+
   color-scheme: dark;
 }
 
-.dark body {
-  background-color: #111827 !important;
-  color: #f3f4f6 !important;
+/* ============================================
+   BASE
+   ============================================ */
+
+html, body, #root {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
 }
 
-/* Cards e containers */
-.dark .bg-white {
-  background-color: #1f2937 !important;
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-.dark .bg-gray-50 {
-  background-color: #111827 !important;
+/* ============================================
+   SCROLLBAR PERSONALIZADA
+   ============================================ */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
 }
 
-.dark .bg-gray-100 {
-  background-color: #1f2937 !important;
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
 }
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-light);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #4b5563;
+}
+
+/* ============================================
+   CARDS
+   ============================================ */
+
+.card-dark {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: var(--shadow-card);
+  transition: all 0.2s ease;
+}
+
+.card-dark:hover {
+  box-shadow: var(--shadow-hover);
+  transform: translateY(-2px);
+}
+
+/* ============================================
+   INPUTS
+   ============================================ */
+
+input, select, textarea {
+  background-color: var(--bg-input) !important;
+  border: 1px solid var(--border-color) !important;
+  color: var(--text-primary) !important;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+input:focus, select:focus, textarea:focus {
+  border-color: var(--color-accent) !important;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+}
+
+input::placeholder, textarea::placeholder {
+  color: var(--text-muted) !important;
+}
+
+/* ============================================
+   BOTÕES
+   ============================================ */
+
+.btn-primary {
+  background-color: var(--color-accent);
+  color: white;
+  transition: all 0.2s ease;
+}
+
+.btn-primary:hover {
+  background-color: var(--color-accent-dark);
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  transition: all 0.2s ease;
+}
+
+.btn-secondary:hover {
+  background-color: var(--border-light);
+  transform: translateY(-1px);
+}
+
+/* ============================================
+   TABELAS
+   ============================================ */
+
+table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+thead {
+  background-color: var(--bg-hover);
+}
+
+th {
+  color: var(--text-secondary);
+  font-weight: 500;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  padding: 12px 16px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+}
+
+td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-primary);
+}
+
+tbody tr {
+  transition: background-color 0.15s ease;
+}
+
+tbody tr:hover {
+  background-color: var(--bg-hover);
+}
+
+/* ============================================
+   STATUS BADGES
+   ============================================ */
+
+.badge-success {
+  background-color: rgba(16, 185, 129, 0.1);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.badge-warning {
+  background-color: rgba(245, 158, 11, 0.1);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+.badge-danger {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.badge-info {
+  background-color: rgba(59, 130, 246, 0.1);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.badge-default {
+  background-color: var(--bg-hover);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+}
+
+/* ============================================
+   ANIMAÇÕES
+   ============================================ */
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease forwards;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+  50% { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s infinite;
+}
+
+/* ============================================
+   OVERRIDE TAILWIND CLASSES
+   ============================================ */
+
+/* Backgrounds */
+.bg-white { background-color: var(--bg-card) !important; }
+.bg-gray-50 { background-color: var(--bg-primary) !important; }
+.bg-gray-100 { background-color: var(--bg-card) !important; }
+.bg-gray-200 { background-color: var(--bg-hover) !important; }
 
 /* Textos */
-.dark .text-gray-900 {
-  color: #f9fafb !important;
-}
-
-.dark .text-gray-800 {
-  color: #f3f4f6 !important;
-}
-
-.dark .text-gray-700 {
-  color: #e5e7eb !important;
-}
-
-.dark .text-gray-600 {
-  color: #d1d5db !important;
-}
-
-.dark .text-gray-500 {
-  color: #9ca3af !important;
-}
+.text-gray-900 { color: var(--text-primary) !important; }
+.text-gray-800 { color: var(--text-primary) !important; }
+.text-gray-700 { color: #e5e7eb !important; }
+.text-gray-600 { color: #d1d5db !important; }
+.text-gray-500 { color: var(--text-secondary) !important; }
+.text-gray-400 { color: var(--text-muted) !important; }
 
 /* Bordas */
-.dark .border-gray-200 {
-  border-color: #374151 !important;
+.border-gray-100 { border-color: var(--border-color) !important; }
+.border-gray-200 { border-color: var(--border-color) !important; }
+.border-gray-300 { border-color: var(--border-light) !important; }
+
+/* Hover backgrounds */
+.hover\:bg-gray-50:hover { background-color: var(--bg-hover) !important; }
+.hover\:bg-gray-100:hover { background-color: var(--bg-hover) !important; }
+.hover\:bg-gray-200:hover { background-color: var(--border-light) !important; }
+
+/* Divide */
+.divide-gray-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--border-color) !important;
 }
 
-.dark .border-gray-300 {
-  border-color: #4b5563 !important;
-}
-
-/* Inputs */
-.dark input,
-.dark select,
-.dark textarea {
-  background-color: #374151 !important;
-  border-color: #4b5563 !important;
-  color: #f3f4f6 !important;
-}
-
-.dark input::placeholder,
-.dark textarea::placeholder {
-  color: #9ca3af !important;
-}
-
-/* Hover states */
-.dark .hover\:bg-gray-50:hover {
-  background-color: #374151 !important;
-}
-
-.dark .hover\:bg-gray-100:hover {
-  background-color: #374151 !important;
-}
+/* Ring */
+.ring-gray-200 { --tw-ring-color: var(--border-color) !important; }
+.ring-gray-300 { --tw-ring-color: var(--border-light) !important; }

@@ -15,8 +15,6 @@ import {
   Power,
   Upload,
   Zap,
-  Moon,
-  Sun,
   Store,
   Copy,
   ExternalLink,
@@ -67,12 +65,6 @@ export function Perfil() {
   const [valorKwh, setValorKwh] = useState(profile?.valor_kwh || 0.85);
   const [slugLoja, setSlugLoja] = useState(profile?.slug_loja || '');
 
-  // Tema
-  const [tema, setTema] = useState<'claro' | 'noturno'>(() => {
-    const saved = localStorage.getItem('makerflow_tema');
-    return (saved as 'claro' | 'noturno') || 'claro';
-  });
-
   // Impressoras
   const [impressoras, setImpressoras] = useState<Impressora[]>([]);
   const [loadingImpressoras, setLoadingImpressoras] = useState(true);
@@ -86,16 +78,6 @@ export function Perfil() {
   const [consumoKwh, setConsumoKwh] = useState(0.12);
   const [statusImpressora, setStatusImpressora] = useState<StatusImpressora>('ativa');
   const [notasImpressora, setNotasImpressora] = useState('');
-
-  // Aplicar tema
-  useEffect(() => {
-    localStorage.setItem('makerflow_tema', tema);
-    if (tema === 'noturno') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [tema]);
 
   useEffect(() => {
     if (profile) {
@@ -287,11 +269,11 @@ export function Perfil() {
   const getStatusColor = (status: StatusImpressora) => {
     switch (status) {
       case 'ativa':
-        return 'bg-green-500/10 text-green-400';
+        return 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
       case 'manutencao':
-        return 'bg-yellow-500/10 text-yellow-400';
+        return 'bg-amber-500/10 text-amber-400 border border-amber-500/20';
       case 'inativa':
-        return 'bg-red-500/10 text-red-400';
+        return 'bg-red-500/10 text-red-400 border border-red-500/20';
     }
   };
 
@@ -310,54 +292,54 @@ export function Perfil() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-          <User className="w-7 h-7 text-blue-500" />
+        <h1 className="text-2xl font-bold text-[#f9fafb] flex items-center gap-2">
+          <User className="w-7 h-7 text-emerald-500" />
           Meu Perfil
         </h1>
-        <p className="text-gray-400 mt-1">
+        <p className="text-[#9ca3af] mt-1">
           Configure seus dados pessoais e da empresa
         </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Dados Pessoais */}
-        <div className="bg-gray-900 rounded-xl p-6 border border-gray-800">
-          <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-            <User className="w-5 h-5 text-blue-500" />
+        <div className="bg-[#111827] rounded-xl p-6 border border-[#1f2937] shadow-[0_4px_6px_-1px_rgba(0,0,0,0.3)]">
+          <h2 className="text-lg font-semibold text-[#f9fafb] mb-4 flex items-center gap-2">
+            <User className="w-5 h-5 text-emerald-500" />
             Dados Pessoais
           </h2>
 
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-[#f9fafb] mb-1.5">
                 Nome
               </label>
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                className="w-full px-3.5 py-2.5 bg-[#1e293b] border border-[#1f2937] rounded-lg text-[#f9fafb] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-[#f9fafb] mb-1.5">
                 Email (login)
               </label>
               <input
                 type="email"
                 value={profile?.email || ''}
                 disabled
-                className="w-full px-3 py-2 bg-gray-800/50 border border-gray-700 rounded-lg text-gray-500 cursor-not-allowed"
+                className="w-full px-3.5 py-2.5 bg-[#1f2937] border border-[#1f2937] rounded-lg text-[#6b7280] cursor-not-allowed"
               />
             </div>
           </div>
         </div>
 
         {/* Dados da Empresa */}
-        <div className="bg-gray-900 rounded-xl p-6 border border-gray-800">
-          <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-            <Building2 className="w-5 h-5 text-blue-500" />
+        <div className="bg-[#111827] rounded-xl p-6 border border-[#1f2937] shadow-[0_4px_6px_-1px_rgba(0,0,0,0.3)]">
+          <h2 className="text-lg font-semibold text-[#f9fafb] mb-4 flex items-center gap-2">
+            <Building2 className="w-5 h-5 text-emerald-500" />
             Dados da Empresa
           </h2>
 
@@ -365,7 +347,7 @@ export function Perfil() {
             <div className="flex gap-4">
               {/* Logo */}
               <div className="flex-shrink-0">
-                <label className="block text-sm font-medium text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-[#f9fafb] mb-1.5">
                   Logo
                 </label>
                 <div className="relative w-20 h-20">
@@ -373,14 +355,14 @@ export function Perfil() {
                     <img
                       src={logoUrl}
                       alt="Logo"
-                      className="w-20 h-20 rounded-lg object-cover border border-gray-700"
+                      className="w-20 h-20 rounded-lg object-cover border border-[#1f2937]"
                     />
                   ) : (
-                    <div className="w-20 h-20 rounded-lg bg-gray-800 border border-gray-700 flex items-center justify-center">
-                      <Building2 className="w-8 h-8 text-gray-600" />
+                    <div className="w-20 h-20 rounded-lg bg-[#1f2937] border border-[#374151] flex items-center justify-center">
+                      <Building2 className="w-8 h-8 text-[#6b7280]" />
                     </div>
                   )}
-                  <label className="absolute bottom-0 right-0 p-1 bg-blue-600 rounded-full cursor-pointer hover:bg-blue-700">
+                  <label className="absolute bottom-0 right-0 p-1.5 bg-emerald-600 rounded-full cursor-pointer hover:bg-emerald-500 transition-colors">
                     <Upload className="w-3 h-3 text-white" />
                     <input
                       type="file"
@@ -394,7 +376,7 @@ export function Perfil() {
 
               <div className="flex-1 space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">
+                  <label className="block text-sm font-medium text-[#f9fafb] mb-1.5">
                     Nome da Empresa / Marca
                   </label>
                   <input
@@ -402,12 +384,12 @@ export function Perfil() {
                     value={nomeEmpresa}
                     onChange={(e) => setNomeEmpresa(e.target.value)}
                     placeholder="Razao social"
-                    className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                    className="w-full px-3.5 py-2.5 bg-[#1e293b] border border-[#1f2937] rounded-lg text-[#f9fafb] placeholder:text-[#6b7280] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">
+                  <label className="block text-sm font-medium text-[#f9fafb] mb-1.5">
                     Nome Fantasia
                   </label>
                   <input
@@ -415,7 +397,7 @@ export function Perfil() {
                     value={nomeFantasia}
                     onChange={(e) => setNomeFantasia(e.target.value)}
                     placeholder="Nome que aparece em orcamentos"
-                    className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                    className="w-full px-3.5 py-2.5 bg-[#1e293b] border border-[#1f2937] rounded-lg text-[#f9fafb] placeholder:text-[#6b7280] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
                   />
                 </div>
               </div>
@@ -423,7 +405,7 @@ export function Perfil() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-[#f9fafb] mb-1.5">
                   Tipo de Documento
                 </label>
                 <select
@@ -432,7 +414,7 @@ export function Perfil() {
                     setTipoDocumento(e.target.value as TipoDocumento);
                     setDocumento('');
                   }}
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                  className="w-full px-3.5 py-2.5 bg-[#1e293b] border border-[#1f2937] rounded-lg text-[#f9fafb] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all cursor-pointer"
                 >
                   <option value="cpf">CPF</option>
                   <option value="cnpj">CNPJ</option>
@@ -440,7 +422,7 @@ export function Perfil() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-[#f9fafb] mb-1.5">
                   {tipoDocumento === 'cpf' ? 'CPF' : 'CNPJ'}
                 </label>
                 <input
@@ -448,19 +430,19 @@ export function Perfil() {
                   value={documento}
                   onChange={(e) => setDocumento(formatDocumento(e.target.value, tipoDocumento))}
                   placeholder={tipoDocumento === 'cpf' ? '000.000.000-00' : '00.000.000/0000-00'}
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                  className="w-full px-3.5 py-2.5 bg-[#1e293b] border border-[#1f2937] rounded-lg text-[#f9fafb] placeholder:text-[#6b7280] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-[#f9fafb] mb-1.5">
                 Regime Tributario
               </label>
               <select
                 value={regimeTributario}
                 onChange={(e) => setRegimeTributario(e.target.value as RegimeTributario)}
-                className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                className="w-full px-3.5 py-2.5 bg-[#1e293b] border border-[#1f2937] rounded-lg text-[#f9fafb] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all cursor-pointer"
               >
                 <option value="">Selecione...</option>
                 <option value="mei">MEI</option>
@@ -473,16 +455,16 @@ export function Perfil() {
         </div>
 
         {/* Contato */}
-        <div className="bg-gray-900 rounded-xl p-6 border border-gray-800">
-          <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-            <Phone className="w-5 h-5 text-blue-500" />
+        <div className="bg-[#111827] rounded-xl p-6 border border-[#1f2937] shadow-[0_4px_6px_-1px_rgba(0,0,0,0.3)]">
+          <h2 className="text-lg font-semibold text-[#f9fafb] mb-4 flex items-center gap-2">
+            <Phone className="w-5 h-5 text-emerald-500" />
             Contato Comercial
           </h2>
 
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-[#f9fafb] mb-1.5">
                   Telefone
                 </label>
                 <input
@@ -490,12 +472,12 @@ export function Perfil() {
                   value={telefone}
                   onChange={(e) => setTelefone(formatPhone(e.target.value))}
                   placeholder="(00) 00000-0000"
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                  className="w-full px-3.5 py-2.5 bg-[#1e293b] border border-[#1f2937] rounded-lg text-[#f9fafb] placeholder:text-[#6b7280] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-[#f9fafb] mb-1.5">
                   WhatsApp
                 </label>
                 <input
@@ -503,13 +485,13 @@ export function Perfil() {
                   value={whatsapp}
                   onChange={(e) => setWhatsapp(formatPhone(e.target.value))}
                   placeholder="(00) 00000-0000"
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                  className="w-full px-3.5 py-2.5 bg-[#1e293b] border border-[#1f2937] rounded-lg text-[#f9fafb] placeholder:text-[#6b7280] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-[#f9fafb] mb-1.5">
                 Email Comercial
               </label>
               <input
@@ -517,7 +499,7 @@ export function Perfil() {
                 value={emailComercial}
                 onChange={(e) => setEmailComercial(e.target.value)}
                 placeholder="contato@empresa.com"
-                className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                className="w-full px-3.5 py-2.5 bg-[#1e293b] border border-[#1f2937] rounded-lg text-[#f9fafb] placeholder:text-[#6b7280] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
               />
             </div>
 
@@ -526,7 +508,7 @@ export function Perfil() {
               <button
                 onClick={handleSaveProfile}
                 disabled={saving}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white rounded-lg transition-colors"
+                className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-800 text-white rounded-lg transition-all duration-200 hover:-translate-y-0.5 shadow-lg shadow-emerald-500/20"
               >
                 {saving ? (
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -537,7 +519,7 @@ export function Perfil() {
               </button>
 
               {success && (
-                <span className="flex items-center gap-1 text-green-400 text-sm">
+                <span className="flex items-center gap-1 text-emerald-400 text-sm">
                   <Check className="w-4 h-4" />
                   Salvo com sucesso!
                 </span>
@@ -547,19 +529,19 @@ export function Perfil() {
         </div>
 
         {/* Configuracoes de Energia e Impressoras */}
-        <div className="bg-gray-900 rounded-xl p-6 border border-gray-800">
+        <div className="bg-[#111827] rounded-xl p-6 border border-[#1f2937] shadow-[0_4px_6px_-1px_rgba(0,0,0,0.3)]">
           {/* Valor do kWh */}
-          <div className="mb-6 pb-6 border-b border-gray-800">
-            <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-              <Zap className="w-5 h-5 text-yellow-500" />
+          <div className="mb-6 pb-6 border-b border-[#1f2937]">
+            <h2 className="text-lg font-semibold text-[#f9fafb] mb-4 flex items-center gap-2">
+              <Zap className="w-5 h-5 text-amber-500" />
               Custo de Energia
             </h2>
             <div className="max-w-xs">
-              <label className="block text-sm font-medium text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-[#f9fafb] mb-1.5">
                 Valor do kWh (R$)
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">R$</span>
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6b7280]">R$</span>
                 <input
                   type="number"
                   step="0.01"
@@ -567,10 +549,10 @@ export function Perfil() {
                   value={valorKwh}
                   onChange={(e) => setValorKwh(parseFloat(e.target.value) || 0)}
                   placeholder="0.85"
-                  className="w-full pl-10 pr-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                  className="w-full pl-10 pr-3.5 py-2.5 bg-[#1e293b] border border-[#1f2937] rounded-lg text-[#f9fafb] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
                 />
               </div>
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-[#6b7280] mt-1.5">
                 Media nacional: R$ 0.85 a R$ 0.90. Consulte sua conta de luz.
               </p>
             </div>
@@ -578,8 +560,8 @@ export function Perfil() {
 
           {/* Impressoras */}
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-              <Printer className="w-5 h-5 text-blue-500" />
+            <h2 className="text-lg font-semibold text-[#f9fafb] flex items-center gap-2">
+              <Printer className="w-5 h-5 text-emerald-500" />
               Minhas Impressoras
             </h2>
             <button
@@ -587,7 +569,7 @@ export function Perfil() {
                 resetImpressoraForm();
                 setShowAddImpressora(true);
               }}
-              className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-sm rounded-lg transition-all duration-200 hover:-translate-y-0.5"
             >
               <Plus className="w-4 h-4" />
               Adicionar
@@ -596,10 +578,10 @@ export function Perfil() {
 
           {loadingImpressoras ? (
             <div className="flex justify-center py-8">
-              <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+              <div className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
             </div>
           ) : impressoras.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-8 text-[#6b7280]">
               <Printer className="w-12 h-12 mx-auto mb-2 opacity-50" />
               <p>Nenhuma impressora cadastrada</p>
             </div>
@@ -608,15 +590,15 @@ export function Perfil() {
               {impressoras.map((imp) => (
                 <div
                   key={imp.id}
-                  className="flex items-center justify-between p-3 bg-gray-800 rounded-lg"
+                  className="flex items-center justify-between p-4 bg-[#1f2937] rounded-lg border border-[#374151] hover:border-[#4b5563] transition-all"
                 >
                   <div className="flex items-center gap-3">
-                    <Printer className="w-8 h-8 text-gray-400" />
+                    <Printer className="w-8 h-8 text-[#6b7280]" />
                     <div>
-                      <p className="font-medium text-white">
+                      <p className="font-medium text-[#f9fafb]">
                         {imp.apelido || imp.modelo}
                       </p>
-                      <div className="flex items-center gap-2 text-sm text-gray-400">
+                      <div className="flex items-center gap-2 text-sm text-[#9ca3af]">
                         {imp.apelido && <span>{imp.modelo}</span>}
                         {imp.marca && <span>({imp.marca})</span>}
                         <span className="flex items-center gap-1">
@@ -627,19 +609,19 @@ export function Perfil() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs ${getStatusColor(imp.status)}`}>
+                    <span className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium ${getStatusColor(imp.status)}`}>
                       {getStatusIcon(imp.status)}
                       {imp.status === 'ativa' ? 'Ativa' : imp.status === 'manutencao' ? 'Manutencao' : 'Inativa'}
                     </span>
                     <button
                       onClick={() => handleEditImpressora(imp)}
-                      className="p-1.5 text-gray-400 hover:text-blue-400 hover:bg-gray-700 rounded"
+                      className="p-2 text-[#6b7280] hover:text-emerald-400 hover:bg-[#374151] rounded-lg transition-all"
                     >
                       <Edit2 className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => imp.id && handleDeleteImpressora(imp.id)}
-                      className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-gray-700 rounded"
+                      className="p-2 text-[#6b7280] hover:text-red-400 hover:bg-[#374151] rounded-lg transition-all"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -650,71 +632,27 @@ export function Perfil() {
           )}
         </div>
 
-        {/* Aparencia */}
-        <div className="bg-gray-900 rounded-xl p-6 border border-gray-800">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 bg-purple-500/20 rounded-lg">
-              <Moon className="w-5 h-5 text-purple-400" />
-            </div>
-            <h2 className="text-lg font-semibold text-white">Aparencia</h2>
-          </div>
-
-          <div className="space-y-3">
-            <p className="text-sm text-gray-400">Escolha o tema da interface</p>
-
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={() => setTema('claro')}
-                className={`flex items-center justify-center gap-2 p-4 rounded-lg border-2 transition-all ${
-                  tema === 'claro'
-                    ? 'border-blue-500 bg-blue-500/10'
-                    : 'border-gray-700 hover:border-gray-600'
-                }`}
-              >
-                <Sun className={`w-5 h-5 ${tema === 'claro' ? 'text-blue-400' : 'text-gray-400'}`} />
-                <span className={`font-medium ${tema === 'claro' ? 'text-blue-400' : 'text-gray-300'}`}>
-                  Claro
-                </span>
-              </button>
-
-              <button
-                onClick={() => setTema('noturno')}
-                className={`flex items-center justify-center gap-2 p-4 rounded-lg border-2 transition-all ${
-                  tema === 'noturno'
-                    ? 'border-purple-500 bg-purple-500/10'
-                    : 'border-gray-700 hover:border-gray-600'
-                }`}
-              >
-                <Moon className={`w-5 h-5 ${tema === 'noturno' ? 'text-purple-400' : 'text-gray-400'}`} />
-                <span className={`font-medium ${tema === 'noturno' ? 'text-purple-400' : 'text-gray-300'}`}>
-                  Noturno
-                </span>
-              </button>
-            </div>
-          </div>
-        </div>
-
         {/* Catalogo / Loja Publica */}
-        <div className="bg-gray-900 rounded-xl p-6 border border-gray-800">
+        <div className="bg-[#111827] rounded-xl p-6 border border-[#1f2937] shadow-[0_4px_6px_-1px_rgba(0,0,0,0.3)]">
           <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 bg-green-500/20 rounded-lg">
-              <Store className="w-5 h-5 text-green-400" />
+            <div className="p-2 bg-emerald-500/20 rounded-lg">
+              <Store className="w-5 h-5 text-emerald-400" />
             </div>
-            <h2 className="text-lg font-semibold text-white">Catalogo Publico</h2>
+            <h2 className="text-lg font-semibold text-[#f9fafb]">Catalogo Publico</h2>
           </div>
 
           <div className="space-y-4">
-            <p className="text-sm text-gray-400">
+            <p className="text-sm text-[#9ca3af]">
               Configure o link da sua loja para compartilhar com clientes
             </p>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-[#f9fafb] mb-1.5">
                 Slug da Loja
               </label>
               <div className="flex gap-2">
                 <div className="flex-1 relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6b7280] text-sm">
                     /loja/
                   </span>
                   <input
@@ -722,27 +660,27 @@ export function Perfil() {
                     value={slugLoja}
                     onChange={(e) => setSlugLoja(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
                     placeholder="minhaloja"
-                    className="w-full pl-14 pr-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-green-500"
+                    className="w-full pl-14 pr-3.5 py-2.5 bg-[#1e293b] border border-[#1f2937] rounded-lg text-[#f9fafb] placeholder:text-[#6b7280] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
                   />
                 </div>
               </div>
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-[#6b7280] mt-1.5">
                 Use apenas letras minusculas, numeros e hifen
               </p>
             </div>
 
             {slugLoja && (
-              <div className="bg-gray-800 rounded-lg p-3">
-                <p className="text-xs text-gray-400 mb-2">Link da sua loja:</p>
+              <div className="bg-[#1f2937] rounded-lg p-4 border border-[#374151]">
+                <p className="text-xs text-[#9ca3af] mb-2">Link da sua loja:</p>
                 <div className="flex items-center gap-2">
-                  <code className="flex-1 text-sm text-green-400 bg-gray-900 px-3 py-2 rounded truncate">
+                  <code className="flex-1 text-sm text-emerald-400 bg-[#0f172a] px-3 py-2 rounded-lg truncate border border-[#1f2937]">
                     {window.location.origin}/loja/{slugLoja}
                   </code>
                   <button
                     onClick={() => {
                       navigator.clipboard.writeText(`${window.location.origin}/loja/${slugLoja}`);
                     }}
-                    className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
+                    className="p-2 text-[#9ca3af] hover:text-[#f9fafb] hover:bg-[#374151] rounded-lg transition-all"
                     title="Copiar link"
                   >
                     <Copy className="w-4 h-4" />
@@ -751,7 +689,7 @@ export function Perfil() {
                     href={`/loja/${slugLoja}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
+                    className="p-2 text-[#9ca3af] hover:text-[#f9fafb] hover:bg-[#374151] rounded-lg transition-all"
                     title="Abrir loja"
                   >
                     <ExternalLink className="w-4 h-4" />
@@ -760,7 +698,7 @@ export function Perfil() {
               </div>
             )}
 
-            <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
+            <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
               <p className="text-sm text-blue-300">
                 <strong>Dica:</strong> O catalogo mostra todos os produtos precificados como "Venda Direta".
                 Configure tambem seu WhatsApp nos dados de contato para receber pedidos.
@@ -772,10 +710,10 @@ export function Perfil() {
 
       {/* Modal Adicionar/Editar Impressora */}
       {showAddImpressora && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-900 rounded-xl p-6 w-full max-w-md border border-gray-800">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-white">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-[#111827] rounded-xl p-6 w-full max-w-md border border-[#1f2937] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)]">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-lg font-semibold text-[#f9fafb]">
                 {editingImpressora ? 'Editar Impressora' : 'Adicionar Impressora'}
               </h3>
               <button
@@ -783,7 +721,7 @@ export function Perfil() {
                   setShowAddImpressora(false);
                   resetImpressoraForm();
                 }}
-                className="p-1 text-gray-400 hover:text-white"
+                className="p-2 text-[#6b7280] hover:text-[#f9fafb] hover:bg-[#1f2937] rounded-lg transition-all"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -791,13 +729,13 @@ export function Perfil() {
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-[#f9fafb] mb-1.5">
                   Modelo *
                 </label>
                 <select
                   value={modeloSelecionado}
                   onChange={(e) => handleModeloChange(e.target.value)}
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                  className="w-full px-3.5 py-2.5 bg-[#1e293b] border border-[#1f2937] rounded-lg text-[#f9fafb] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all cursor-pointer"
                 >
                   <option value="">Selecione...</option>
                   {MODELOS_IMPRESSORA.map((m) => (
@@ -809,7 +747,7 @@ export function Perfil() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-[#f9fafb] mb-1.5">
                   Apelido (opcional)
                 </label>
                 <input
@@ -817,25 +755,25 @@ export function Perfil() {
                   value={apelidoImpressora}
                   onChange={(e) => setApelidoImpressora(e.target.value)}
                   placeholder="Ex: Impressora do quarto"
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                  className="w-full px-3.5 py-2.5 bg-[#1e293b] border border-[#1f2937] rounded-lg text-[#f9fafb] placeholder:text-[#6b7280] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">
+                  <label className="block text-sm font-medium text-[#f9fafb] mb-1.5">
                     Marca
                   </label>
                   <input
                     type="text"
                     value={marcaImpressora}
                     onChange={(e) => setMarcaImpressora(e.target.value)}
-                    className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                    className="w-full px-3.5 py-2.5 bg-[#1e293b] border border-[#1f2937] rounded-lg text-[#f9fafb] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">
+                  <label className="block text-sm font-medium text-[#f9fafb] mb-1.5">
                     Consumo (kWh)
                   </label>
                   <input
@@ -843,13 +781,13 @@ export function Perfil() {
                     step="0.01"
                     value={consumoKwh}
                     onChange={(e) => setConsumoKwh(parseFloat(e.target.value) || 0)}
-                    className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                    className="w-full px-3.5 py-2.5 bg-[#1e293b] border border-[#1f2937] rounded-lg text-[#f9fafb] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-[#f9fafb] mb-1.5">
                   Status
                 </label>
                 <div className="flex gap-2">
@@ -857,14 +795,14 @@ export function Perfil() {
                     <button
                       key={s}
                       onClick={() => setStatusImpressora(s)}
-                      className={`flex-1 flex items-center justify-center gap-1 px-3 py-2 rounded-lg border transition-colors ${
+                      className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg border transition-all duration-200 ${
                         statusImpressora === s
                           ? s === 'ativa'
-                            ? 'bg-green-600 border-green-600 text-white'
+                            ? 'bg-emerald-600 border-emerald-600 text-white'
                             : s === 'manutencao'
-                            ? 'bg-yellow-600 border-yellow-600 text-white'
+                            ? 'bg-amber-600 border-amber-600 text-white'
                             : 'bg-red-600 border-red-600 text-white'
-                          : 'bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-600'
+                          : 'bg-[#1f2937] border-[#374151] text-[#9ca3af] hover:border-[#4b5563]'
                       }`}
                     >
                       {getStatusIcon(s)}
@@ -875,7 +813,7 @@ export function Perfil() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-[#f9fafb] mb-1.5">
                   Notas (opcional)
                 </label>
                 <textarea
@@ -883,7 +821,7 @@ export function Perfil() {
                   onChange={(e) => setNotasImpressora(e.target.value)}
                   rows={2}
                   placeholder="Observacoes sobre a impressora..."
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500 resize-none"
+                  className="w-full px-3.5 py-2.5 bg-[#1e293b] border border-[#1f2937] rounded-lg text-[#f9fafb] placeholder:text-[#6b7280] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all resize-none"
                 />
               </div>
 
@@ -893,14 +831,14 @@ export function Perfil() {
                     setShowAddImpressora(false);
                     resetImpressoraForm();
                   }}
-                  className="flex-1 px-4 py-2 border border-gray-700 text-gray-300 rounded-lg hover:bg-gray-800 transition-colors"
+                  className="flex-1 px-4 py-2.5 border border-[#374151] text-[#9ca3af] rounded-lg hover:bg-[#1f2937] hover:text-[#f9fafb] transition-all duration-200"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={editingImpressora ? handleUpdateImpressora : handleAddImpressora}
                   disabled={!modeloSelecionado}
-                  className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:text-gray-500 text-white rounded-lg transition-colors"
+                  className="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-[#374151] disabled:text-[#6b7280] text-white rounded-lg transition-all duration-200 hover:-translate-y-0.5"
                 >
                   {editingImpressora ? 'Salvar' : 'Adicionar'}
                 </button>
