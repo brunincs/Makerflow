@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Card, CardBody } from '../../components/ui';
-import { Pedido, ProdutoConcorrente, ItemFilaProducao, EstoqueProduto, Filamento, Impressora, MLOrder, MLConnectionStatus, TikTokOrder, TikTokConnectionStatus, ShopeeOrder, ShopeeConnectionStatus, PrioridadePedido } from '../../types';
+import { Pedido, ProdutoConcorrente, ItemFilaProducao, EstoqueProduto, Filamento, Impressora, MLOrder, MLConnectionStatus, TikTokOrder, TikTokConnectionStatus, ShopeeOrder, ShopeeConnectionStatus, PrioridadePedido, MarketplaceOrigem } from '../../types';
 import { getPedidosPendentes, createPedido, marcarProduzido, concluirPedido, getPedidosConcluidos, calcularPrioridade, getPrioridadeValor, cancelarPedido, devolverPedido } from '../../services/pedidosService';
 import { getEstoqueProdutos, removerEstoqueComMovimentacao } from '../../services/estoqueProdutosService';
 import { getProdutos } from '../../services/produtosService';
@@ -338,6 +338,9 @@ export function FilaProducao() {
   const [prioridade, setPrioridade] = useState<PrioridadePedido>('normal');
   const [dataEntrega, setDataEntrega] = useState<string>('');
   const [saving, setSaving] = useState(false);
+  // Marketplace e ID do pedido (para pedidos manuais de outras plataformas)
+  const [marketplaceOrigem, setMarketplaceOrigem] = useState<MarketplaceOrigem>('manual');
+  const [orderId, setOrderId] = useState<string>('');
 
   // Modo Kit - permite múltiplos produtos diferentes
   const [modoKit, setModoKit] = useState(false);
@@ -1378,6 +1381,8 @@ export function FilaProducao() {
           status: 'pendente',
           prioridade: prioridade,
           data_entrega: dataEntrega || undefined,
+          marketplace_origem: marketplaceOrigem,
+          order_id: orderId || undefined,
         });
 
         if (!resultado) {
@@ -1394,6 +1399,8 @@ export function FilaProducao() {
         setModoKit(false);
         setPrioridade('normal');
         setDataEntrega('');
+        setMarketplaceOrigem('manual');
+        setOrderId('');
       }
 
       setSaving(false);
@@ -1413,6 +1420,8 @@ export function FilaProducao() {
       status: 'pendente',
       prioridade: prioridade,
       data_entrega: dataEntrega || undefined,
+      marketplace_origem: marketplaceOrigem,
+      order_id: orderId || undefined,
     });
 
     if (resultado) {
@@ -1423,6 +1432,8 @@ export function FilaProducao() {
       setQuantidade(1);
       setPrioridade('normal');
       setDataEntrega('');
+      setMarketplaceOrigem('manual');
+      setOrderId('');
     }
 
     setSaving(false);
@@ -3168,6 +3179,46 @@ export function FilaProducao() {
                 </div>
               )}
 
+              {/* Marketplace e ID do Pedido */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
+                    Origem do Pedido
+                  </label>
+                  <select
+                    value={marketplaceOrigem}
+                    onChange={(e) => setMarketplaceOrigem(e.target.value as MarketplaceOrigem)}
+                    className="w-full px-3 py-2 border border-gray-600 rounded-lg
+                      bg-gray-800 text-white
+                      focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="manual">Manual</option>
+                    <option value="mercadolivre">Mercado Livre</option>
+                    <option value="shopee">Shopee</option>
+                    <option value="tiktok">TikTok Shop</option>
+                    <option value="amazon">Amazon</option>
+                    <option value="magalu">Magalu</option>
+                    <option value="americanas">Americanas</option>
+                    <option value="outro">Outro</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
+                    ID do Pedido
+                  </label>
+                  <input
+                    type="text"
+                    value={orderId}
+                    onChange={(e) => setOrderId(e.target.value)}
+                    placeholder={marketplaceOrigem === 'manual' ? 'Opcional' : 'Ex: 2000123456789'}
+                    className="w-full px-3 py-2 border border-gray-600 rounded-lg
+                      bg-gray-800 text-white placeholder-gray-500
+                      focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
+
               {/* Data de Entrega */}
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-1">
@@ -3248,6 +3299,8 @@ export function FilaProducao() {
                   setItensKit([]);
                   setProdutoSelecionado('');
                   setVariacaoSelecionada('');
+                  setMarketplaceOrigem('manual');
+                  setOrderId('');
                 }}
                 className="px-4 py-2 text-gray-300 hover:bg-gray-700 rounded-lg transition-colors"
               >

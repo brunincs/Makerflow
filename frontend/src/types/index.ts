@@ -403,6 +403,9 @@ export interface PrecificacaoSalva {
 // Prioridade de pedido
 export type PrioridadePedido = 'urgente' | 'alta' | 'normal';
 
+// Marketplace origem do pedido
+export type MarketplaceOrigem = 'manual' | 'mercadolivre' | 'shopee' | 'tiktok' | 'amazon' | 'magalu' | 'americanas' | 'outro';
+
 // Pedido de venda
 export interface Pedido {
   id?: string;
@@ -415,6 +418,9 @@ export interface Pedido {
   prioridade?: PrioridadePedido;
   data_entrega?: string;
   observacao?: string;
+  // Identificacao do pedido no marketplace
+  marketplace_origem?: MarketplaceOrigem;
+  order_id?: string; // ID do pedido no marketplace (ex: 2000123456789)
   created_at?: string;
   updated_at?: string;
   // Dados via join

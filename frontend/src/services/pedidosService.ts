@@ -131,6 +131,8 @@ export const createPedido = async (
     prioridade: prioridadeCalculada,
     data_entrega: pedido.data_entrega || null,
     observacao: pedido.observacao || null,
+    marketplace_origem: pedido.marketplace_origem || 'manual',
+    order_id: pedido.order_id || null,
   };
 
   if (!isSupabaseConfigured() || !supabase) {
@@ -143,6 +145,8 @@ export const createPedido = async (
       prioridade: dadosParaSalvar.prioridade,
       data_entrega: dadosParaSalvar.data_entrega || undefined,
       observacao: dadosParaSalvar.observacao || undefined,
+      marketplace_origem: dadosParaSalvar.marketplace_origem,
+      order_id: dadosParaSalvar.order_id || undefined,
       id: crypto.randomUUID(),
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
