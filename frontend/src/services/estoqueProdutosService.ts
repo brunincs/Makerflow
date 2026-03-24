@@ -14,8 +14,16 @@ const setLocalEstoque = (estoque: EstoqueProduto[]): void => {
 };
 
 export const getEstoqueProdutos = async (): Promise<EstoqueProduto[]> => {
+  console.log('[Estoque] Buscando todos os produtos em estoque...');
+
   if (!isSupabaseConfigured() || !supabase) {
     return getLocalEstoque();
+  }
+
+  const user_id = await getCurrentUserId();
+  if (!user_id) {
+    console.error('[Estoque] ERRO: Usuário não autenticado');
+    return [];
   }
 
   const { data, error } = await supabase
@@ -25,13 +33,15 @@ export const getEstoqueProdutos = async (): Promise<EstoqueProduto[]> => {
       produto:produtos_concorrentes(nome, imagem_url),
       variacao:variacoes_produto(nome_variacao)
     `)
+    .eq('user_id', user_id)
     .order('updated_at', { ascending: false });
 
   if (error) {
-    console.error('Erro ao buscar estoque:', error);
+    console.error('[Estoque] Erro ao buscar estoque:', error);
     return [];
   }
 
+  console.log('[Estoque] Produtos em estoque encontrados:', data?.length || 0);
   return data || [];
 };
 
@@ -39,6 +49,8 @@ export const getEstoquePorProduto = async (
   produtoId: string,
   variacaoId?: string | null
 ): Promise<EstoqueProduto | null> => {
+  console.log('[Estoque] Buscando estoque para produto:', produtoId, 'variacao:', variacaoId);
+
   if (!isSupabaseConfigured() || !supabase) {
     const estoque = getLocalEstoque();
     return estoque.find(e =>
@@ -47,10 +59,17 @@ export const getEstoquePorProduto = async (
     ) || null;
   }
 
+  const user_id = await getCurrentUserId();
+  if (!user_id) {
+    console.error('[Estoque] ERRO: Usuário não autenticado - não é possível buscar estoque');
+    return null;
+  }
+
   let query = supabase
     .from('estoque_produtos')
     .select('*')
-    .eq('produto_id', produtoId);
+    .eq('produto_id', produtoId)
+    .eq('user_id', user_id);
 
   if (variacaoId) {
     query = query.eq('variacao_id', variacaoId);
@@ -61,10 +80,11 @@ export const getEstoquePorProduto = async (
   const { data, error } = await query.single();
 
   if (error && error.code !== 'PGRST116') { // PGRST116 = no rows
-    console.error('Erro ao buscar estoque:', error);
+    console.error('[Estoque] Erro ao buscar estoque:', error);
     return null;
   }
 
+  console.log('[Estoque] Estoque encontrado:', data);
   return data || null;
 };
 
@@ -73,11 +93,14 @@ export const adicionarEstoque = async (
   variacaoId: string | null,
   quantidade: number
 ): Promise<EstoqueProduto | null> => {
+  console.log('[Estoque] Adicionando estoque:', { produtoId, variacaoId, quantidade });
+
   // Verificar se já existe registro
   const existente = await getEstoquePorProduto(produtoId, variacaoId);
 
   if (existente) {
     // Atualizar quantidade existente
+    console.log('[Estoque] Registro existente, atualizando quantidade');
     return atualizarEstoque(existente.id!, existente.quantidade + quantidade);
   }
 
@@ -104,10 +127,14 @@ export const adicionarEstoque = async (
   }
 
   const user_id = await getCurrentUserId();
-  // Só inclui user_id se não for null (auth desabilitada temporariamente)
-  const dadosComUserId = user_id
-    ? { ...dadosParaSalvar, user_id }
-    : dadosParaSalvar;
+  console.log('[Estoque] user_id obtido:', user_id);
+
+  if (!user_id) {
+    console.error('[Estoque] ERRO: Usuário não autenticado - não é possível adicionar estoque');
+    return null;
+  }
+
+  const dadosComUserId = { ...dadosParaSalvar, user_id };
 
   const { data, error } = await supabase
     .from('estoque_produtos')
@@ -116,10 +143,12 @@ export const adicionarEstoque = async (
     .single();
 
   if (error) {
-    console.error('Erro ao adicionar estoque:', error);
+    console.error('[Estoque] Erro ao adicionar estoque:', error);
+    console.error('[Estoque] Código:', error.code, 'Mensagem:', error.message);
     return null;
   }
 
+  console.log('[Estoque] Estoque adicionado com sucesso:', data);
   return data;
 };
 
@@ -127,6 +156,8 @@ export const atualizarEstoque = async (
   id: string,
   novaQuantidade: number
 ): Promise<EstoqueProduto | null> => {
+  console.log('[Estoque] Atualizando estoque id:', id, 'nova quantidade:', novaQuantidade);
+
   const dadosParaAtualizar = {
     quantidade: Math.max(0, novaQuantidade),
     updated_at: new Date().toISOString(),
@@ -143,18 +174,27 @@ export const atualizarEstoque = async (
     return estoque[index];
   }
 
+  const user_id = await getCurrentUserId();
+  if (!user_id) {
+    console.error('[Estoque] ERRO: Usuário não autenticado - não é possível atualizar estoque');
+    return null;
+  }
+
   const { data, error } = await supabase
     .from('estoque_produtos')
     .update(dadosParaAtualizar)
     .eq('id', id)
+    .eq('user_id', user_id)
     .select()
     .single();
 
   if (error) {
-    console.error('Erro ao atualizar estoque:', error);
+    console.error('[Estoque] Erro ao atualizar estoque:', error);
+    console.error('[Estoque] Código:', error.code, 'Mensagem:', error.message);
     return null;
   }
 
+  console.log('[Estoque] Estoque atualizado com sucesso:', data);
   return data;
 };
 
@@ -216,6 +256,8 @@ export const registrarMovimentacao = async (
   origem: OrigemMovimentacao,
   observacao?: string
 ): Promise<EstoqueMovimentacao | null> => {
+  console.log('[Movimentacao] Registrando:', { produtoId, variacaoId, tipo, quantidade, origem });
+
   const dadosParaSalvar = {
     produto_id: produtoId,
     variacao_id: variacaoId,
@@ -241,9 +283,14 @@ export const registrarMovimentacao = async (
   }
 
   const user_id = await getCurrentUserId();
-  const dadosComUserId = user_id
-    ? { ...dadosParaSalvar, user_id }
-    : dadosParaSalvar;
+  console.log('[Movimentacao] user_id obtido:', user_id);
+
+  if (!user_id) {
+    console.error('[Movimentacao] ERRO: Usuário não autenticado - não é possível registrar movimentação');
+    return null;
+  }
+
+  const dadosComUserId = { ...dadosParaSalvar, user_id };
 
   const { data, error } = await supabase
     .from('estoque_movimentacoes')
@@ -252,10 +299,12 @@ export const registrarMovimentacao = async (
     .single();
 
   if (error) {
-    console.error('Erro ao registrar movimentacao:', error);
+    console.error('[Movimentacao] Erro ao registrar movimentacao:', error);
+    console.error('[Movimentacao] Código:', error.code, 'Mensagem:', error.message);
     return null;
   }
 
+  console.log('[Movimentacao] Movimentação registrada com sucesso:', data);
   return data;
 };
 
