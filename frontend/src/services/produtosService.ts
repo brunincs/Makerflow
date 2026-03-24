@@ -79,7 +79,10 @@ export const createProduto = async (
   produto: Omit<ProdutoConcorrente, 'id' | 'created_at' | 'updated_at' | 'variacoes'>,
   variacoes?: Omit<VariacaoProduto, 'id' | 'produto_id' | 'created_at'>[]
 ): Promise<ProdutoConcorrente | null> => {
+  console.log('[Produtos] Iniciando createProduto...');
+
   if (!isSupabaseConfigured() || !supabase) {
+    console.log('[Produtos] Supabase não configurado, usando localStorage');
     const novoProduto: ProdutoConcorrente = {
       ...produto,
       id: crypto.randomUUID(),
@@ -111,12 +114,16 @@ export const createProduto = async (
 
   // Obter user_id do usuario logado
   const user_id = await getCurrentUserId();
-  // Só inclui user_id se não for null (auth desabilitada temporariamente)
-  const produtoComUserId = user_id
-    ? { ...produto, user_id }
-    : produto;
+  console.log('[Produtos] user_id obtido:', user_id);
 
-  console.log('Dados enviados para o Supabase:', produtoComUserId);
+  if (!user_id) {
+    console.error('[Produtos] ERRO: Usuário não autenticado - não é possível salvar produto');
+    console.error('[Produtos] Verifique se o usuário está logado corretamente');
+    return null;
+  }
+
+  const produtoComUserId = { ...produto, user_id };
+  console.log('[Produtos] Dados a serem salvos:', produtoComUserId);
 
   const { data, error } = await supabase
     .from('produtos_concorrentes')
@@ -189,7 +196,10 @@ export const getProdutoById = async (id: string): Promise<ProdutoConcorrente | n
 };
 
 export const getProdutos = async (): Promise<ProdutoConcorrente[]> => {
+  console.log('[Produtos] Iniciando getProdutos...');
+
   if (!isSupabaseConfigured() || !supabase) {
+    console.log('[Produtos] Supabase não configurado, usando localStorage');
     const produtos = getLocalProdutos();
     const variacoes = getLocalVariacoes();
 
@@ -201,8 +211,10 @@ export const getProdutos = async (): Promise<ProdutoConcorrente[]> => {
 
   // Obter user_id do usuario logado
   const user_id = await getCurrentUserId();
+  console.log('[Produtos] user_id para busca:', user_id);
+
   if (!user_id) {
-    console.error('Usuario nao autenticado');
+    console.error('[Produtos] ERRO: Usuário não autenticado - não é possível buscar produtos');
     return [];
   }
 
@@ -216,10 +228,12 @@ export const getProdutos = async (): Promise<ProdutoConcorrente[]> => {
     .order('created_at', { ascending: false });
 
   if (error) {
-    console.error('Erro ao buscar produtos:', error);
+    console.error('[Produtos] Erro ao buscar produtos:', error);
+    console.error('[Produtos] Código:', error.code, 'Mensagem:', error.message);
     return [];
   }
 
+  console.log('[Produtos] Produtos encontrados:', data?.length || 0);
   return data || [];
 };
 
@@ -405,9 +419,11 @@ export const updateProduto = async (
   produto: Partial<Omit<ProdutoConcorrente, 'id' | 'created_at' | 'variacoes'>>,
   variacoes?: Omit<VariacaoProduto, 'id' | 'produto_id' | 'created_at'>[]
 ): Promise<ProdutoConcorrente | null> => {
+  console.log('[Produtos] Iniciando updateProduto para id:', id);
   const updateData = { ...produto, updated_at: new Date().toISOString() };
 
   if (!isSupabaseConfigured() || !supabase) {
+    console.log('[Produtos] Supabase não configurado, usando localStorage');
     const produtos = getLocalProdutos();
     const index = produtos.findIndex(p => p.id === id);
     if (index === -1) return null;
@@ -435,17 +451,32 @@ export const updateProduto = async (
     return produtos[index];
   }
 
+  // Verificar autenticação
+  const user_id = await getCurrentUserId();
+  console.log('[Produtos] user_id para update:', user_id);
+
+  if (!user_id) {
+    console.error('[Produtos] ERRO: Usuário não autenticado - não é possível atualizar produto');
+    return null;
+  }
+
+  console.log('[Produtos] Atualizando produto:', updateData);
+
   const { data, error } = await supabase
     .from('produtos_concorrentes')
     .update(updateData)
     .eq('id', id)
+    .eq('user_id', user_id)
     .select()
     .single();
 
   if (error) {
-    console.error('Erro ao atualizar produto:', error);
+    console.error('[Produtos] Erro ao atualizar produto:', error);
+    console.error('[Produtos] Código:', error.code, 'Mensagem:', error.message);
     return null;
   }
+
+  console.log('[Produtos] Produto atualizado com sucesso:', data);
 
   // Atualizar variacoes no Supabase
   if (variacoes !== undefined && data) {
@@ -519,7 +550,10 @@ export const deleteProduto = async (id: string): Promise<boolean> => {
 export const createVariacao = async (
   variacao: Omit<VariacaoProduto, 'id' | 'created_at'>
 ): Promise<VariacaoProduto | null> => {
+  console.log('[Variacoes] Iniciando createVariacao...');
+
   if (!isSupabaseConfigured() || !supabase) {
+    console.log('[Variacoes] Supabase não configurado, usando localStorage');
     const novaVariacao: VariacaoProduto = {
       ...variacao,
       id: crypto.randomUUID(),
@@ -532,10 +566,15 @@ export const createVariacao = async (
   }
 
   const user_id = await getCurrentUserId();
-  // Só inclui user_id se não for null (auth desabilitada temporariamente)
-  const variacaoComUserId = user_id
-    ? { ...variacao, user_id }
-    : variacao;
+  console.log('[Variacoes] user_id obtido:', user_id);
+
+  if (!user_id) {
+    console.error('[Variacoes] ERRO: Usuário não autenticado - não é possível criar variação');
+    return null;
+  }
+
+  const variacaoComUserId = { ...variacao, user_id };
+  console.log('[Variacoes] Dados a serem salvos:', variacaoComUserId);
 
   const { data, error } = await supabase
     .from('variacoes_produto')
@@ -544,10 +583,12 @@ export const createVariacao = async (
     .single();
 
   if (error) {
-    console.error('Erro ao criar variação:', error);
+    console.error('[Variacoes] Erro ao criar variação:', error);
+    console.error('[Variacoes] Código:', error.code, 'Mensagem:', error.message);
     return null;
   }
 
+  console.log('[Variacoes] Variação criada com sucesso:', data);
   return data;
 };
 
