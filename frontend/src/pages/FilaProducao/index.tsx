@@ -1779,19 +1779,14 @@ export function FilaProducao() {
       }
 
       // 4. Deduzir embalagens selecionadas manualmente
-      console.log('[Producao] Embalagens selecionadas:', embalagensSelecionadas);
-      console.log('[Producao] Quantidade produzida:', qtdProduzida);
       for (const emb of embalagensSelecionadas) {
         if (emb.quantidade > 0) {
-          const qtdDeduzir = emb.quantidade * qtdProduzida;
-          console.log(`[Producao] Deduzindo embalagem ${emb.id}: ${qtdDeduzir} unidades`);
-          const resultado = await registrarMovimentacaoEmbalagem(
+          await registrarMovimentacaoEmbalagem(
             emb.id,
             'saida',
-            qtdDeduzir,
+            emb.quantidade * qtdProduzida,
             `Produção de ${qtdProduzida} unidade(s) - ${itemParaProduzir.nome_produto}`
           );
-          console.log('[Producao] Resultado dedução:', resultado);
         }
       }
 
@@ -1947,19 +1942,14 @@ export function FilaProducao() {
       }
 
       // Deduzir embalagens selecionadas
-      console.log('[Concluir] Embalagens selecionadas:', embalagensSelecionadas);
-      console.log('[Concluir] Quantidade restante:', qtdRestanteTotal);
       for (const emb of embalagensSelecionadas) {
         if (emb.quantidade > 0) {
-          const qtdDeduzir = emb.quantidade * qtdRestanteTotal;
-          console.log(`[Concluir] Deduzindo embalagem ${emb.id}: ${qtdDeduzir} unidades`);
-          const resultado = await registrarMovimentacaoEmbalagem(
+          await registrarMovimentacaoEmbalagem(
             emb.id,
             'saida',
-            qtdDeduzir,
+            emb.quantidade * qtdRestanteTotal,
             `Conclusão de ${qtdRestanteTotal} unidade(s) - ${itemParaConcluir.nome_produto}`
           );
-          console.log('[Concluir] Resultado dedução:', resultado);
         }
       }
 

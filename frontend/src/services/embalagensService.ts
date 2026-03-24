@@ -251,8 +251,6 @@ export const registrarMovimentacaoEmbalagem = async (
   quantidade: number,
   motivo?: string
 ): Promise<EmbalagemMovimentacao | null> => {
-  console.log('[Embalagem] registrarMovimentacaoEmbalagem chamada:', { embalagem_id, tipo, quantidade, motivo });
-
   const dadosMovimentacao = {
     embalagem_id,
     tipo,
@@ -294,13 +292,10 @@ export const registrarMovimentacaoEmbalagem = async (
     : dadosMovimentacao;
 
   // Atualizar estoque
-  console.log('[Embalagem] Atualizando estoque:', { tipo, embalagem_id, quantidade });
   if (tipo === 'entrada') {
-    const resultadoEstoque = await adicionarEstoqueEmbalagem(embalagem_id, quantidade);
-    console.log('[Embalagem] Resultado adicionar estoque:', resultadoEstoque);
+    await adicionarEstoqueEmbalagem(embalagem_id, quantidade);
   } else if (tipo === 'saida') {
-    const resultadoEstoque = await removerEstoqueEmbalagem(embalagem_id, quantidade);
-    console.log('[Embalagem] Resultado remover estoque:', resultadoEstoque);
+    await removerEstoqueEmbalagem(embalagem_id, quantidade);
   }
 
   // Registrar movimentação
