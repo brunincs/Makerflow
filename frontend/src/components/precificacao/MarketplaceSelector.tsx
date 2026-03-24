@@ -252,22 +252,22 @@ export function MarketplaceSelector({ value, onChange, canSave = true, onSaveSuc
   const getColorClasses = (color: string, isSelected: boolean) => {
     const colors: Record<string, { selected: string; unselected: string; iconBg: string; iconColor: string }> = {
       yellow: {
-        selected: 'border-yellow-500 bg-yellow-50',
-        unselected: 'border-gray-200 hover:border-gray-300 bg-white',
-        iconBg: 'bg-yellow-100',
-        iconColor: 'text-yellow-600',
+        selected: 'border-yellow-500 bg-yellow-500/10',
+        unselected: 'border-[#374151] hover:border-[#4b5563] bg-[#111827]',
+        iconBg: 'bg-yellow-500/20',
+        iconColor: 'text-yellow-500',
       },
       orange: {
-        selected: 'border-orange-500 bg-orange-50',
-        unselected: 'border-gray-200 hover:border-gray-300 bg-white',
-        iconBg: 'bg-orange-100',
-        iconColor: 'text-orange-600',
+        selected: 'border-orange-500 bg-orange-500/10',
+        unselected: 'border-[#374151] hover:border-[#4b5563] bg-[#111827]',
+        iconBg: 'bg-orange-500/20',
+        iconColor: 'text-orange-500',
       },
       blue: {
-        selected: 'border-blue-500 bg-blue-50',
-        unselected: 'border-gray-200 hover:border-gray-300 bg-white',
-        iconBg: 'bg-blue-100',
-        iconColor: 'text-blue-600',
+        selected: 'border-emerald-500 bg-emerald-500/10',
+        unselected: 'border-[#374151] hover:border-[#4b5563] bg-[#111827]',
+        iconBg: 'bg-emerald-500/20',
+        iconColor: 'text-emerald-500',
       },
     };
 
@@ -279,7 +279,7 @@ export function MarketplaceSelector({ value, onChange, canSave = true, onSaveSuc
     <div className="space-y-6">
       {/* Selecao de Marketplace */}
       <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+        <h3 className="text-lg font-semibold text-[#f9fafb] mb-4">
           Onde voce vai vender?
         </h3>
 
@@ -299,12 +299,12 @@ export function MarketplaceSelector({ value, onChange, canSave = true, onSaveSuc
                 }`}
               >
                 <div className="flex items-center gap-3 mb-3">
-                  <div className={`p-3 rounded-xl ${isSelected ? colors.iconBg : 'bg-gray-100'}`}>
-                    <Icon className={`w-6 h-6 ${isSelected ? colors.iconColor : 'text-gray-400'}`} />
+                  <div className={`p-3 rounded-xl ${isSelected ? colors.iconBg : 'bg-[#1e293b]'}`}>
+                    <Icon className={`w-6 h-6 ${isSelected ? colors.iconColor : 'text-[#6b7280]'}`} />
                   </div>
                 </div>
-                <h4 className="font-semibold text-gray-900 mb-1">{marketplace.nome}</h4>
-                <p className="text-sm text-gray-500">{marketplace.descricao}</p>
+                <h4 className="font-semibold text-[#f9fafb] mb-1">{marketplace.nome}</h4>
+                <p className="text-sm text-[#6b7280]">{marketplace.descricao}</p>
               </button>
             );
           })}
@@ -312,15 +312,15 @@ export function MarketplaceSelector({ value, onChange, canSave = true, onSaveSuc
       </div>
 
       {/* Selecao Produto/Kit */}
-      <div className="border-t border-gray-200 pt-6">
-        <div className="flex gap-2 p-1 bg-gray-100 dark:bg-gray-700 rounded-lg mb-6">
+      <div className="border-t border-[#1f2937] pt-6">
+        <div className="flex gap-2 p-1 bg-[#1e293b] rounded-lg mb-6">
           <button
             type="button"
             onClick={() => handleModoKitChange(false)}
             className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-md text-sm font-medium transition-colors ${
               !value.modo_kit
-                ? 'bg-white dark:bg-gray-600 text-indigo-600 dark:text-indigo-400 shadow-sm'
-                : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
+                ? 'bg-[#111827] text-emerald-400 shadow-sm'
+                : 'text-[#6b7280] hover:text-[#9ca3af]'
             }`}
           >
             <Package className="w-4 h-4" />
@@ -331,8 +331,8 @@ export function MarketplaceSelector({ value, onChange, canSave = true, onSaveSuc
             onClick={() => handleModoKitChange(true)}
             className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-md text-sm font-medium transition-colors ${
               value.modo_kit
-                ? 'bg-white dark:bg-gray-600 text-indigo-600 dark:text-indigo-400 shadow-sm'
-                : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
+                ? 'bg-[#111827] text-emerald-400 shadow-sm'
+                : 'text-[#6b7280] hover:text-[#9ca3af]'
             }`}
           >
             <Layers className="w-4 h-4" />
@@ -383,7 +383,7 @@ export function MarketplaceSelector({ value, onChange, canSave = true, onSaveSuc
       </div>
 
       {/* Secoes de Producao (aparecem para todos os marketplaces) */}
-      <div className="border-t border-gray-200 pt-6 space-y-6">
+      <div className="border-t border-[#1f2937] pt-6 space-y-6">
         {/* Impressora & Energia */}
         <ImpressoraEnergiaConfig
           tempoHoras={custos.tempo_impressao_horas || 0}
