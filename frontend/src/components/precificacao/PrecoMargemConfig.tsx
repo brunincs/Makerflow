@@ -72,7 +72,7 @@ function PrecoInput({
 
   return (
     <div className="relative max-w-[200px]">
-      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 pointer-events-none">
+      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[#6b7280] pointer-events-none">
         R$
       </span>
       <input
@@ -84,9 +84,9 @@ function PrecoInput({
         onFocus={() => { isUserTyping.current = true; }}
         placeholder={placeholder}
         disabled={disabled}
-        className={`w-full pl-9 pr-3 py-3 border border-gray-600 rounded-lg bg-gray-800 text-white text-lg font-semibold
-          focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500
-          ${disabled ? 'bg-gray-700 cursor-not-allowed' : ''}`}
+        className={`w-full pl-9 pr-3 py-3 border border-[#374151] rounded-lg bg-[#1e293b] text-[#f9fafb] text-lg font-semibold
+          focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 placeholder-[#6b7280]
+          ${disabled ? 'bg-[#1f2937] cursor-not-allowed opacity-60' : ''}`}
       />
     </div>
   );
@@ -199,12 +199,12 @@ export function PrecoMargemConfig({
     <div className="space-y-4">
       {/* Preco de Venda */}
       <div>
-        <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
-          <DollarSign className="w-4 h-4" />
+        <h4 className="text-sm font-medium text-[#f9fafb] mb-3 flex items-center gap-2">
+          <DollarSign className="w-4 h-4 text-[#9ca3af]" />
           {promocaoAtiva ? 'Preco Real' : 'Preco de Venda'}
         </h4>
 
-        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-4">
+        <div className="bg-[#111827] border border-[#1f2937] rounded-xl p-4">
           <PrecoInput
             value={precoVenda}
             onChange={onPrecoVendaChange}
@@ -215,11 +215,7 @@ export function PrecoMargemConfig({
 
       {/* Promocao */}
       {onPromocaoChange && (
-        <div className={`border rounded-xl p-4 transition-colors ${
-          promocaoAtiva
-            ? 'bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800'
-            : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700'
-        }`}>
+        <div className="bg-[#111827] border border-[#1f2937] rounded-xl p-4">
           <Toggle
             checked={promocaoAtiva}
             onChange={handlePromocaoToggle}
@@ -227,11 +223,11 @@ export function PrecoMargemConfig({
           />
 
           {promocaoAtiva && (
-            <div className="mt-4 pt-4 border-t border-purple-200 dark:border-purple-700 space-y-4">
+            <div className="mt-4 pt-4 border-t border-[#1f2937] space-y-4">
               {/* Desconto e Arredondamento em linha */}
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2">
-                  <Percent className="w-4 h-4 text-gray-500" />
+                  <Percent className="w-4 h-4 text-[#6b7280]" />
                   <div className="relative w-20">
                     <input
                       type="number"
@@ -240,11 +236,11 @@ export function PrecoMargemConfig({
                       step="1"
                       value={descontoPercent}
                       onChange={(e) => handleDescontoChange(e.target.value)}
-                      className="w-full px-3 py-2 pr-7 border border-gray-300 dark:border-gray-600 rounded-lg
-                        bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-center font-semibold
-                        focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                      className="w-full px-3 py-2 pr-7 border border-[#374151] rounded-lg
+                        bg-[#1e293b] text-[#f9fafb] text-center font-semibold
+                        focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
                     />
-                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-sm text-gray-400 pointer-events-none">
+                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-sm text-[#6b7280] pointer-events-none">
                       %
                     </span>
                   </div>
@@ -256,8 +252,8 @@ export function PrecoMargemConfig({
                     onClick={() => handleArredondamentoChange('90')}
                     className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                       arredondamento === '90'
-                        ? 'bg-purple-600 text-white'
-                        : 'bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-gray-600'
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-[#1e293b] text-[#9ca3af] border border-[#374151] hover:border-[#4b5563]'
                     }`}
                   >
                     ,90
@@ -267,8 +263,8 @@ export function PrecoMargemConfig({
                     onClick={() => handleArredondamentoChange('99')}
                     className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                       arredondamento === '99'
-                        ? 'bg-purple-600 text-white'
-                        : 'bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-gray-600'
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-[#1e293b] text-[#9ca3af] border border-[#374151] hover:border-[#4b5563]'
                     }`}
                   >
                     ,99
@@ -282,19 +278,19 @@ export function PrecoMargemConfig({
                   {sugestoesDesconto.map((sugestao) => {
                     const cores = {
                       green: {
-                        bg: sugestao.isAtual ? 'bg-green-500' : 'bg-green-100 dark:bg-green-900/30',
-                        text: sugestao.isAtual ? 'text-white' : 'text-green-700 dark:text-green-400',
-                        border: sugestao.isAtual ? 'border-green-500' : 'border-green-200 dark:border-green-700',
+                        bg: sugestao.isAtual ? 'bg-emerald-600' : 'bg-emerald-500/10',
+                        text: sugestao.isAtual ? 'text-white' : 'text-emerald-400',
+                        border: sugestao.isAtual ? 'border-emerald-600' : 'border-emerald-500/30',
                       },
                       yellow: {
-                        bg: sugestao.isAtual ? 'bg-yellow-500' : 'bg-yellow-100 dark:bg-yellow-900/30',
-                        text: sugestao.isAtual ? 'text-white' : 'text-yellow-700 dark:text-yellow-400',
-                        border: sugestao.isAtual ? 'border-yellow-500' : 'border-yellow-200 dark:border-yellow-700',
+                        bg: sugestao.isAtual ? 'bg-yellow-600' : 'bg-yellow-500/10',
+                        text: sugestao.isAtual ? 'text-white' : 'text-yellow-400',
+                        border: sugestao.isAtual ? 'border-yellow-600' : 'border-yellow-500/30',
                       },
                       red: {
-                        bg: sugestao.isAtual ? 'bg-red-500' : 'bg-red-100 dark:bg-red-900/30',
-                        text: sugestao.isAtual ? 'text-white' : 'text-red-700 dark:text-red-400',
-                        border: sugestao.isAtual ? 'border-red-500' : 'border-red-200 dark:border-red-700',
+                        bg: sugestao.isAtual ? 'bg-red-600' : 'bg-red-500/10',
+                        text: sugestao.isAtual ? 'text-white' : 'text-red-400',
+                        border: sugestao.isAtual ? 'border-red-600' : 'border-red-500/30',
                       },
                     };
                     const cor = cores[sugestao.cor as keyof typeof cores];
@@ -305,7 +301,7 @@ export function PrecoMargemConfig({
                         type="button"
                         onClick={() => handleDescontoChange(String(sugestao.desconto))}
                         className={`flex-1 p-3 rounded-xl border-2 transition-all text-center ${cor.bg} ${cor.border} ${
-                          sugestao.isAtual ? 'ring-2 ring-offset-1 ring-purple-400' : 'hover:scale-[1.02]'
+                          sugestao.isAtual ? 'ring-2 ring-offset-1 ring-offset-[#111827] ring-emerald-400' : 'hover:scale-[1.02]'
                         }`}
                       >
                         <p className={`text-lg font-bold ${cor.text}`}>
