@@ -50,6 +50,7 @@ export function Perfil() {
   const { profile, updateProfile, refreshProfile } = useAuth();
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // Dados do perfil
   const [name, setName] = useState(profile?.name || '');
@@ -110,8 +111,9 @@ export function Perfil() {
   const handleSaveProfile = async () => {
     setSaving(true);
     setSuccess(false);
+    setSaveError(null);
 
-    const { error } = await updateProfile({
+    const dadosParaSalvar = {
       name,
       nome_empresa: nomeEmpresa || null,
       nome_fantasia: nomeFantasia || null,
@@ -124,11 +126,19 @@ export function Perfil() {
       logo_url: logoUrl || null,
       valor_kwh: valorKwh || null,
       slug_loja: slugLoja || null,
-    });
+    };
+
+    console.log('[Perfil] Salvando dados:', dadosParaSalvar);
+
+    const { error } = await updateProfile(dadosParaSalvar);
 
     setSaving(false);
 
-    if (!error) {
+    if (error) {
+      console.error('[Perfil] Erro ao salvar:', error);
+      setSaveError(error.message || 'Erro ao salvar perfil');
+      setTimeout(() => setSaveError(null), 5000);
+    } else {
       setSuccess(true);
       await refreshProfile();
       setTimeout(() => setSuccess(false), 3000);
@@ -522,6 +532,13 @@ export function Perfil() {
                 <span className="flex items-center gap-1 text-emerald-400 text-sm">
                   <Check className="w-4 h-4" />
                   Salvo com sucesso!
+                </span>
+              )}
+
+              {saveError && (
+                <span className="flex items-center gap-1 text-red-400 text-sm">
+                  <AlertTriangle className="w-4 h-4" />
+                  {saveError}
                 </span>
               )}
             </div>

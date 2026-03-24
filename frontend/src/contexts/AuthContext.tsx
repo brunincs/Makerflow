@@ -269,21 +269,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      const { error } = await supabase
+      console.log('[Auth] Atualizando perfil com dados:', data);
+
+      const { data: updatedData, error } = await supabase
         .from('profiles')
         .update(data)
-        .eq('id', user.id);
+        .eq('id', user.id)
+        .select()
+        .single();
 
       if (error) {
+        console.error('[Auth] Erro ao atualizar perfil:', error);
+        console.error('[Auth] Codigo:', error.code);
+        console.error('[Auth] Detalhes:', error.details);
+        console.error('[Auth] Mensagem:', error.message);
         return { error: error as Error };
       }
 
+      console.log('[Auth] Perfil atualizado com sucesso:', updatedData);
+
       // Recarregar perfil
       const newProfile = await loadProfile(user.id);
-      if (newProfile) setProfile(newProfile);
+      if (newProfile) {
+        console.log('[Auth] Perfil recarregado:', newProfile);
+        setProfile(newProfile);
+      }
 
       return { error: null };
     } catch (err) {
+      console.error('[Auth] Erro inesperado ao atualizar perfil:', err);
       return { error: err as Error };
     }
   };
