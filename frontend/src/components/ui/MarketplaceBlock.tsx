@@ -21,19 +21,13 @@ export function MarketplaceBlock({
     shopee: {
       title: 'Shopee',
       icon: ShopeeIcon,
-      bgColor: 'bg-orange-50',
-      borderColor: 'border-orange-200',
-      iconBg: 'bg-orange-100',
-      iconColor: 'text-orange-600',
+      iconColor: 'text-orange-500',
       placeholder: 'https://shopee.com.br/...',
     },
     mercadolivre: {
       title: 'Mercado Livre',
       icon: MercadoLivreIcon,
-      bgColor: 'bg-yellow-50',
-      borderColor: 'border-yellow-200',
-      iconBg: 'bg-yellow-100',
-      iconColor: 'text-yellow-600',
+      iconColor: 'text-yellow-500',
       placeholder: 'https://mercadolivre.com.br/...',
     },
   };
@@ -42,12 +36,15 @@ export function MarketplaceBlock({
   const Icon = c.icon;
 
   return (
-    <div className={`${c.bgColor} ${c.borderColor} border rounded-lg p-4`}>
+    <div className="bg-[#111827] border border-[#1f2937] rounded-lg p-4">
       <div className="flex items-center gap-2 mb-3">
-        <div className={`${c.iconBg} p-2 rounded-lg`}>
+        <div className="bg-[#1e293b] p-2 rounded-lg">
           <Icon className={`w-5 h-5 ${c.iconColor}`} />
         </div>
-        <h3 className="font-medium text-gray-900">{c.title}</h3>
+        <div>
+          <h3 className="font-medium text-[#f9fafb]">{c.title}</h3>
+          <span className="text-xs text-[#6b7280]">Marketplace (referencia)</span>
+        </div>
       </div>
 
       <div className="space-y-3">
@@ -56,7 +53,6 @@ export function MarketplaceBlock({
           value={link}
           onChange={(e: ChangeEvent<HTMLInputElement>) => onLinkChange(e.target.value)}
           placeholder={c.placeholder}
-          className="bg-white"
         />
         <Input
           label="Preco (R$)"
@@ -66,7 +62,6 @@ export function MarketplaceBlock({
           value={preco}
           onChange={(e: ChangeEvent<HTMLInputElement>) => onPrecoChange(e.target.value)}
           placeholder="29.90"
-          className="bg-white"
         />
       </div>
     </div>

@@ -207,73 +207,70 @@ export function ProdutoForm({ onSuccess, onCancel, produto }: ProdutoFormProps) 
       />
 
       {/* SKU do Produto */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <div className="bg-blue-100 p-2 rounded-lg">
-            <Barcode className="w-5 h-5 text-blue-600" />
-          </div>
-          <h3 className="font-medium text-gray-900">SKU do Produto</h3>
-          <span className="text-xs text-gray-500 ml-auto">Opcional</span>
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <Barcode className="w-5 h-5 text-[#9ca3af]" />
+          <h3 className="font-medium text-[#f9fafb]">SKU do Produto</h3>
+          <span className="text-xs text-[#6b7280] ml-auto">Opcional</span>
         </div>
-        <input
-          type="text"
-          name="sku"
-          value={formData.sku}
-          onChange={handleChange}
-          placeholder="Ex: GATO-001"
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm bg-white
-            focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase"
-        />
-        <p className="text-xs text-gray-500 mt-2">
-          Use o mesmo SKU configurado no Mercado Livre para importar pedidos automaticamente.
-          Se o produto tiver variacoes, configure o SKU em cada variacao.
-        </p>
+        <div className="bg-[#111827] border border-[#1f2937] rounded-lg p-4">
+          <input
+            type="text"
+            name="sku"
+            value={formData.sku}
+            onChange={handleChange}
+            placeholder="Ex: GATO-001"
+            className="w-full px-3 py-2 border border-[#374151] rounded-lg bg-[#1e293b] text-[#f9fafb] placeholder-[#6b7280]
+              focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 uppercase"
+          />
+          <p className="text-xs text-[#6b7280] mt-2">
+            Use o mesmo SKU configurado no Mercado Livre para importar pedidos automaticamente.
+            Se o produto tiver variacoes, configure o SKU em cada variacao.
+          </p>
+        </div>
       </div>
 
       {/* Categoria do Produto */}
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <div className="bg-yellow-100 p-2 rounded-lg">
-            <Tag className="w-5 h-5 text-yellow-600" />
-          </div>
-          <h3 className="font-medium text-gray-900">Categoria (Mercado Livre)</h3>
-          <span className="text-xs text-gray-500 ml-auto">Opcional</span>
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <Tag className="w-5 h-5 text-[#9ca3af]" />
+          <h3 className="font-medium text-[#f9fafb]">Categoria (Mercado Livre)</h3>
+          <span className="text-xs text-[#6b7280] ml-auto">Opcional</span>
         </div>
-        <select
-          name="categoria_id"
-          value={formData.categoria_id}
-          onChange={handleChange}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm bg-white
-            focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
-        >
-          <option value="">Selecione uma categoria</option>
-          {CATEGORIAS_MERCADO_LIVRE.map((categoria) => (
-            <option key={categoria.id} value={categoria.id}>
-              {categoria.nome}
-            </option>
-          ))}
-        </select>
-        <p className="text-xs text-gray-500 mt-2">
-          A categoria sera usada automaticamente na calculadora de precificacao
-        </p>
+        <div className="bg-[#111827] border border-[#1f2937] rounded-lg p-4">
+          <select
+            name="categoria_id"
+            value={formData.categoria_id}
+            onChange={handleChange}
+            className="w-full px-3 py-2 border border-[#374151] rounded-lg bg-[#1e293b] text-[#f9fafb]
+              focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
+          >
+            <option value="">Selecione uma categoria</option>
+            {CATEGORIAS_MERCADO_LIVRE.map((categoria) => (
+              <option key={categoria.id} value={categoria.id}>
+                {categoria.nome}
+              </option>
+            ))}
+          </select>
+          <p className="text-xs text-[#6b7280] mt-2">
+            A categoria sera usada automaticamente na calculadora de precificacao
+          </p>
+        </div>
       </div>
 
       {/* Link do Modelo 3D */}
-      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <div className="bg-blue-100 p-2 rounded-lg">
-            <Modelo3DIcon className="w-5 h-5 text-blue-600" />
-          </div>
-          <h3 className="font-medium text-gray-900">Modelo 3D</h3>
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <Modelo3DIcon className="w-5 h-5 text-[#9ca3af]" />
+          <h3 className="font-medium text-[#f9fafb]">Modelo 3D</h3>
         </div>
-        <div className="space-y-4">
+        <div className="bg-[#111827] border border-[#1f2937] rounded-lg p-4 space-y-4">
           <Input
             label="Link do Modelo (Makerworld, Thingiverse, etc)"
             name="link_modelo"
             value={formData.link_modelo}
             onChange={handleChange}
             placeholder="https://makerworld.com/..."
-            className="bg-white"
           />
           <STLUpload
             value={stlFile}
@@ -284,64 +281,64 @@ export function ProdutoForm({ onSuccess, onCancel, produto }: ProdutoFormProps) 
       </div>
 
       {/* Dados de Producao */}
-      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-        <div className="flex items-center gap-2 mb-4">
-          <div className="bg-green-100 p-2 rounded-lg">
-            <Printer className="w-5 h-5 text-green-600" />
-          </div>
-          <h3 className="font-medium text-gray-900">Dados de Producao</h3>
-          <span className="text-xs text-gray-500 ml-auto">(para produto base sem variacoes)</span>
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <Printer className="w-5 h-5 text-[#9ca3af]" />
+          <h3 className="font-medium text-[#f9fafb]">Dados de Producao</h3>
+          <span className="text-xs text-[#6b7280] ml-auto">(para produto base sem variacoes)</span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="relative">
-            <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-              <Scale className="w-4 h-4" />
-              Peso da Peca (g)
-            </label>
+        <div className="bg-[#111827] border border-[#1f2937] rounded-lg p-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="relative">
-              <DecimalInput
-                value={formData.peso_filamento ? parseFloat(formData.peso_filamento) : undefined}
-                onChange={(val) => setFormData(prev => ({ ...prev, peso_filamento: val > 0 ? String(val) : '' }))}
-                placeholder="22.46"
-                className="w-full px-3 py-2 pr-16 border border-gray-300 rounded-lg shadow-sm bg-white
-                  focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
-              />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">
-                gramas
-              </span>
+              <label className="block text-sm font-medium text-[#f9fafb] mb-2 flex items-center gap-2">
+                <Scale className="w-4 h-4 text-[#9ca3af]" />
+                Peso da Peca (g)
+              </label>
+              <div className="relative">
+                <DecimalInput
+                  value={formData.peso_filamento ? parseFloat(formData.peso_filamento) : undefined}
+                  onChange={(val) => setFormData(prev => ({ ...prev, peso_filamento: val > 0 ? String(val) : '' }))}
+                  placeholder="22.46"
+                  className="w-full px-3 py-2 pr-16 border border-[#374151] rounded-lg bg-[#1e293b] text-[#f9fafb] placeholder-[#6b7280]
+                    focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-[#6b7280]">
+                  gramas
+                </span>
+              </div>
             </div>
+
+            <TempoImpressaoInput
+              horas={tempoHoras}
+              minutos={tempoMinutos}
+              onHorasChange={setTempoHoras}
+              onMinutosChange={setTempoMinutos}
+            />
           </div>
 
-          <TempoImpressaoInput
-            horas={tempoHoras}
-            minutos={tempoMinutos}
-            onHorasChange={setTempoHoras}
-            onMinutosChange={setTempoMinutos}
-          />
-        </div>
-
-        {/* Dimensões */}
-        <div className="mt-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-            <Ruler className="w-4 h-4" />
-            Dimensoes (opcional)
-          </label>
-          <input
-            type="text"
-            name="dimensoes"
-            value={formData.dimensoes}
-            onChange={handleChange}
-            placeholder="Ex: 10x5x3 cm"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm bg-white
-              focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
-          />
+          {/* Dimensões */}
+          <div className="mt-4">
+            <label className="block text-sm font-medium text-[#f9fafb] mb-2 flex items-center gap-2">
+              <Ruler className="w-4 h-4 text-[#9ca3af]" />
+              Dimensoes (opcional)
+            </label>
+            <input
+              type="text"
+              name="dimensoes"
+              value={formData.dimensoes}
+              onChange={handleChange}
+              placeholder="Ex: 10x5x3 cm"
+              className="w-full px-3 py-2 border border-[#374151] rounded-lg bg-[#1e293b] text-[#f9fafb] placeholder-[#6b7280]
+                focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
+            />
+          </div>
         </div>
       </div>
 
       {/* Blocos de Marketplace */}
       <div className="space-y-3">
-        <h3 className="font-medium text-gray-900">Precos Marketplace (produto base)</h3>
+        <h3 className="font-medium text-[#f9fafb]">Precos Marketplace (produto base)</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <MarketplaceBlock
             type="shopee"
@@ -362,7 +359,7 @@ export function ProdutoForm({ onSuccess, onCancel, produto }: ProdutoFormProps) 
       </div>
 
       {/* Variacoes */}
-      <div className="bg-purple-50/50 border border-purple-200 rounded-lg p-4">
+      <div className="bg-[#111827] border border-[#1f2937] rounded-lg p-4">
         <VariacoesEditor
           value={variacoes}
           onChange={setVariacoes}
@@ -384,7 +381,7 @@ export function ProdutoForm({ onSuccess, onCancel, produto }: ProdutoFormProps) 
       />
 
       {/* Botoes */}
-      <div className="flex gap-3 pt-4 border-t border-gray-100">
+      <div className="flex gap-3 pt-4 border-t border-[#1f2937]">
         <Button type="submit" disabled={loading || !formData.nome}>
           {loading ? 'Salvando...' : isEditing ? 'Atualizar Produto' : 'Salvar Produto'}
         </Button>

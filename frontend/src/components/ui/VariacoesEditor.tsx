@@ -82,21 +82,21 @@ export function VariacoesEditor({ value, onChange, produtoBase }: VariacoesEdito
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Package className="w-5 h-5 text-purple-600" />
-          <h3 className="font-medium text-gray-900">Variacoes do Produto</h3>
+          <Package className="w-5 h-5 text-[#9ca3af]" />
+          <h3 className="font-medium text-[#f9fafb]">Variacoes do Produto</h3>
         </div>
-        <span className="text-sm text-gray-500">
+        <span className="text-sm text-[#6b7280]">
           {value.length} {value.length === 1 ? 'variacao' : 'variacoes'}
         </span>
       </div>
 
       {value.length === 0 ? (
-        <div className="bg-gray-50 border border-dashed border-gray-300 rounded-lg p-6 text-center">
-          <Package className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-          <p className="text-sm text-gray-500 mb-3">
+        <div className="bg-[#1e293b] border border-dashed border-[#374151] rounded-lg p-6 text-center">
+          <Package className="w-8 h-8 text-[#4b5563] mx-auto mb-2" />
+          <p className="text-sm text-[#9ca3af] mb-3">
             Nenhuma variacao adicionada
           </p>
-          <p className="text-xs text-gray-400 mb-3">
+          <p className="text-xs text-[#6b7280] mb-3">
             Ao adicionar a primeira variacao, ela herdara os dados de producao do produto base
           </p>
           <Button type="button" variant="secondary" size="sm" onClick={addVariacao}>
@@ -112,29 +112,21 @@ export function VariacoesEditor({ value, onChange, produtoBase }: VariacoesEdito
             return (
               <div
                 key={index}
-                className={`bg-white border rounded-xl shadow-sm overflow-hidden ${
-                  isFirstAndInherited ? 'border-green-300' : 'border-purple-200'
-                }`}
+                className="bg-[#1e293b] border border-[#374151] rounded-xl overflow-hidden"
               >
                 {/* Header da Variacao */}
-                <div className={`px-4 py-3 flex items-center justify-between border-b ${
-                  isFirstAndInherited
-                    ? 'bg-green-50 border-green-200'
-                    : 'bg-purple-50 border-purple-100'
-                }`}>
+                <div className="px-4 py-3 flex items-center justify-between border-b border-[#374151] bg-[#0f172a]">
                   <div className="flex items-center gap-2">
                     <div className={`w-6 h-6 text-white rounded-full flex items-center justify-center text-xs font-bold ${
-                      isFirstAndInherited ? 'bg-green-600' : 'bg-purple-600'
+                      isFirstAndInherited ? 'bg-emerald-600' : 'bg-[#6b7280]'
                     }`}>
                       {index + 1}
                     </div>
-                    <span className={`font-medium ${
-                      isFirstAndInherited ? 'text-green-900' : 'text-purple-900'
-                    }`}>
+                    <span className="font-medium text-[#f9fafb]">
                       {variacao.nome_variacao || `Variacao ${index + 1}`}
                     </span>
                     {isFirstAndInherited && (
-                      <span className="flex items-center gap-1 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                      <span className="flex items-center gap-1 text-xs bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full">
                         <Lock className="w-3 h-3" />
                         Herda do produto base
                       </span>
@@ -143,7 +135,7 @@ export function VariacoesEditor({ value, onChange, produtoBase }: VariacoesEdito
                   <button
                     type="button"
                     onClick={() => removeVariacao(index)}
-                    className="p-1.5 text-red-500 hover:bg-red-100 rounded-lg transition-colors"
+                    className="p-1.5 text-red-400 hover:bg-red-500/20 rounded-lg transition-colors"
                     title="Remover variacao"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -160,8 +152,8 @@ export function VariacoesEditor({ value, onChange, produtoBase }: VariacoesEdito
                       onChange={(e) => updateVariacao(index, 'nome_variacao', e.target.value)}
                     />
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
-                        <Barcode className="w-4 h-4 text-blue-600" />
+                      <label className="block text-sm font-medium text-[#f9fafb] mb-2 flex items-center gap-1">
+                        <Barcode className="w-4 h-4 text-[#9ca3af]" />
                         SKU da Variacao
                       </label>
                       <input
@@ -169,23 +161,19 @@ export function VariacoesEditor({ value, onChange, produtoBase }: VariacoesEdito
                         placeholder="Ex: GATO-P"
                         value={variacao.sku}
                         onChange={(e) => updateVariacao(index, 'sku', e.target.value.toUpperCase())}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm bg-white
-                          focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase text-sm"
+                        className="w-full px-3 py-2 border border-[#374151] rounded-lg bg-[#111827] text-[#f9fafb] placeholder-[#6b7280]
+                          focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 uppercase text-sm"
                       />
                     </div>
                   </div>
 
                   {/* Dados de Producao */}
-                  <div className={`border rounded-lg p-3 ${
-                    isFirstAndInherited
-                      ? 'bg-green-50 border-green-200'
-                      : 'bg-green-50 border-green-200'
-                  }`}>
-                    <h4 className="text-sm font-medium text-green-800 mb-3 flex items-center gap-2">
-                      <Scale className="w-4 h-4" />
+                  <div className="border border-[#374151] rounded-lg p-3 bg-[#111827]">
+                    <h4 className="text-sm font-medium text-[#f9fafb] mb-3 flex items-center gap-2">
+                      <Scale className="w-4 h-4 text-[#9ca3af]" />
                       Dados de Producao
                       {isFirstAndInherited && (
-                        <span className="text-xs text-green-600 font-normal ml-2">
+                        <span className="text-xs text-emerald-400 font-normal ml-2">
                           (sincronizado com produto base)
                         </span>
                       )}
@@ -193,7 +181,7 @@ export function VariacoesEditor({ value, onChange, produtoBase }: VariacoesEdito
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       {/* Peso */}
                       <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">
+                        <label className="block text-xs font-medium text-[#9ca3af] mb-1">
                           Peso da Peca (g)
                         </label>
                         <div className="relative">
@@ -209,14 +197,14 @@ export function VariacoesEditor({ value, onChange, produtoBase }: VariacoesEdito
                             }}
                             placeholder="22.46"
                             disabled={isFirstAndInherited}
-                            className={`w-full px-3 py-2 pr-8 border border-gray-300 rounded-lg text-sm
-                              focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500
+                            className={`w-full px-3 py-2 pr-8 border border-[#374151] rounded-lg text-sm
+                              focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500
                               ${isFirstAndInherited
-                                ? 'bg-green-100 text-green-800 cursor-not-allowed'
-                                : 'bg-white'
+                                ? 'bg-emerald-500/10 text-emerald-400 cursor-not-allowed'
+                                : 'bg-[#1e293b] text-[#f9fafb]'
                               }`}
                           />
-                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[#6b7280]">
                             g
                           </span>
                         </div>
@@ -224,7 +212,7 @@ export function VariacoesEditor({ value, onChange, produtoBase }: VariacoesEdito
 
                       {/* Tempo de Impressao */}
                       <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1 flex items-center gap-1">
+                        <label className="block text-xs font-medium text-[#9ca3af] mb-1 flex items-center gap-1">
                           <Clock className="w-3 h-3" />
                           Tempo de Impressao
                         </label>
@@ -238,14 +226,14 @@ export function VariacoesEditor({ value, onChange, produtoBase }: VariacoesEdito
                               onChange={(e) => updateVariacao(index, 'tempo_horas', parseInt(e.target.value) || 0)}
                               placeholder="0"
                               disabled={isFirstAndInherited}
-                              className={`w-full px-3 py-2 border border-gray-300 rounded-lg text-sm
-                                focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500
+                              className={`w-full px-3 py-2 border border-[#374151] rounded-lg text-sm
+                                focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500
                                 ${isFirstAndInherited
-                                  ? 'bg-green-100 text-green-800 cursor-not-allowed'
-                                  : 'bg-white'
+                                  ? 'bg-emerald-500/10 text-emerald-400 cursor-not-allowed'
+                                  : 'bg-[#1e293b] text-[#f9fafb]'
                                 }`}
                             />
-                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[#6b7280]">
                               h
                             </span>
                           </div>
@@ -258,14 +246,14 @@ export function VariacoesEditor({ value, onChange, produtoBase }: VariacoesEdito
                               onChange={(e) => updateVariacao(index, 'tempo_minutos', parseInt(e.target.value) || 0)}
                               placeholder="0"
                               disabled={isFirstAndInherited}
-                              className={`w-full px-3 py-2 border border-gray-300 rounded-lg text-sm
-                                focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500
+                              className={`w-full px-3 py-2 border border-[#374151] rounded-lg text-sm
+                                focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500
                                 ${isFirstAndInherited
-                                  ? 'bg-green-100 text-green-800 cursor-not-allowed'
-                                  : 'bg-white'
+                                  ? 'bg-emerald-500/10 text-emerald-400 cursor-not-allowed'
+                                  : 'bg-[#1e293b] text-[#f9fafb]'
                                 }`}
                             />
-                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[#6b7280]">
                               min
                             </span>
                           </div>
@@ -275,7 +263,7 @@ export function VariacoesEditor({ value, onChange, produtoBase }: VariacoesEdito
 
                     {/* Dimensões */}
                     <div className="mt-3">
-                      <label className="block text-xs font-medium text-gray-600 mb-1 flex items-center gap-1">
+                      <label className="block text-xs font-medium text-[#9ca3af] mb-1 flex items-center gap-1">
                         <Ruler className="w-3 h-3" />
                         Dimensoes (opcional)
                       </label>
@@ -284,15 +272,15 @@ export function VariacoesEditor({ value, onChange, produtoBase }: VariacoesEdito
                         value={variacao.dimensoes || ''}
                         onChange={(e) => updateVariacao(index, 'dimensoes', e.target.value)}
                         placeholder="Ex: 10x5x3 cm"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white
-                          focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                        className="w-full px-3 py-2 border border-[#374151] rounded-lg text-sm bg-[#1e293b] text-[#f9fafb] placeholder-[#6b7280]
+                          focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
                       />
                     </div>
                   </div>
 
                   {/* Precos Marketplace */}
-                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
-                    <h4 className="text-sm font-medium text-gray-700 mb-3">
+                  <div className="bg-[#111827] border border-[#374151] rounded-lg p-3">
+                    <h4 className="text-sm font-medium text-[#f9fafb] mb-3">
                       Precos por Marketplace
                     </h4>
                     <div className="grid grid-cols-2 gap-3">

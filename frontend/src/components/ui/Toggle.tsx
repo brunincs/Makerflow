@@ -24,7 +24,7 @@ export function Toggle({ checked, onChange, label, description, disabled = false
             rounded-full
             transition-all
             duration-200
-            ${checked ? 'bg-emerald-600' : 'bg-[#374151]'}
+            ${checked ? 'bg-emerald-500' : 'bg-[#1f2937]'}
           `}
         />
         <div
