@@ -101,10 +101,18 @@ export const getPrecificacoes = async (): Promise<PrecificacaoSalva[]> => {
     return getLocalPrecificacoes();
   }
 
-  // Buscar precificacoes
+  // Obter user_id para filtrar apenas as precificacoes do usuario logado
+  const user_id = await getCurrentUserId();
+  if (!user_id) {
+    console.error('[Precificacoes] Usuario nao autenticado');
+    return [];
+  }
+
+  // Buscar precificacoes apenas do usuario logado
   const { data, error } = await supabase
     .from('precificacoes')
     .select('*')
+    .eq('user_id', user_id)
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -145,10 +153,18 @@ export const getPrecificacaoPorId = async (id: string): Promise<PrecificacaoSalv
     return precificacoes.find(p => p.id === id) || null;
   }
 
+  // Filtrar pelo user_id para garantir que so acessa os proprios dados
+  const user_id = await getCurrentUserId();
+  if (!user_id) {
+    console.error('[Precificacoes] Usuario nao autenticado');
+    return null;
+  }
+
   const { data, error } = await supabase
     .from('precificacoes')
     .select('*')
     .eq('id', id)
+    .eq('user_id', user_id)
     .single();
 
   if (error) {
@@ -165,10 +181,18 @@ export const getPrecificacoesPorProduto = async (produtoId: string): Promise<Pre
     return precificacoes.filter(p => p.produto_id === produtoId);
   }
 
+  // Filtrar pelo user_id para garantir isolamento de dados
+  const user_id = await getCurrentUserId();
+  if (!user_id) {
+    console.error('[Precificacoes] Usuario nao autenticado');
+    return [];
+  }
+
   const { data, error } = await supabase
     .from('precificacoes')
     .select('*')
     .eq('produto_id', produtoId)
+    .eq('user_id', user_id)
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -235,10 +259,18 @@ export const updatePrecificacao = async (
     return atualizada;
   }
 
+  // Garantir que so atualiza as proprias precificacoes
+  const user_id = await getCurrentUserId();
+  if (!user_id) {
+    console.error('[Precificacoes] Usuario nao autenticado');
+    return null;
+  }
+
   const { data, error } = await supabase
     .from('precificacoes')
     .update(dadosParaAtualizar)
     .eq('id', id)
+    .eq('user_id', user_id)
     .select()
     .single();
 
@@ -264,10 +296,18 @@ export const deletePrecificacao = async (id: string): Promise<boolean> => {
     return true;
   }
 
+  // Garantir que so deleta as proprias precificacoes
+  const user_id = await getCurrentUserId();
+  if (!user_id) {
+    console.error('[Precificacoes] Usuario nao autenticado');
+    return false;
+  }
+
   const { error } = await supabase
     .from('precificacoes')
     .delete()
-    .eq('id', id);
+    .eq('id', id)
+    .eq('user_id', user_id);
 
   if (error) {
     console.error('Erro ao deletar precificação:', error);
@@ -471,10 +511,18 @@ export const deletePrecificacoesPorProduto = async (produtoId: string): Promise<
     return true;
   }
 
+  // Garantir que so deleta as proprias precificacoes
+  const user_id = await getCurrentUserId();
+  if (!user_id) {
+    console.error('[Precificacoes] Usuario nao autenticado');
+    return false;
+  }
+
   const { error } = await supabase
     .from('precificacoes')
     .delete()
-    .eq('produto_id', produtoId);
+    .eq('produto_id', produtoId)
+    .eq('user_id', user_id);
 
   if (error) {
     console.error('Erro ao deletar precificações do produto:', error);
