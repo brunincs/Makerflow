@@ -19,8 +19,10 @@ export const createPrecificacao = async (
   // Preparar dados para inserção (remover undefined, converter para null)
   const dadosParaSalvar = {
     produto_id: precificacao.produto_id || null,
+    variacao_id: precificacao.variacao_id || null,
     marketplace: precificacao.marketplace,
     preco_venda: precificacao.preco_venda,
+    preco_anuncio: precificacao.preco_anuncio || null,
     custo_filamento: precificacao.custo_filamento || 0,
     custo_energia: precificacao.custo_energia || 0,
     custo_embalagem: precificacao.custo_embalagem || 0,
@@ -39,18 +41,30 @@ export const createPrecificacao = async (
     peso_kg: precificacao.peso_kg || 0,
     imposto_aliquota: precificacao.imposto_aliquota || 0,
     outros_custos: precificacao.outros_custos || 0,
-    // Converter embalagens_config para embalagens_ids (expandindo por quantidade)
+    // Salvar embalagens_config E embalagens_ids para compatibilidade
+    embalagens_config: precificacao.embalagens_config || [],
     embalagens_ids: (precificacao.embalagens_config || []).flatMap(cfg =>
       Array(cfg.quantidade).fill(cfg.embalagem_id)
     ),
     acessorios_config: precificacao.acessorios_config || [],
     custo_acessorios: precificacao.custo_acessorios || 0,
+    impressora_id: precificacao.impressora_id || null,
     impressora_modelo: precificacao.impressora_modelo || null,
     frete_gratis: precificacao.frete_gratis || false,
+    frete_manual: precificacao.frete_manual || false,
+    frete_valor: precificacao.frete_valor || null,
     tipo_anuncio: precificacao.tipo_anuncio || null,
     categoria_id: precificacao.categoria_id || null,
     multiplas_pecas: precificacao.multiplas_pecas || false,
     quantidade_pecas: precificacao.quantidade_pecas || 1,
+    // Promocao
+    promocao_ativa: precificacao.promocao_ativa || false,
+    desconto_percentual: precificacao.desconto_percentual || null,
+    arredondamento: precificacao.arredondamento || null,
+    // Cupom e campanhas
+    cupom_desconto: precificacao.cupom_desconto || false,
+    valor_cupom: precificacao.valor_cupom || null,
+    campanha_destaque: precificacao.campanha_destaque || false,
     // Metadata
     nome_produto: precificacao.nome_produto || null,
     variacao_nome: precificacao.variacao_nome || null,
@@ -209,8 +223,10 @@ export const updatePrecificacao = async (
 ): Promise<PrecificacaoSalva | null> => {
   const dadosParaAtualizar = {
     produto_id: precificacao.produto_id || null,
+    variacao_id: precificacao.variacao_id || null,
     marketplace: precificacao.marketplace,
     preco_venda: precificacao.preco_venda,
+    preco_anuncio: precificacao.preco_anuncio || null,
     custo_filamento: precificacao.custo_filamento || 0,
     custo_energia: precificacao.custo_energia || 0,
     custo_embalagem: precificacao.custo_embalagem || 0,
@@ -228,18 +244,31 @@ export const updatePrecificacao = async (
     peso_kg: precificacao.peso_kg || 0,
     imposto_aliquota: precificacao.imposto_aliquota || 0,
     outros_custos: precificacao.outros_custos || 0,
-    // Converter embalagens_config para embalagens_ids (expandindo por quantidade)
+    // Salvar embalagens_config E embalagens_ids para compatibilidade
+    embalagens_config: precificacao.embalagens_config || [],
     embalagens_ids: (precificacao.embalagens_config || []).flatMap(cfg =>
       Array(cfg.quantidade).fill(cfg.embalagem_id)
     ),
     acessorios_config: precificacao.acessorios_config || [],
     custo_acessorios: precificacao.custo_acessorios || 0,
+    impressora_id: precificacao.impressora_id || null,
     impressora_modelo: precificacao.impressora_modelo || null,
     frete_gratis: precificacao.frete_gratis || false,
+    frete_manual: precificacao.frete_manual || false,
+    frete_valor: precificacao.frete_valor || null,
     tipo_anuncio: precificacao.tipo_anuncio || null,
     categoria_id: precificacao.categoria_id || null,
     multiplas_pecas: precificacao.multiplas_pecas || false,
     quantidade_pecas: precificacao.quantidade_pecas || 1,
+    // Promocao
+    promocao_ativa: precificacao.promocao_ativa || false,
+    desconto_percentual: precificacao.desconto_percentual || null,
+    arredondamento: precificacao.arredondamento || null,
+    // Cupom e campanhas
+    cupom_desconto: precificacao.cupom_desconto || false,
+    valor_cupom: precificacao.valor_cupom || null,
+    campanha_destaque: precificacao.campanha_destaque || false,
+    // Metadata
     nome_produto: precificacao.nome_produto || null,
     variacao_nome: precificacao.variacao_nome || null,
   };

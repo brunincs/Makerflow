@@ -345,8 +345,10 @@ export interface PrecificacaoState {
 export interface PrecificacaoSalva {
   id?: string;
   produto_id?: string | null;
+  variacao_id?: string | null;
   marketplace: MarketplaceType;
   preco_venda: number;
+  preco_anuncio?: number | null; // Preco de anuncio quando promocao ativa
 
   // Custos calculados
   custo_filamento: number;
@@ -378,13 +380,26 @@ export interface PrecificacaoSalva {
   embalagens_ids?: string[]; // Legado
   acessorios_config?: AcessorioConfigItem[];
   custo_acessorios?: number;
+  impressora_id?: string | null;
   impressora_modelo?: string | null;
   frete_gratis?: boolean;
+  frete_manual?: boolean;
+  frete_valor?: number | null;
   tipo_anuncio?: string | null;
   categoria_id?: string | null;
   // Campos adicionais para restaurar simulacao
   multiplas_pecas?: boolean;
   quantidade_pecas?: number;
+
+  // Promocao
+  promocao_ativa?: boolean;
+  desconto_percentual?: number | null;
+  arredondamento?: string | null;
+
+  // Cupom e campanhas
+  cupom_desconto?: boolean;
+  valor_cupom?: number | null;
+  campanha_destaque?: boolean;
 
   // Metadata
   nome_produto?: string | null;

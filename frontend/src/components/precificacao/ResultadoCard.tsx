@@ -464,10 +464,23 @@ export function ResultadoCard({ state, canSave = true, onSaveSuccess, nomeProdut
     // Usar produto_id do produto selecionado, ou o ID original da simulação carregada
     const produtoId = state.produto_selecionado?.produto.id || produtoIdOriginal || null;
 
+    // Determinar valores de cupom baseado no marketplace
+    let cupomDesconto = false;
+    let valorCupom: number | null = null;
+    if (state.tipo === 'shopee' && state.shopee.cupom_desconto) {
+      cupomDesconto = true;
+      valorCupom = state.shopee.valor_cupom || null;
+    } else if (state.tipo === 'mercadolivre' && state.mercadolivre.cupom_desconto) {
+      cupomDesconto = true;
+      valorCupom = state.mercadolivre.valor_cupom || null;
+    }
+
     const precificacao: Omit<PrecificacaoSalva, 'id' | 'created_at'> = {
       produto_id: produtoId,
+      variacao_id: state.produto_selecionado?.variacao?.id || null,
       marketplace: state.tipo,
       preco_venda: precoVenda,
+      preco_anuncio: precosPromocao?.precoAnuncio || null,
       custo_filamento: custoFilamento,
       custo_energia: custoEnergia,
       custo_embalagem: custoEmbalagem,
@@ -490,12 +503,23 @@ export function ResultadoCard({ state, canSave = true, onSaveSuccess, nomeProdut
       embalagens_ids: [], // Legado
       acessorios_config: custos.acessorios_config || [],
       custo_acessorios: custoAcessorios,
+      impressora_id: custos.impressora_id || null,
       impressora_modelo: custos.impressora_modelo || null,
       frete_gratis: state.mercadolivre?.frete_gratis || false,
+      frete_manual: state.mercadolivre?.frete_manual || false,
+      frete_valor: state.mercadolivre?.frete_valor || null,
       tipo_anuncio: state.mercadolivre?.tipo_anuncio,
       categoria_id: state.mercadolivre?.categoria_id,
       multiplas_pecas: custos.multiplas_pecas || false,
       quantidade_pecas: custos.quantidade_pecas || 1,
+      // Promocao
+      promocao_ativa: state.promocao?.ativo || false,
+      desconto_percentual: state.promocao?.desconto_percentual || null,
+      arredondamento: state.promocao?.arredondamento || null,
+      // Cupom e campanhas
+      cupom_desconto: cupomDesconto,
+      valor_cupom: valorCupom,
+      campanha_destaque: state.tipo === 'shopee' ? (state.shopee.campanha_destaque || false) : false,
       // Metadata
       nome_produto: state.produto_selecionado?.produto.nome || nomeManual.trim() || null,
       variacao_nome: state.produto_selecionado?.variacao?.nome_variacao,

@@ -77,9 +77,11 @@ export function Precificacao() {
       if (sim.produto_id) {
         const produto = await getProdutoById(sim.produto_id);
         if (produto) {
-          // Se tem variação, tentar encontrar pelo nome
+          // Se tem variacao_id, usar ele. Senão, buscar pelo nome
           let variacao;
-          if (sim.variacao_nome && produto.variacoes) {
+          if (sim.variacao_id && produto.variacoes) {
+            variacao = produto.variacoes.find(v => v.id === sim.variacao_id);
+          } else if (sim.variacao_nome && produto.variacoes) {
             variacao = produto.variacoes.find(v => v.nome_variacao === sim.variacao_nome);
           }
           produtoSelecionado = { produto, variacao };
@@ -103,6 +105,20 @@ export function Precificacao() {
         }
       }
 
+      // Restaurar embalagens_config (preferir config, fallback para ids)
+      let embalagensConfig = sim.embalagens_config || [];
+      if (embalagensConfig.length === 0 && sim.embalagens_ids && sim.embalagens_ids.length > 0) {
+        // Converter embalagens_ids legado para embalagens_config
+        const countMap = new Map<string, number>();
+        sim.embalagens_ids.forEach(id => {
+          countMap.set(id, (countMap.get(id) || 0) + 1);
+        });
+        embalagensConfig = Array.from(countMap.entries()).map(([embalagem_id, quantidade]) => ({
+          embalagem_id,
+          quantidade
+        }));
+      }
+
       setMarketplace(prev => ({
         ...prev,
         tipo: sim.marketplace,
@@ -114,7 +130,22 @@ export function Precificacao() {
           categoria_id: sim.categoria_id || 'casa_moveis',
           peso_kg: sim.peso_kg || 0,
           frete_gratis: sim.frete_gratis || false,
+          frete_manual: sim.frete_manual || false,
+          frete_valor: sim.frete_valor || undefined,
+          cupom_desconto: sim.marketplace === 'mercadolivre' ? (sim.cupom_desconto || false) : false,
+          valor_cupom: sim.marketplace === 'mercadolivre' ? (sim.valor_cupom || undefined) : undefined,
         },
+        shopee: {
+          ...prev.shopee,
+          cupom_desconto: sim.marketplace === 'shopee' ? (sim.cupom_desconto || false) : false,
+          valor_cupom: sim.marketplace === 'shopee' ? (sim.valor_cupom || undefined) : undefined,
+          campanha_destaque: sim.campanha_destaque || false,
+        },
+        promocao: sim.promocao_ativa ? {
+          ativo: true,
+          desconto_percentual: sim.desconto_percentual || 50,
+          arredondamento: (sim.arredondamento === '99' ? '99' : '90') as '90' | '99',
+        } : undefined,
         custos_producao: {
           ...prev.custos_producao,
           filamento_id: sim.filamento_id || undefined,
@@ -124,8 +155,10 @@ export function Precificacao() {
           valor_kwh: sim.valor_kwh || 0.85,
           imposto_aliquota: sim.imposto_aliquota || 0,
           outros_custos: sim.outros_custos || 0,
+          embalagens_config: embalagensConfig,
           embalagens_ids: sim.embalagens_ids || [],
           acessorios_config: sim.acessorios_config || [],
+          impressora_id: sim.impressora_id || undefined,
           impressora_modelo: sim.impressora_modelo as any || undefined,
           tempo_impressao_horas: horasInteiras,
           tempo_impressao_minutos: minutosRestantes,

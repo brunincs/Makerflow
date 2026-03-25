@@ -385,11 +385,25 @@ export function Simulacoes() {
                           {/* Metricas */}
                           <div className="flex-1 flex items-center justify-end gap-6">
                             {/* Preco */}
-                            <div className="text-right min-w-[100px]">
-                              <p className="text-xs text-gray-400">Preco</p>
-                              <p className="font-semibold text-white">
-                                R$ {formatCurrency(simulacao.preco_venda)}
-                              </p>
+                            <div className="text-right min-w-[120px]">
+                              {simulacao.promocao_ativa && simulacao.preco_anuncio ? (
+                                <>
+                                  <p className="text-xs text-purple-400">Anunciar por</p>
+                                  <p className="font-semibold text-purple-300">
+                                    R$ {formatCurrency(simulacao.preco_anuncio)}
+                                  </p>
+                                  <p className="text-xs text-gray-400 mt-0.5">
+                                    Vender: R$ {formatCurrency(simulacao.preco_venda)}
+                                  </p>
+                                </>
+                              ) : (
+                                <>
+                                  <p className="text-xs text-gray-400">Preco</p>
+                                  <p className="font-semibold text-white">
+                                    R$ {formatCurrency(simulacao.preco_venda)}
+                                  </p>
+                                </>
+                              )}
                             </div>
 
                             {/* Lucro */}
