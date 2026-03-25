@@ -266,7 +266,18 @@ export function ResultadoCard({ state, canSave = true, onSaveSuccess, nomeProdut
 
   // ========== CUSTOS DE VENDA ==========
 
-  // Taxa do marketplace (baseado na categoria e tipo de anúncio)
+  // Cupom proprio - calcular ANTES da comissão (desconto bancado pelo vendedor)
+  let custoCupom = 0;
+  if (state.tipo === 'shopee' && state.shopee.cupom_desconto && state.shopee.valor_cupom) {
+    custoCupom = state.shopee.valor_cupom;
+  } else if (state.tipo === 'mercadolivre' && state.mercadolivre.cupom_desconto && state.mercadolivre.valor_cupom) {
+    custoCupom = state.mercadolivre.valor_cupom;
+  }
+
+  // Preço líquido após cupom (base para comissão)
+  const precoLiquido = Math.max(0, precoVenda - custoCupom);
+
+  // Taxa do marketplace (calculada sobre preço líquido após cupom)
   let taxaMarketplace = 0;
   let taxaFixaShopee = 0;
 
@@ -276,10 +287,11 @@ export function ResultadoCard({ state, canSave = true, onSaveSuccess, nomeProdut
       const taxaMarketplacePercent = state.mercadolivre.tipo_anuncio === 'classico'
         ? categoria.taxa_classico
         : categoria.taxa_premium;
-      taxaMarketplace = (taxaMarketplacePercent / 100) * precoVenda;
+      // Comissão calculada sobre preço líquido após cupom
+      taxaMarketplace = (taxaMarketplacePercent / 100) * precoLiquido;
     }
   } else if (state.tipo === 'shopee') {
-    // Shopee: tabela de comissão baseada no preço
+    // Shopee: faixas de comissão baseadas no preço de venda original
     let comissaoPercent = 0;
 
     if (precoVenda < 80) {
@@ -299,8 +311,8 @@ export function ResultadoCard({ state, canSave = true, onSaveSuccess, nomeProdut
       taxaFixaShopee = 26;
     }
 
-    // Calcular comissão (máximo R$100)
-    let comissao = (comissaoPercent / 100) * precoVenda;
+    // Comissão calculada sobre preço líquido após cupom (máximo R$100)
+    let comissao = (comissaoPercent / 100) * precoLiquido;
     if (comissao > 100) {
       comissao = 100;
     }
@@ -308,7 +320,7 @@ export function ResultadoCard({ state, canSave = true, onSaveSuccess, nomeProdut
     taxaMarketplace = comissao;
   }
 
-  // Custo da campanha de destaque Shopee (+2.5%)
+  // Custo da campanha de destaque Shopee (+2.5% sobre preço de venda)
   let custoCampanhaDestaque = 0;
   if (state.tipo === 'shopee' && state.shopee.campanha_destaque) {
     custoCampanhaDestaque = (2.5 / 100) * precoVenda;
@@ -332,17 +344,9 @@ export function ResultadoCard({ state, canSave = true, onSaveSuccess, nomeProdut
     }
   }
 
-  // Imposto
+  // Imposto (sobre preço de venda original)
   const impostoPercent = custos.imposto_aliquota || 0;
   const custoImposto = (impostoPercent / 100) * precoVenda;
-
-  // Cupom proprio (desconto bancado pelo vendedor)
-  let custoCupom = 0;
-  if (state.tipo === 'shopee' && state.shopee.cupom_desconto && state.shopee.valor_cupom) {
-    custoCupom = state.shopee.valor_cupom;
-  } else if (state.tipo === 'mercadolivre' && state.mercadolivre.cupom_desconto && state.mercadolivre.valor_cupom) {
-    custoCupom = state.mercadolivre.valor_cupom;
-  }
 
   // Total custos de venda
   const totalCustosVenda = taxaMarketplace + taxaFixaShopee + custoFrete + custoImposto + custoCupom + custoCampanhaDestaque;
@@ -388,6 +392,10 @@ export function ResultadoCard({ state, canSave = true, onSaveSuccess, nomeProdut
 
   // ========== MONTAR LISTAS DE CUSTOS ==========
 
+  const formatCurrency = (value: number) => {
+    return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
   const calcPercent = (valor: number) => precoVenda > 0 ? (valor / precoVenda) * 100 : 0;
 
   const custosProducaoList: CustoItem[] = [
@@ -406,9 +414,18 @@ export function ResultadoCard({ state, canSave = true, onSaveSuccess, nomeProdut
 
   const custosVendaList: CustoItem[] = [];
 
-  // Taxa marketplace (comissão)
+  // Cupom próprio - mostrar primeiro para clareza
+  if (custoCupom > 0) {
+    custosVendaList.push({ label: 'Cupom proprio', valor: custoCupom, percentual: calcPercent(custoCupom), icon: Ticket });
+  }
+
+  // Taxa marketplace (comissão calculada sobre preço líquido quando há cupom)
   if (taxaMarketplace > 0) {
-    const labelComissao = state.tipo === 'shopee' ? 'Comissao Shopee' : 'Taxa marketplace';
+    let labelComissao = state.tipo === 'shopee' ? 'Comissao Shopee' : 'Taxa marketplace';
+    // Indicar que é sobre preço líquido quando tem cupom
+    if (custoCupom > 0) {
+      labelComissao += ` (s/ R$ ${formatCurrency(precoLiquido)})`;
+    }
     custosVendaList.push({ label: labelComissao, valor: taxaMarketplace, percentual: calcPercent(taxaMarketplace), icon: Percent });
   }
 
@@ -432,15 +449,6 @@ export function ResultadoCard({ state, canSave = true, onSaveSuccess, nomeProdut
   if (custoImposto > 0) {
     custosVendaList.push({ label: 'Imposto', valor: custoImposto, percentual: calcPercent(custoImposto), icon: Receipt });
   }
-
-  // Cupom proprio
-  if (custoCupom > 0) {
-    custosVendaList.push({ label: 'Cupom proprio', valor: custoCupom, percentual: calcPercent(custoCupom), icon: Ticket });
-  }
-
-  const formatCurrency = (value: number) => {
-    return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  };
 
   // Handler para salvar a precificação
   const handleSalvar = async () => {

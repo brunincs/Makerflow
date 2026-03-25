@@ -195,7 +195,18 @@ export function MarketplaceSelector({ value, onChange, canSave = true, onSaveSuc
     const outrosCustos = custos.outros_custos || 0;
     const totalCustosProducao = custoFilamento + custoEnergia + custoEmbalagem + custoAcessorios + outrosCustos;
 
-    // Taxa do marketplace
+    // Cupom próprio - calcular ANTES da comissão
+    let custoCupom = 0;
+    if (value.tipo === 'shopee' && value.shopee.cupom_desconto && value.shopee.valor_cupom) {
+      custoCupom = value.shopee.valor_cupom;
+    } else if (value.tipo === 'mercadolivre' && value.mercadolivre.cupom_desconto && value.mercadolivre.valor_cupom) {
+      custoCupom = value.mercadolivre.valor_cupom;
+    }
+
+    // Preço líquido após cupom (base para comissão)
+    const precoLiquido = Math.max(0, precoVenda - custoCupom);
+
+    // Taxa do marketplace (calculada sobre preço líquido após cupom)
     let taxaMarketplace = 0;
     let taxaFixaShopee = 0;
 
@@ -205,10 +216,11 @@ export function MarketplaceSelector({ value, onChange, canSave = true, onSaveSuc
         const taxaPercent = value.mercadolivre.tipo_anuncio === 'classico'
           ? categoria.taxa_classico
           : categoria.taxa_premium;
-        taxaMarketplace = (taxaPercent / 100) * precoVenda;
+        taxaMarketplace = (taxaPercent / 100) * precoLiquido;
       }
     } else if (value.tipo === 'shopee') {
       let comissaoPercent = 0;
+      // Faixas de comissão baseadas no preço de venda original
       if (precoVenda < 80) {
         comissaoPercent = 20;
         taxaFixaShopee = 4;
@@ -222,23 +234,16 @@ export function MarketplaceSelector({ value, onChange, canSave = true, onSaveSuc
         comissaoPercent = 14;
         taxaFixaShopee = 26;
       }
-      let comissao = (comissaoPercent / 100) * precoVenda;
+      // Comissão calculada sobre preço líquido após cupom
+      let comissao = (comissaoPercent / 100) * precoLiquido;
       if (comissao > 100) comissao = 100;
       taxaMarketplace = comissao;
     }
 
-    // Imposto
+    // Imposto (sobre preço de venda original)
     const custoImposto = ((custos.imposto_aliquota || 0) / 100) * precoVenda;
 
-    // Cupom próprio
-    let custoCupom = 0;
-    if (value.tipo === 'shopee' && value.shopee.cupom_desconto && value.shopee.valor_cupom) {
-      custoCupom = value.shopee.valor_cupom;
-    } else if (value.tipo === 'mercadolivre' && value.mercadolivre.cupom_desconto && value.mercadolivre.valor_cupom) {
-      custoCupom = value.mercadolivre.valor_cupom;
-    }
-
-    // Campanha de destaque Shopee (+2.5%)
+    // Campanha de destaque Shopee (+2.5% sobre preço de venda)
     let custoCampanhaDestaque = 0;
     if (value.tipo === 'shopee' && value.shopee.campanha_destaque) {
       custoCampanhaDestaque = (2.5 / 100) * precoVenda;
